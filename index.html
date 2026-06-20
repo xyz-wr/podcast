@@ -216,7 +216,7 @@
 
     <div class="substrip">
       <span class="ttl">자막</span>
-      <span class="hint">단어 탭 → 추가 · 줄 길게 → 반복</span>
+      <span class="hint">단어 탭 → 그 문장 재생·선택 · 줄 길게 → 반복</span>
       <span style="margin-left:auto;display:flex;gap:6px;">
         <span class="chip" id="resumeChip" style="display:none;" onclick="resumeBookmark()">🔖 이어보기</span>
         <span class="chip teal" id="koChip" onclick="toggleKo()">한국어</span>
@@ -358,6 +358,7 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 /* ============ state ============ */
 let videos=[],currentVideo=null,vocab=[],showKo=false;
 let sel={lineIdx:null,words:[]};
+let lastPlayedLine=null;
 
 /* ============ helpers ============ */
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1800);}
@@ -537,7 +538,7 @@ async function applyTranscript(){
   else toast(lines.length+'줄을 불러왔어요');}
 
 /* ============ transcript render ============ */
-function renderTranscript(){const el=document.getElementById('tlist');const ls=currentVideo.lines||[];
+function renderTranscript(){const el=document.getElementById('tlist');const ls=currentVideo.lines||[];lastPlayedLine=null;
   if(!ls.length){el.innerHTML='<div class="empty">아직 자막이 없어요.<br>오른쪽 위 ✎ 를 눌러 자막을 넣어보세요.</div>';return;}
   const saved=new Set(vocab.filter(v=>v.videoId===currentVideo.id).map(v=>v.term.toLowerCase()));
   let html='',lastCh=null;
@@ -572,6 +573,8 @@ function wireTranscript(){
 
 /* ============ word selection ============ */
 function toggleWord(lineIdx,wordIdx,elFromCurrent){
+  const ln=currentVideo.lines[lineIdx];
+  if(lastPlayedLine!==lineIdx&&ln&&ln.time!=null){seekTo(ln.time);markStudied(lineIdx,ln.time);lastPlayedLine=lineIdx;}
   if(sel.lineIdx!==lineIdx){clearSelectionVisual();sel={lineIdx,words:[]};}
   const pos=sel.words.indexOf(wordIdx);
   if(pos>=0)sel.words.splice(pos,1);else sel.words.push(wordIdx);
