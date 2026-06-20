@@ -525,6 +525,12 @@ function chunkCues(cues){
   }
   flush();return lines;
 }
+/* 큐 모음에 문장부호(.?!…。)가 충분히 있는지 — 문장 단위로 나눌 수 있는지 판단 */
+function cuesPunctuated(cues){
+  if(!cues.length)return false;
+  const t=cues.map(c=>c.text||'').join(' ');
+  return (t.match(/[.?!…。]/g)||[]).length>=Math.max(2,cues.length/8);
+}
 /* merge fragmented cues, then re-split into full sentences by . ? ! (boundaries may sit mid-fragment) */
 function mergeSentences(cues){
   if(!cues.length)return [];
@@ -534,8 +540,7 @@ function mergeSentences(cues){
     marks.push({pos:combined.length,time:c.time,end:c.end});
     combined+=(c.text||'');
   }
-  const puncts=(combined.match(/[.?!…。]/g)||[]).length;
-  if(puncts<Math.max(2,cues.length/8))return chunkCues(cues); // 구두점이 거의 없으면 시간 단위로 끊기
+  if(!cuesPunctuated(cues))return chunkCues(cues); // 구두점이 거의 없으면 시간 단위로 끊기
   const cueAt=idx=>{let r=marks[0];for(const m of marks){if(m.pos<=idx)r=m;else break;}return r;};
   const out=[];const re=/\S[\s\S]*?[.?!…。]+["'”’)\]]*(?=\s|$)/g;let m,last=0;
   while((m=re.exec(combined))){
@@ -557,7 +562,17 @@ function koInRange(koCues,a,b){
 /* merge english + korean into unified, sentence-level lines */
 function buildLines(enRaw,koRaw){
   const en=parseAny(enRaw),ko=parseAny(koRaw);
-  const enHas=en.cues.length>0;
+  const enHas=en.cues.length>0, koHas=ko.cues.length>0;
+  // 영어엔 .?! 구분이 거의 없는데 한국어엔 문장부호가 있으면 → 한국어 문장 기준으로 줄을 나눔
+  if(enHas&&koHas&&!cuesPunctuated(en.cues)&&cuesPunctuated(ko.cues)){
+    const koSents=mergeSentences(ko.cues);                  // 한국어 문장 단위(시간 포함)
+    const chapters=(en.chapters.length?en.chapters:ko.chapters).slice().sort((a,b)=>a.time-b.time);
+    return koSents.map((c,i)=>{
+      const enT=koInRange(en.cues,c.time,c.end);            // 같은 시간대의 영어를 모음
+      let chap='';for(const ch of chapters){if(c.time!=null&&ch.time<=c.time+0.5)chap=ch.title;else if(c.time!=null)break;}
+      return {idx:i,time:c.time,end:c.end,en:enT,ko:c.text,chapter:chap};
+    });
+  }
   const merged=mergeSentences(enHas?en.cues:ko.cues);
   const koCues=enHas?ko.cues:[];
   const chapters=(en.chapters.length?en.chapters:ko.chapters).slice().sort((a,b)=>a.time-b.time);
@@ -703,12 +718,14 @@ async function applyTranscript(){
   let lines=buildLines(en,ko);
   if(!lines.length){toast('자막을 인식하지 못했어요. 형식을 확인해주세요');return;}
 
+  // 한국어로 이미 문장 구분이 됐으면(buildLines의 한국어 기준 분리) AI 재분리는 생략
+  const koSegmented=(function(){const k=parseAny(ko),e=parseAny(en);return e.cues.length>0&&k.cues.length>0&&!cuesPunctuated(e.cues)&&cuesPunctuated(k.cues);})();
   // AI 다듬기 (키가 있을 때만): 구두점 없는 줄글 → 문장 단위로, 한국어 없으면 자동 번역
   if(GEMINI_KEY){
     const btn=document.getElementById('tiApplyBtn');const oldTxt=btn?btn.textContent:'';
     if(btn){btn.disabled=true;}
     try{
-      if(looksUnpunctuated(lines)){
+      if(looksUnpunctuated(lines)&&!koSegmented){
         if(btn)btn.textContent='AI가 문장 정리 중…';
         const enParsed=parseAny(en);                        // 병합 전 원본 큐 (세밀한 시간 보존)
         const enText=enParsed.cues.map(c=>c.text).filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
