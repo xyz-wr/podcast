@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#F6F3EC">
-<title>Tablo English Lab</title>
+<title>Personal study notebook</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -181,8 +181,7 @@
   <section id="screen-library" class="screen active">
     <div class="topbar">
       <div class="grow">
-        <div class="eyebrow">Personal study notebook</div>
-        <h1 class="serif">Tablo English Lab</h1>
+        <h1 class="serif">Personal study notebook</h1>
       </div>
       <button class="iconbtn" title="AI 설정" onclick="openSettings()">⚙</button>
       <button class="iconbtn" title="백업/복원" onclick="openBackup()">⤓</button>
@@ -192,7 +191,7 @@
       <div class="row">
         <input type="text" id="newVidUrl" class="grow" placeholder="YouTube URL 또는 영상 ID">
       </div>
-      <input type="text" id="newVidTitle" placeholder="제목 (예: Hey Tablo Ep.25 · Life advice)" style="margin-top:8px;">
+      <input type="text" id="newVidTitle" placeholder="제목" style="margin-top:8px;">
       <div class="row" style="margin-top:10px;">
         <button class="secondary grow" onclick="addVideo()">영상 만들기</button>
       </div>
@@ -713,18 +712,17 @@ function renderVocab(){const grid=document.getElementById('vgrid');const empty=d
   if(vFilter!=='all')list=list.filter(v=>v.type===vFilter);
   empty.style.display=list.length?'none':'block';grid.innerHTML='';
   for(const v of list){const c=document.createElement('div');c.className='vcard';
-    const tcls=v.type;const tlab={word:'단어',idiom:'관용구',slang:'슬랭'}[v.type]||'단어';
+    const tcls=['word','idiom','slang'].includes(v.type)?v.type:'word';const tlab={word:'단어',idiom:'관용구',slang:'슬랭'}[tcls];
     const jump=v.time!=null?`<span class="jump" data-id="${v.id}">${fmt(v.time)} 보기</span>`:`<span style="color:#bbb;font-size:11px;">시간 없음</span>`;
     const exN=(v.examples||[]).length;
     c.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;">
-        <span class="term vterm" data-id="${v.id}" style="cursor:pointer;">${esc(v.term)} ${exN?`<span style="font-size:10px;color:var(--teal-deep);">✎${exN}</span>`:'<span style="font-size:10px;color:var(--ink-faint);">›</span>'}</span><span class="tag ${tcls}" data-id="${v.id}">${tlab} ▾</span></div>
+        <span class="term vterm" data-id="${v.id}" style="cursor:pointer;">${esc(v.term)} ${exN?`<span style="font-size:10px;color:var(--teal-deep);">✎${exN}</span>`:'<span style="font-size:10px;color:var(--ink-faint);">›</span>'}</span><span class="tag ${tcls}">${tlab}</span></div>
       <div class="note" data-id="${v.id}">${esc(v.note||'뜻 추가하려면 탭')}</div>
       ${v.context?`<div style="font-size:11px;color:#9a948a;margin-top:5px;line-height:1.45;">예문: ${esc(v.context)}</div>`:''}
       <div class="vmeta">${jump}<span class="del" data-id="${v.id}">삭제</span></div>`;
     grid.appendChild(c);}
   grid.querySelectorAll('.vterm').forEach(t=>t.onclick=()=>openVocabDetail(t.dataset.id));
   grid.querySelectorAll('.note').forEach(n=>n.onclick=()=>editNote(n.dataset.id));
-  grid.querySelectorAll('.tag').forEach(t=>t.onclick=()=>cycleTag(t.dataset.id));
   grid.querySelectorAll('.jump').forEach(j=>j.onclick=()=>jumpToVocab(j.dataset.id));
   grid.querySelectorAll('.del').forEach(d=>d.onclick=()=>delVocab(d.dataset.id));}
 function setVFilter(k){vFilter=k;renderVocab();}
@@ -736,15 +734,18 @@ async function jumpToVocab(id){const v=vocab.find(x=>x.id===id);const vid=await 
   await openVideo(vid.id);setTimeout(()=>setLoop(v.time,v.end||v.time+4),400);}
 
 /* ============ quiz / SRS ============ */
-const INTERVALS=[0,0,1,3,7,16,30];
+const SRS_DAYS=[0,1,3,7,16,35,90]; // 망각곡선 기반 복습 간격(일), box 1..6
 let quizQueue=[],quizPos=0;
-function dueCount(){const now=Date.now();return vocab.filter(v=>v.note&&(v.srs?.dueAt||0)<=now).length;}
+function dueCount(){const now=Date.now();return vocab.filter(v=>v.note&&((v.srs&&v.srs.dueAt)||0)<=now).length;}
+function fmtWhen(ms){const d=Math.max(0,ms-Date.now());if(d<3600000)return Math.max(1,Math.round(d/60000))+'분 후';if(d<86400000)return Math.round(d/3600000)+'시간 후';return Math.round(d/86400000)+'일 후';}
 function renderQuiz(){const el=document.getElementById('quizBody');
   const pool=vocab.filter(v=>v.note);
-  if(pool.length<1){el.innerHTML='<div class="empty">복습할 표현이 없어요. 단어장에 뜻(메모)이 있는 표현이 쌓이면 자동으로 퀴즈가 만들어져요.</div>';return;}
-  const now=Date.now();let due=pool.filter(v=>(v.srs?.dueAt||0)<=now);
-  if(!due.length)due=pool.slice();
-  quizQueue=shuffle(due).slice(0,12);quizPos=0;showQuestion();}
+  if(!pool.length){el.innerHTML='<div class="empty">복습할 표현이 없어요. 단어장에 뜻이 있는 표현이 쌓이면 망각곡선에 맞춰 복습 카드가 자동으로 만들어져요.</div>';return;}
+  const now=Date.now();const due=pool.filter(v=>((v.srs&&v.srs.dueAt)||0)<=now);
+  if(!due.length){const next=Math.min.apply(null,pool.map(v=>(v.srs&&v.srs.dueAt)||0));
+    el.innerHTML=`<div class="qcard" style="text-align:center;"><div style="font-size:28px;">✦</div><div class="serif" style="font-size:20px;margin-top:4px;">복습 완료</div><p style="color:var(--ink-soft);font-size:13px;line-height:1.6;margin:8px 0 16px;">지금 복습할 카드가 없어요.<br>다음 복습: <b>${fmtWhen(next)}</b> · 망각곡선 기준</p><button class="ghost" onclick="forceReviewAll()">그래도 미리 복습</button></div>`;return;}
+  quizQueue=shuffle(due).slice(0,15);quizPos=0;showQuestion();}
+function forceReviewAll(){const pool=vocab.filter(v=>v.note);if(!pool.length)return;quizQueue=shuffle(pool).slice(0,15);quizPos=0;showQuestion();}
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 function showQuestion(){const el=document.getElementById('quizBody');
   if(quizPos>=quizQueue.length){el.innerHTML=`<div class="qcard" style="text-align:center;"><div class="serif" style="font-size:20px;">잘했어요! ✦</div><p style="color:var(--ink-soft);font-size:13px;">${quizQueue.length}개 복습 완료. 틀린 항목은 곧 다시 등장해요.</p><button class="secondary" onclick="renderQuiz()">다시 복습</button></div>`;updateBadges();return;}
@@ -769,8 +770,10 @@ function answer(btn,correct,v){document.querySelectorAll('.opt').forEach(b=>{b.d
   setTimeout(()=>{quizPos++;showQuestion();},correct?650:1200);}
 function skipQ(){quizPos++;showQuestion();}
 async function quizListen(t){if(!currentVideo){toast('해당 영상을 학습 화면에서 먼저 열어주세요');return;}seekTo(t);clearTimeout(segStopTimer);segStopTimer=setTimeout(()=>{try{player.pauseVideo();}catch(e){}},3500);}
-function updateSRS(v,correct){v.srs=v.srs||{box:1,dueAt:0,history:[]};v.srs.box=correct?Math.min(6,(v.srs.box||1)+1):1;
-  v.srs.dueAt=Date.now()+(INTERVALS[v.srs.box]||1)*86400000;v.srs.history.push({t:Date.now(),correct});idbPut('vocab',v);}
+function updateSRS(v,correct){v.srs=v.srs||{box:0,dueAt:0,history:[]};
+  if(correct){v.srs.box=Math.min(6,(v.srs.box||0)+1);v.srs.dueAt=Date.now()+(SRS_DAYS[v.srs.box]||1)*86400000;}
+  else{v.srs.box=1;v.srs.dueAt=Date.now()+10*60000;}
+  v.srs.history.push({t:Date.now(),correct});idbPut('vocab',v);}
 
 /* ============ badges ============ */
 function updateBadges(){const bv=document.getElementById('badgeVocab'),bq=document.getElementById('badgeQuiz');
