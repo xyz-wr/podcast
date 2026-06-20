@@ -1132,6 +1132,34 @@ async function aiAlignKoLines(enCues,koSents,chapters){
   out.forEach((l,i)=>l.idx=i);return out;
 }
 function chapAt(chs,t){let c='';for(const ch of chs){if(t!=null&&ch.time<=t+0.5)c=ch.title;else if(t!=null)break;}return c;}
+/* AI 정렬 결과 [{start,en,ko}] → 앱 라인 배열. end는 다음 줄 시작(마지막은 +3초)으로 보간. 순수함수 */
+function pairsToLines(pairs){
+  const lines=(pairs||[]).filter(p=>p&&(p.en||p.ko)).map((p,i)=>{
+    const has=p.start!=null&&String(p.start).trim()!=='';
+    return {idx:i,time:has?tcToSec(String(p.start)):null,end:null,en:String(p.en||'').trim(),ko:String(p.ko||'').trim(),chapter:''};
+  });
+  for(let i=0;i<lines.length;i++)lines[i].end=(lines[i+1]&&lines[i+1].time!=null)?lines[i+1].time:(lines[i].time!=null?lines[i].time+3:null);
+  return lines;
+}
+/* 어긋난 양방향 자막(영-한 번갈이 + 한국어 지연) → AI가 분리·ASR교정·문장정렬·1:1 짝·시간배정 */
+async function aiAlignInterleaved(raw){
+  const prompt=
+    'You are given a YouTube auto-caption transcript where English and Korean are interleaved on each timestamped line. '+
+    'The Korean on a line is usually the translation of English that appeared 1-2 lines EARLIER (it lags), so lines are misaligned.\n'+
+    'Do ALL of the following:\n'+
+    '1. Separate the English stream from the Korean stream.\n'+
+    '2. Fix obvious speech-recognition errors in the English (e.g. a misheard channel/person name, "saw problem" -> "solve a problem").\n'+
+    '3. Remove noise tokens like [Music] and stray time labels (e.g. "0:11 11초").\n'+
+    '4. Split the English into natural sentences and pair each English sentence 1:1 with the Korean sentence that MEANS the same thing (not the one that happens to share a line).\n'+
+    '5. For each pair, set "start" to the timestamp (M:SS or H:MM:SS, exactly as written in the source) where that English sentence first begins.\n'+
+    'Return JSON: {"pairs":[{"start":"0:00","en":"...","ko":"..."}, ...]} in chronological order. Do not invent content.\n\n'+
+    'Transcript:\n'+raw;
+  const out=await gemini(prompt,true,8000);
+  let pairs=[];try{pairs=JSON.parse(out).pairs||[];}catch(e){}
+  const lines=pairsToLines(pairs);
+  if(!lines.length)throw new Error('AI alignment returned no pairs');
+  return lines;
+}
 
 let vdId=null, vdCefr='A2', vdKoSentence='', recog=null, vdLastFeedback=null;
 function openVocabDetail(id){const v=vocab.find(x=>x.id===id);if(!v)return;
