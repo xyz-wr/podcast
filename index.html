@@ -432,17 +432,38 @@ function parseAny(raw){
 /* nearest cue by time */
 function nearest(cues,t){let best=null,bd=1e9;for(const c of cues){const d=Math.abs(c.time-t);if(d<bd){bd=d;best=c;}}return (best&&bd<=6)?best:null;}
 
-/* merge english + korean into unified lines */
+/* merge fragmented cues into full sentences (keep first fragment's start time) */
+function mergeSentences(cues){
+  if(!cues.length)return [];
+  const out=[];let buf=null;
+  const ends=t=>/[.?!…。](["'”’)\]]+)?\s*$/.test((t||'').trim());
+  for(const c of cues){
+    if(!buf)buf={time:c.time,end:c.end,text:c.text};
+    else{buf.text=(buf.text+' '+c.text).replace(/\s+/g,' ').trim();if(c.end!=null)buf.end=c.end;}
+    if(ends(buf.text)||buf.text.length>220){out.push(buf);buf=null;}
+  }
+  if(buf)out.push(buf);
+  return out;
+}
+/* gather korean cue text falling within a sentence's time span */
+function koInRange(koCues,a,b){
+  if(!koCues.length||a==null)return '';
+  const hi=(b!=null?b:a)+0.5;
+  const parts=koCues.filter(c=>c.time!=null&&c.time>=a-0.5&&c.time<hi).map(c=>c.text);
+  if(parts.length)return parts.join(' ').replace(/\s+/g,' ').trim();
+  const n=nearest(koCues,a);return n?n.text:'';
+}
+/* merge english + korean into unified, sentence-level lines */
 function buildLines(enRaw,koRaw){
   const en=parseAny(enRaw),ko=parseAny(koRaw);
-  let primary=en.cues.length?en.cues:ko.cues;
-  const koCues=en.cues.length?ko.cues:[];
+  const enHas=en.cues.length>0;
+  const merged=mergeSentences(enHas?en.cues:ko.cues);
+  const koCues=enHas?ko.cues:[];
   const chapters=(en.chapters.length?en.chapters:ko.chapters).slice().sort((a,b)=>a.time-b.time);
-  const koIsPrimary=!en.cues.length;
-  const lines=primary.map((c,i)=>{
-    let enT=koIsPrimary?'':c.text, koT=koIsPrimary?c.text:'';
-    if(!koIsPrimary&&koCues.length){const k=nearest(koCues,c.time);if(k)koT=k.text;}
-    let chap='';for(const ch of chapters){if(ch.time<=c.time+0.5)chap=ch.title;else break;}
+  const lines=merged.map((c,i)=>{
+    const enT=enHas?c.text:'';
+    let koT=enHas?koInRange(koCues,c.time,c.end):c.text;
+    let chap='';for(const ch of chapters){if(c.time!=null&&ch.time<=c.time+0.5)chap=ch.title;else if(c.time!=null)break;}
     return {idx:i,time:c.time,end:c.end,en:enT,ko:koT,chapter:chap};
   });
   return lines;
