@@ -111,6 +111,7 @@
   .vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;padding:0 14px 14px;}
   .vgroup-head{grid-column:1/-1;font-family:'Fraunces',serif;font-weight:600;font-size:13px;color:var(--teal-deep);margin:6px 0 1px;padding-bottom:5px;border-bottom:1px solid var(--paper-line);display:flex;align-items:center;gap:6px;}
   .vgroup-head .cnt{font-family:'Inter',sans-serif;font-weight:500;font-size:11px;color:var(--ink-faint);}
+  .vcard .vsrc{font-size:10px;color:var(--teal-deep);margin-top:6px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .vcard{background:#FFFCF5;border:1px solid var(--paper-line);border-radius:11px;padding:11px;}
   .vcard .term{font-weight:600;font-size:14px;word-break:break-word;}
   .vcard .note{font-size:12px;color:#7a7468;margin-top:3px;min-height:15px;cursor:pointer;line-height:1.5;}
@@ -901,14 +902,18 @@ async function addSelectionToVocab(){const term=selectedText();if(!term){return;
 
 /* ============ vocab screen ============ */
 let vFilter='all', vByVideo=false;
-function vcardEl(v){const c=document.createElement('div');c.className='vcard';
+function vcardEl(v,showVid){if(showVid===undefined)showVid=true;
+  const c=document.createElement('div');c.className='vcard';
   const tcls=['word','idiom','slang'].includes(v.type)?v.type:'word';const tlab={word:'단어',idiom:'관용구',slang:'슬랭'}[tcls];
   const jump=v.time!=null?`<span class="jump" data-id="${v.id}">${fmt(v.time)} 보기</span>`:`<span style="color:#bbb;font-size:11px;">시간 없음</span>`;
   const exN=(v.examples||[]).length;
+  const vt=videos.find(x=>x.id===v.videoId);const vtitle=vt?(vt.title||'제목 없음'):'(삭제된 영상)';
+  const vidLine=showVid?`<div class="vsrc" data-vid="${esc(v.videoId||'')}" title="${esc(vtitle)}">🎬 ${esc(vtitle)}</div>`:'';
   c.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;">
       <span class="term vterm" data-id="${v.id}" style="cursor:pointer;">${esc(v.term)} ${exN?`<span style="font-size:10px;color:var(--teal-deep);">✎${exN}</span>`:'<span style="font-size:10px;color:var(--ink-faint);">›</span>'}</span><span class="tag ${tcls}">${tlab}</span></div>
     <div class="note" data-id="${v.id}">${esc(v.note||'뜻 추가하려면 탭')}</div>
     ${v.context?`<div style="font-size:11px;color:#9a948a;margin-top:5px;line-height:1.45;">예문: ${esc(v.context)}</div>`:''}
+    ${vidLine}
     <div class="vmeta">${jump}<span class="del" data-id="${v.id}">삭제</span></div>`;
   return c;}
 function renderVocab(){const grid=document.getElementById('vgrid');const empty=document.getElementById('vEmpty');
@@ -928,11 +933,12 @@ function renderVocab(){const grid=document.getElementById('vgrid');const empty=d
       const h=document.createElement('div');h.className='vgroup-head';
       h.innerHTML=`🎬 <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(titleOf(vid))}</span><span class="cnt">${groups[vid].length}개</span>`;
       grid.appendChild(h);
-      groups[vid].forEach(v=>grid.appendChild(vcardEl(v)));
+      groups[vid].forEach(v=>grid.appendChild(vcardEl(v,false))); // 그룹뷰: 헤더에 영상명 있으니 카드엔 생략
     }
   }else{
-    list.forEach(v=>grid.appendChild(vcardEl(v)));
+    list.forEach(v=>grid.appendChild(vcardEl(v,true)));
   }
+  grid.querySelectorAll('.vsrc').forEach(s=>s.onclick=()=>{if(s.dataset.vid&&videos.some(x=>x.id===s.dataset.vid))openVideo(s.dataset.vid);});
   grid.querySelectorAll('.vterm').forEach(t=>t.onclick=()=>openVocabDetail(t.dataset.id));
   grid.querySelectorAll('.note').forEach(n=>n.onclick=()=>editNote(n.dataset.id));
   grid.querySelectorAll('.jump').forEach(j=>j.onclick=()=>jumpToVocab(j.dataset.id));
