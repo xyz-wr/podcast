@@ -344,14 +344,14 @@
 <div class="modal-bg" id="tiModal">
   <div class="modal">
     <h3>자막 입력</h3>
-    <p style="font-size:12px;color:var(--ink-soft);margin:0 0 8px;line-height:1.55;">영어는 학습 기준, 한국어는 뜻 확인용(선택). <b>.srt / .vtt</b> 파일을 올리거나 텍스트를 붙여넣으세요. <code>챕터 N: 제목</code> 줄은 자동으로 챕터가 되고, <code>0:1111초</code>처럼 붙은 한국어 시간 라벨은 제거돼요.<br>⚙ <b>AI 키</b>가 있으면 구두점 없는 줄글도 문장 단위로 정리하고, 한국어 자막이 없으면 자연스러운 번역을 자동으로 채워줘요.</p>
-    <label class="fld">영어 자막 (.srt / .vtt / 텍스트)</label>
-    <input type="file" id="enFile" accept=".srt,.vtt,.txt" style="font-size:12px;">
+    <p style="font-size:12px;color:var(--ink-soft);margin:0 0 8px;line-height:1.55;">영어는 학습 기준, 한국어는 뜻 확인용(선택). <b>.srt / .vtt</b> 파일을 올리거나 텍스트를 붙여넣으세요. <code>챕터 N: 제목</code> 줄은 자동으로 챕터가 되고, <code>0:1111초</code>처럼 붙은 한국어 시간 라벨은 제거돼요.<br>📦 <b>.json</b> 정렬쌍(<code>{"pairs":[{"start","en","ko"}]}</code> 또는 맨 배열)을 넣으면 그대로 정렬돼요(AI 불필요).<br>⚙ <b>AI 키</b>가 있으면 구두점 없는 줄글도 문장 단위로 정리하고, 한국어 자막이 없으면 자연스러운 번역을 자동으로 채워줘요.</p>
+    <label class="fld">영어 자막 (.srt / .vtt / .json / 텍스트)</label>
+    <input type="file" id="enFile" accept=".srt,.vtt,.txt,.json" style="font-size:12px;">
     <textarea id="enText" placeholder="1
 00:00:01,634 --> 00:00:05,038
 One of Hey Tablo's most popular episodes,"></textarea>
     <label class="fld">한국어 자막 (선택)</label>
-    <input type="file" id="koFile" accept=".srt,.vtt,.txt" style="font-size:12px;">
+    <input type="file" id="koFile" accept=".srt,.vtt,.txt,.json" style="font-size:12px;">
     <textarea id="koText" placeholder="챕터 1: ...
 0:01 첫 줄 번역"></textarea>
     <div class="row" style="margin-top:12px;">
@@ -765,15 +765,18 @@ async function applyTranscript(){
   let en=document.getElementById('enText').value, ko=document.getElementById('koText').value;
   const enF=document.getElementById('enFile').files[0], koF=document.getElementById('koFile').files[0];
   if(enF)en=await readFile(enF); if(koF)ko=await readFile(koF);
-  let lines=buildLines(en,ko);
+  let lines, isJson=false;
+  const jsonLines=parseAlignedJson(en)||parseAlignedJson(ko); // 정렬쌍 JSON이면 그대로 사용(이미 완성된 정렬 → AI 생략)
+  if(jsonLines){lines=jsonLines;isJson=true;}
+  else lines=buildLines(en,ko);
   if(!lines.length){toast('자막을 인식하지 못했어요. 형식을 확인해주세요');return;}
 
-  const enParsed=parseAny(en), koParsed=parseAny(ko);
-  const interleaved=isInterleaved([en,ko].filter(s=>s&&s.trim()).join('\n')); // 번갈아형이면 이미 쌍으로 정렬됨 → AI 재정렬 생략
+  const enParsed=isJson?{cues:[],chapters:[]}:parseAny(en), koParsed=isJson?{cues:[],chapters:[]}:parseAny(ko);
+  const interleaved=!isJson&&isInterleaved([en,ko].filter(s=>s&&s.trim()).join('\n')); // 번갈아형이면 이미 쌍으로 정렬됨 → AI 재정렬 생략
   // 영어엔 .?!이 거의 없고 한국어엔 문장부호가 있는 경우 → 한국어 문장 기준으로 영어를 의미에 맞게 1:1 정렬
   const koSegmented=!interleaved&&enParsed.cues.length>0&&koParsed.cues.length>0&&!cuesPunctuated(enParsed.cues)&&cuesPunctuated(koParsed.cues);
-  // AI 다듬기 (키가 있을 때만)
-  if(GEMINI_KEY){
+  // AI 다듬기 (키가 있고 JSON이 아닐 때만)
+  if(GEMINI_KEY&&!isJson){
     const btn=document.getElementById('tiApplyBtn');const oldTxt=btn?btn.textContent:'';
     if(btn){btn.disabled=true;}
     try{
@@ -1143,6 +1146,28 @@ function pairsToLines(pairs){
     return {idx:i,time:has?tcToSec(String(p.start)):null,end:null,en:String(p.en||'').trim(),ko:String(p.ko||'').trim(),chapter:''};
   });
   for(let i=0;i<lines.length;i++)lines[i].end=(lines[i+1]&&lines[i+1].time!=null)?lines[i+1].time:(lines[i].time!=null?lines[i].time+3:null);
+  return lines;
+}
+/* 정렬쌍 JSON({pairs:[...]} 또는 맨 배열 [...]) → 라인 배열. JSON 아니면 null.
+   각 항목 {start?,end?,en,ko}; start/end는 "0:01" 또는 "00:00:01,291" 또는 숫자(초) 허용, end 없으면 보간 */
+function parseAlignedJson(raw){
+  if(!raw||!raw.trim())return null;
+  const s=raw.trim();
+  if(s[0]!=='{'&&s[0]!=='[')return null;
+  let data;try{data=JSON.parse(s);}catch(e){return null;}
+  const arr=Array.isArray(data)?data:(Array.isArray(data.pairs)?data.pairs:null);
+  if(!arr)return null;
+  const tc=v=>{if(v==null||v==='')return null;if(typeof v==='number')return v;return tcToSec(String(v));};
+  const lines=arr.filter(p=>p&&(p.en||p.ko||p.text)).map((p,i)=>({
+    idx:i,
+    time:tc(p.start!=null?p.start:p.time),
+    end:tc(p.end),
+    en:String(p.en!=null?p.en:(p.text!=null?p.text:'')).trim(),
+    ko:String(p.ko!=null?p.ko:'').trim(),
+    chapter:String(p.chapter||'').trim()
+  }));
+  if(!lines.length)return null;
+  for(let i=0;i<lines.length;i++)if(lines[i].end==null)lines[i].end=(lines[i+1]&&lines[i+1].time!=null)?lines[i+1].time:(lines[i].time!=null?lines[i].time+3:null);
   return lines;
 }
 /* 어긋난 양방향 자막(영-한 번갈이 + 한국어 지연) → AI가 분리·ASR교정·문장정렬·1:1 짝·시간배정 */
