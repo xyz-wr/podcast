@@ -432,18 +432,24 @@ function parseAny(raw){
 /* nearest cue by time */
 function nearest(cues,t){let best=null,bd=1e9;for(const c of cues){const d=Math.abs(c.time-t);if(d<bd){bd=d;best=c;}}return (best&&bd<=6)?best:null;}
 
-/* merge fragmented cues into full sentences (keep first fragment's start time) */
+/* merge fragmented cues, then re-split into full sentences by . ? ! (boundaries may sit mid-fragment) */
 function mergeSentences(cues){
   if(!cues.length)return [];
-  const out=[];let buf=null;
-  const ends=t=>/[.?!…。](["'”’)\]]+)?\s*$/.test((t||'').trim());
+  let combined='';const marks=[];
   for(const c of cues){
-    if(!buf)buf={time:c.time,end:c.end,text:c.text};
-    else{buf.text=(buf.text+' '+c.text).replace(/\s+/g,' ').trim();if(c.end!=null)buf.end=c.end;}
-    if(ends(buf.text)||buf.text.length>220){out.push(buf);buf=null;}
+    if(combined.length&&!/\s$/.test(combined))combined+=' ';
+    marks.push({pos:combined.length,time:c.time,end:c.end});
+    combined+=(c.text||'');
   }
-  if(buf)out.push(buf);
-  return out;
+  const cueAt=idx=>{let r=marks[0];for(const m of marks){if(m.pos<=idx)r=m;else break;}return r;};
+  const out=[];const re=/\S[\s\S]*?[.?!…。]+["'”’)\]]*(?=\s|$)/g;let m,last=0;
+  while((m=re.exec(combined))){
+    const a=cueAt(m.index),b=cueAt(m.index+m[0].length-1);
+    out.push({time:a.time,end:b.end!=null?b.end:a.end,text:m[0].trim()});
+    last=re.lastIndex;
+  }
+  if(last<combined.length){const rest=combined.slice(last).trim();if(rest){const a=cueAt(last);out.push({time:a.time,end:a.end,text:rest});}}
+  return out.length?out:[{time:cues[0].time,end:cues[cues.length-1].end,text:combined.trim()}];
 }
 /* gather korean cue text falling within a sentence's time span */
 function koInRange(koCues,a,b){
