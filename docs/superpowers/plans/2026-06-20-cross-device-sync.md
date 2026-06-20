@@ -16,6 +16,8 @@
 - 오프라인에서도 앱은 정상 작동한다. 네트워크 실패는 조용히 큐에 보관 후 재시도하며, 절대 사용자 작업을 막지 않는다.
 - 충돌 해결은 항목(행) 단위 last-write-wins: `updated_at`(epoch ms)이 더 큰 쪽이 이긴다.
 - 테스트 러너가 없으므로 검증 사이클은 (a) 순수 함수는 브라우저 콘솔 `runSyncSelfTest()`, (b) UI/네트워크는 preview 도구(콘솔/네트워크/스냅샷)로 한다.
+- **줄 번호는 참고용이며 신뢰하지 말 것.** `index.html`은 변경이 잦다(현재 ~1316줄). 모든 위치는 함수/요소 **이름**(`idbPut`, `idbDel`, `renderSettings`, `loadAll`, `init`, `#screen-settings`)으로 grep해서 찾는다.
+- 설정 화면은 모달이 아니라 **탭 구조**다: `<section id="screen-settings">` 안의 여러 `.panel`. 필드 채우기는 `renderSettings()`가 담당한다.
 
 ---
 
@@ -35,7 +37,7 @@
 설정 모달에 Supabase URL/키와 동기화 코드 입력란을 추가하고, IndexedDB `settings`에 저장/로드한다. 동기화 코드 자동 생성 버튼을 포함한다.
 
 **Files:**
-- Modify: `index.html` (`#setModal` 본문 ~324-335, `openSettings`/`saveKey` ~708-709, 전역 상태 ~707, `init` ~796-798)
+- Modify: `index.html` (`<section id="screen-settings">` 안 백업/복원 `.panel` 다음에 신규 패널, `renderSettings()` 함수, `GEMINI_KEY` 전역 선언 줄, `init` IIFE)
 
 **Interfaces:**
 - Produces:
@@ -44,27 +46,28 @@
   - `function genSyncCode(): string` — `'tablo-'+랜덤` 형태 코드 반환
   - settings 키: `'sbUrl'`, `'sbKey'`, `'syncCode'`
 
-- [ ] **Step 1: 설정 모달에 입력 UI 추가**
+- [ ] **Step 1: 설정 화면에 동기화 패널 추가**
 
-`index.html`의 `#setModal` 안, Gemini 키 `keyStatus` div(line 334) 바로 아래에 삽입:
+`<section id="screen-settings">` 안, "백업 / 복원" `.panel`(`onclick="exportData()"`가 든 패널)의 닫는 `</div>` 바로 다음에 새 `.panel`을 삽입:
 
 ```html
-    <hr style="border:none;border-top:1px solid var(--line);margin:16px 0;">
-    <h3 style="margin:0 0 6px;">기기 간 동기화 · 선택</h3>
-    <p style="font-size:12px;color:var(--ink-soft);line-height:1.55;margin:0 0 10px;">여러 기기에서 단어·영상·예문을 같이 보려면 <b>Supabase(무료)</b>에 연결하세요. 같은 <b>동기화 코드</b>를 넣은 기기끼리 데이터가 맞춰집니다. 비워두면 이 기기에만 저장돼요(기존과 동일).</p>
-    <label class="fld">Supabase URL</label>
-    <input id="sbUrlInput" type="text" placeholder="https://xxxx.supabase.co">
-    <label class="fld">Supabase anon key</label>
-    <input id="sbKeyInput" type="text" placeholder="eyJ...">
-    <label class="fld">동기화 코드</label>
-    <div class="row">
-      <input id="syncCodeInput" type="text" placeholder="tablo-..." style="flex:1;">
-      <button class="ghost sm" onclick="document.getElementById('syncCodeInput').value=genSyncCode()">새 코드</button>
+    <div class="panel">
+      <h2>기기 간 동기화 · 선택</h2>
+      <p style="font-size:12px;color:var(--ink-soft);line-height:1.55;margin:0 0 10px;">여러 기기에서 단어·영상·예문을 같이 보려면 <b>Supabase(무료)</b>에 연결하세요. 같은 <b>동기화 코드</b>를 넣은 기기끼리 데이터가 맞춰집니다. 비워두면 이 기기에만 저장돼요(기존과 동일). 녹음·AI키는 동기화되지 않습니다.</p>
+      <label class="fld">Supabase URL</label>
+      <input id="sbUrlInput" type="text" placeholder="https://xxxx.supabase.co">
+      <label class="fld">Supabase anon key</label>
+      <input id="sbKeyInput" type="text" placeholder="eyJ...">
+      <label class="fld">동기화 코드</label>
+      <div class="row">
+        <input id="syncCodeInput" type="text" placeholder="tablo-..." style="flex:1;">
+        <button class="ghost sm" onclick="document.getElementById('syncCodeInput').value=genSyncCode()">새 코드</button>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button class="secondary grow" onclick="saveSyncConfig()">동기화 저장</button>
+      </div>
+      <div id="syncStatus" style="font-size:12px;color:var(--ink-soft);margin-top:8px;"></div>
     </div>
-    <div class="row" style="margin-top:10px;">
-      <button class="secondary grow" onclick="saveSyncConfig()">동기화 저장</button>
-    </div>
-    <div id="syncStatus" style="font-size:12px;color:var(--ink-soft);margin-top:8px;"></div>
 ```
 
 - [ ] **Step 2: 전역 상태와 코드 생성기 추가**
@@ -101,20 +104,15 @@ async function saveSyncConfig(){
 
 > 참고: `sbReady`, `syncPull`은 Task 2·4에서 정의된다. 이 단계에서는 호출만 작성한다.
 
-- [ ] **Step 4: 모달 열 때 현재 값 채우기**
+- [ ] **Step 4: 설정 화면 표시 때 현재 값 채우기**
 
-`openSettings`(line 708)를 아래로 교체:
+`renderSettings()` 함수를 찾아, 기존 본문 끝(닫는 `}` 앞)에 동기화 필드 채우기를 추가한다. 기존 Gemini 필드 처리는 그대로 두고 아래를 이어 붙인다(요소가 없을 수도 있으니 null 가드):
 
 ```javascript
-function openSettings(){
-  document.getElementById('geminiKeyInput').value=GEMINI_KEY;
-  document.getElementById('keyStatus').textContent=GEMINI_KEY?'키 저장됨 ✓':'키 없음';
-  document.getElementById('sbUrlInput').value=SB_URL;
-  document.getElementById('sbKeyInput').value=SB_KEY;
-  document.getElementById('syncCodeInput').value=SYNC_CODE;
-  document.getElementById('syncStatus').textContent= (typeof sbReady==='function'&&sbReady())?'연결됨 ✓':'동기화 꺼짐';
-  openModal('setModal');
-}
+  const u=document.getElementById('sbUrlInput'); if(u)u.value=SB_URL;
+  const k=document.getElementById('sbKeyInput'); if(k)k.value=SB_KEY;
+  const c=document.getElementById('syncCodeInput'); if(c)c.value=SYNC_CODE;
+  const ss=document.getElementById('syncStatus'); if(ss)ss.textContent=(typeof sbReady==='function'&&sbReady())?'연결됨 ✓':'동기화 꺼짐';
 ```
 
 - [ ] **Step 5: init에서 설정 로드**
