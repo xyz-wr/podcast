@@ -563,11 +563,17 @@ function toggleKo(){showKo=!showKo;document.querySelectorAll('.tko').forEach(e=>
 function wireTranscript(){
   document.querySelectorAll('.ttime').forEach(t=>t.onclick=e=>{e.stopPropagation();const s=+t.dataset.seek;if(!isFinite(s))return;seekTo(s);markStudied(+t.closest('.tline').dataset.i,s);});
   document.querySelectorAll('.word').forEach(w=>w.onclick=e=>{e.stopPropagation();const line=+w.closest('.tline').dataset.i;toggleWord(line,+w.dataset.i,w);});
-  // long-press to set loop
+  // tap non-word area = seek to this sentence; long-press = A-B loop
   document.querySelectorAll('.tline').forEach(el=>{
-    let timer=null;const start=e=>{if(e.target.closest('.word')||e.target.closest('.ttime'))return;if(el.dataset.time==='')return;timer=setTimeout(()=>{const a=+el.dataset.time,b=+el.dataset.end;if(!isFinite(a))return;setLoop(a,b);markStudied(+el.dataset.i,a);toast('구간 반복: '+fmt(a)+' → '+fmt(b));},480);};
-    const cancel=()=>{clearTimeout(timer);};
+    let timer=null,longFired=false;
+    const start=e=>{if(e.target.closest('.word')||e.target.closest('.ttime'))return;longFired=false;
+      timer=setTimeout(()=>{const a=+el.dataset.time,b=+el.dataset.end;if(!isFinite(a))return;longFired=true;setLoop(a,b);markStudied(+el.dataset.i,a);toast('구간 반복: '+fmt(a)+' → '+fmt(b));},480);};
+    const cancel=()=>clearTimeout(timer);
     el.addEventListener('pointerdown',start);el.addEventListener('pointerup',cancel);el.addEventListener('pointerleave',cancel);el.addEventListener('pointercancel',cancel);
+    el.addEventListener('click',e=>{if(e.target.closest('.word')||e.target.closest('.ttime'))return;
+      if(longFired){longFired=false;return;}
+      if(el.dataset.time===''){toast('이 자막은 시간정보가 없어 이동할 수 없어요 — .srt로 넣으면 가능해요');return;}
+      const t=+el.dataset.time;if(!isFinite(t))return;seekTo(t);markStudied(+el.dataset.i,t);lastPlayedLine=+el.dataset.i;});
   });
 }
 
