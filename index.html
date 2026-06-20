@@ -738,11 +738,13 @@ document.getElementById('importFile').addEventListener('change',async e=>{const 
 let GEMINI_KEY='', GEMINI_MODEL='gemini-2.5-flash';
 function openSettings(){document.getElementById('geminiKeyInput').value=GEMINI_KEY;document.getElementById('keyStatus').textContent=GEMINI_KEY?'키 저장됨 ✓':'키 없음';openModal('setModal');}
 async function saveKey(){GEMINI_KEY=document.getElementById('geminiKeyInput').value.trim();await idbPut('settings',{key:'geminiKey',value:GEMINI_KEY});document.getElementById('keyStatus').textContent=GEMINI_KEY?'저장됨 ✓':'키 없음';toast('저장됨');}
-async function gemini(prompt){
+async function gemini(prompt,json){
   if(!GEMINI_KEY)throw new Error('NO_KEY');
+  const gc={temperature:0.7,maxOutputTokens:600};
+  if(json)gc.responseMimeType='application/json';
   const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+GEMINI_MODEL+':generateContent?key='+encodeURIComponent(GEMINI_KEY),{
     method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.7,maxOutputTokens:600}})});
+    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:gc})});
   if(!r.ok){const t=await r.text();throw new Error(r.status+' '+t.slice(0,140));}
   const j=await r.json();
   return (j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts[0].text||'').trim();
@@ -752,9 +754,9 @@ function aiErr(e){const m=String(e.message||e);
   else if(m.startsWith('400'))toast('키가 올바르지 않은 것 같아요 (⚙ 설정 확인)');
   else toast('AI 오류: '+m);}
 
-let vdId=null, vdCefr='A2', vdKoSentence='', recog=null;
+let vdId=null, vdCefr='A2', vdKoSentence='', recog=null, vdLastFeedback=null;
 function openVocabDetail(id){const v=vocab.find(x=>x.id===id);if(!v)return;
-  vdId=id;vdCefr=v.lastCefr||'A2';vdKoSentence='';
+  vdId=id;vdCefr=v.lastCefr||'A2';vdKoSentence='';vdLastFeedback=null;
   document.getElementById('vdTerm').textContent=v.term;
   document.getElementById('vdMeaning').textContent='뜻: '+(v.note||'(미정 — 단어장에서 탭해 입력)');
   renderCefrChips();
@@ -765,21 +767,40 @@ function openVocabDetail(id){const v=vocab.find(x=>x.id===id);if(!v)return;
 function renderCefrChips(){document.getElementById('vdCefr').innerHTML=['A1','A2','B1','B2','C1','C2'].map(l=>`<span class="chip ${l===vdCefr?'on':''}" data-cefr="${l}">${l}</span>`).join('');
   document.querySelectorAll('#vdCefr .chip').forEach(c=>c.onclick=()=>{vdCefr=c.dataset.cefr;renderCefrChips();});}
 async function vdGenerate(){const v=vocab.find(x=>x.id===vdId);const ko=document.getElementById('vdKo');
-  ko.textContent='문장 생성 중…';
+  vdLastFeedback=null;ko.textContent='문장 생성 중…';
   try{const p=`너는 한국어-영어 학습 코치야. 학습자가 영어 표현 "${v.term}"(뜻: ${v.note||'?'})를 연습하려고 해.\nCEFR ${vdCefr} 수준의 자연스러운 한국어 문장 1개만 만들어줘. 그 문장을 영어로 옮기면 "${v.term}"를 자연스럽게 쓰게 되도록.\n설명·따옴표 없이 한국어 문장 한 줄만 출력.`;
     vdKoSentence=await gemini(p);ko.textContent=vdKoSentence||'(생성 실패)';
   }catch(e){ko.textContent='등급을 고르고 다시 시도해 주세요.';aiErr(e);}}
 async function vdFeedback(){const v=vocab.find(x=>x.id===vdId);const en=document.getElementById('vdEn').value.trim();
   if(!en){toast('영어 문장을 입력하세요');return;}
   const fb=document.getElementById('vdFeedback');fb.innerHTML='피드백 분석 중…';
-  try{const p=`학습자가 영어 표현 "${v.term}"를 사용해 영작했어.\n제시 한국어: ${vdKoSentence||'(자유 작문)'}\n학습자 영작: "${en}"\n\n한국어로 간결하게, 아래 형식으로 피드백:\n✅ 평가: (정확/자연스러움 한 줄, "${v.term}" 사용했는지 포함)\n✍️ 교정: (가장 자연스러운 영어 문장 1개)\n💡 팁: (짧게 한 가지)`;
-    const out=await gemini(p);fb.innerHTML=esc(out).replace(/\n/g,'<br>');
+  try{const p=`학습자가 영어 표현 "${v.term}"를 사용해 영작했어.
+제시 한국어: ${vdKoSentence||'(자유 작문)'}
+학습자 영작: "${en}"
+JSON으로만 답해. 필드:
+- evaluation: 한국어로 정확/자연스러움 한 줄 평가 ("${v.term}" 사용 여부 포함)
+- native: 원어민이 실제로 쓸 가장 자연스러운 영어 문장 1개 (반드시 "${v.term}" 포함)
+- nativeKo: native 문장의 자연스러운 한국어 해석
+- tip: 한국어로 짧은 팁 한 가지`;
+    const obj=JSON.parse(await gemini(p,true));
+    vdLastFeedback={native:obj.native||'',nativeKo:obj.nativeKo||''};
+    fb.innerHTML=`<div>✅ ${esc(obj.evaluation||'')}</div>
+      <div style="margin-top:7px;padding:9px 11px;background:var(--teal-soft);border-radius:9px;">
+        <div style="font-size:10px;font-weight:600;color:var(--teal-deep);letter-spacing:.03em;">원어민 문장</div>
+        <div style="font-weight:500;margin-top:1px;">${esc(obj.native||'')}</div>
+        <div style="font-size:11.5px;color:#5b6b66;margin-top:2px;">${esc(obj.nativeKo||'')}</div></div>
+      <div style="margin-top:7px;">💡 ${esc(obj.tip||'')}</div>`;
   }catch(e){fb.innerHTML='';aiErr(e);}}
 async function vdSaveExample(){const v=vocab.find(x=>x.id===vdId);const en=document.getElementById('vdEn').value.trim();
-  if(!en){toast('저장할 영작이 없어요');return;}
-  v.examples=v.examples||[];v.examples.unshift({en,ko:vdKoSentence||'',cefr:vdCefr,createdAt:Date.now()});
-  v.lastCefr=vdCefr;await idbPut('vocab',v);renderExamples(v);renderVocab();toast('예문으로 저장됨');
-  document.getElementById('vdEn').value='';document.getElementById('vdFeedback').innerHTML='';}
+  if(!en&&!(vdLastFeedback&&vdLastFeedback.native)){toast('먼저 영작하거나 피드백을 받아주세요');return;}
+  if(!vdLastFeedback||!vdLastFeedback.native){await vdFeedback();}  // 원어민 문장 확보
+  const nat=vdLastFeedback;
+  const exEn=nat&&nat.native?nat.native:en;
+  const exKo=nat&&nat.nativeKo?nat.nativeKo:(vdKoSentence||'');
+  if(!exEn){return;}
+  v.examples=v.examples||[];v.examples.unshift({en:exEn,ko:exKo,cefr:vdCefr,createdAt:Date.now()});
+  v.lastCefr=vdCefr;await idbPut('vocab',v);renderExamples(v);renderVocab();toast('예문 저장됨 (원어민 문장)');
+  document.getElementById('vdEn').value='';document.getElementById('vdFeedback').innerHTML='';vdLastFeedback=null;}
 function renderExamples(v){const el=document.getElementById('vdExamples');const ex=v.examples||[];
   el.innerHTML=ex.length?('<div style="font-size:11px;color:var(--ink-soft);font-weight:600;margin:12px 0 2px;">내 예문 '+ex.length+'개</div>'+ex.map((e,i)=>`<div style="background:#FFFCF5;border:1px solid var(--paper-line);border-radius:8px;padding:8px 9px;margin-top:6px;font-size:12.5px;position:relative;"><div>${esc(e.en)}</div>${e.ko?`<div style="color:#7a7468;font-size:11px;margin-top:2px;">${esc(e.ko)} · ${e.cefr||''}</div>`:''}<span data-ex="${i}" style="position:absolute;top:7px;right:8px;color:var(--danger);font-size:11px;font-weight:600;cursor:pointer;">삭제</span></div>`).join('')):'';
   el.querySelectorAll('[data-ex]').forEach(b=>b.onclick=async()=>{v.examples.splice(+b.dataset.ex,1);await idbPut('vocab',v);renderExamples(v);renderVocab();});}
