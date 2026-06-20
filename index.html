@@ -559,6 +559,17 @@ function koInRange(koCues,a,b){
   if(parts.length)return parts.join(' ').replace(/\s+/g,' ').trim();
   const n=nearest(koCues,a);return n?n.text:'';
 }
+/* 영어 큐의 단어마다 시간을 보간한 뒤, 각 단어를 그 시각에 해당하는 한국어 문장에 배정.
+   → 큐가 한국어 문장 경계를 가로질러도 단어 단위로 정확히 나뉘고, 단어는 한 번씩만 쓰임(중복·누락 없음). */
+function alignWordsToKo(enCues,koSents){
+  const ew=[];
+  enCues.forEach(c=>{const ws=(c.text||'').split(/\s+/).filter(Boolean);if(!ws.length)return;
+    const t0=c.time!=null?c.time:0, t1=(c.end!=null?c.end:t0+ws.length*0.35);
+    ws.forEach((w,k)=>ew.push({w,t:ws.length>1?t0+(t1-t0)*k/ws.length:t0}));});
+  const buckets=koSents.map(()=>[]);
+  ew.forEach(x=>{let bi=0;for(let i=0;i<koSents.length;i++){if(koSents[i].time!=null&&koSents[i].time<=x.t+0.01)bi=i;else break;}buckets[bi].push(x.w);});
+  return buckets.map(b=>b.join(' ').replace(/\s+/g,' ').trim());
+}
 /* merge english + korean into unified, sentence-level lines */
 function buildLines(enRaw,koRaw){
   const en=parseAny(enRaw),ko=parseAny(koRaw);
@@ -567,11 +578,10 @@ function buildLines(enRaw,koRaw){
   if(enHas&&koHas&&!cuesPunctuated(en.cues)&&cuesPunctuated(ko.cues)){
     const koSents=mergeSentences(ko.cues);                  // 한국어 문장 단위(시간 포함)
     const chapters=(en.chapters.length?en.chapters:ko.chapters).slice().sort((a,b)=>a.time-b.time);
-    const buckets=koSents.map(()=>[]);                      // 각 영어 큐를 '한 문장'에만 배정 → 중복 없음
-    en.cues.forEach(c=>{let bi=0;for(let i=0;i<koSents.length;i++){if(koSents[i].time!=null&&c.time!=null&&koSents[i].time<=c.time+0.25)bi=i;else if(koSents[i].time!=null&&c.time!=null&&koSents[i].time>c.time+0.25)break;}buckets[bi].push(c.text);});
+    const enByKo=alignWordsToKo(en.cues,koSents);           // 단어별 시간 보간으로 한국어 문장 경계에서 영어를 자름
     return koSents.map((c,i)=>{
       let chap='';for(const ch of chapters){if(c.time!=null&&ch.time<=c.time+0.5)chap=ch.title;else if(c.time!=null)break;}
-      return {idx:i,time:c.time,end:c.end,en:buckets[i].join(' ').replace(/\s+/g,' ').trim(),ko:c.text,chapter:chap};
+      return {idx:i,time:c.time,end:c.end,en:enByKo[i],ko:c.text,chapter:chap};
     });
   }
   const merged=mergeSentences(enHas?en.cues:ko.cues);
