@@ -1159,7 +1159,7 @@ async function aiAlignInterleaved(raw){
     'Return JSON: {"pairs":[{"start":"0:00","en":"...","ko":"..."}, ...]} in chronological order. Do not invent content.\n\n'+
     'Transcript:\n'+raw;
   const out=await gemini(prompt,true,8000);
-  let pairs=[];try{pairs=JSON.parse(out).pairs||[];}catch(e){}
+  let pairs=[];try{pairs=JSON.parse(out).pairs||[];}catch(e){console.warn('aiAlignInterleaved: bad JSON',e,out);}
   const lines=pairsToLines(pairs);
   if(!lines.length)throw new Error('AI alignment returned no pairs');
   return lines;
