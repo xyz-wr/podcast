@@ -64,7 +64,7 @@
   .vid-card .vdel{flex:none;background:none;border:none;color:var(--ink-faint);font-size:14px;padding:4px 5px;border-radius:8px;}
   .vid-card .vdel:active{background:var(--paper);color:var(--danger);}
   .folder-head{display:flex;align-items:center;gap:8px;padding:10px 16px 6px;}
-  .folder-head .fn{font-family:'Fraunces',serif;font-weight:600;font-size:14px;color:var(--amber-deep);}
+  .folder-head .fn{flex:1;min-width:0;font-family:'Fraunces',serif;font-weight:600;font-size:14px;color:var(--amber-deep);}
   .folder-head .fa{color:var(--ink-faint);font-size:13px;background:none;border:none;padding:3px 5px;border-radius:6px;}
   .folder-head .fa:active{background:var(--paper);}
   .pick-btn{text-align:left;background:#fff;color:var(--ink);border:1px solid var(--paper-line);padding:12px;font-weight:500;border-radius:9px;}
@@ -630,9 +630,9 @@ function renderLibrary(){const el=document.getElementById('libList');
   let html='';
   for(const f of folders){const vs=groups[f.id]||[];
     html+=`<div class="folder-head">
-      <button class="fa" title="이름 변경" onclick="renameFolder('${f.id}')">✎</button>
-      <button class="fa" title="폴더 삭제" onclick="deleteFolder('${f.id}')">✕</button>
-      <span class="fn">📁 ${esc(f.name)}</span></div>`;
+      <span class="fn">📁 ${esc(f.name)}</span>
+      <button class="fa" title="이름 변경" onclick="renameFolder('${f.id}')" style="margin-left:auto;">✎</button>
+      <button class="fa" title="폴더 삭제" onclick="deleteFolder('${f.id}')">✕</button></div>`;
     html+=vs.length?vs.map(videoCardHTML).join(''):'<div style="font-size:12px;color:var(--ink-faint);padding:0 16px 8px;">비어 있음 (🗂로 영상 이동)</div>';}
   const none=groups.__none__;
   if(none.length){if(folders.length)html+=`<div class="folder-head"><span class="fn" style="color:var(--ink-soft);">미분류</span></div>`;
