@@ -604,8 +604,8 @@ function bookmarkCurrent(){if(!currentVideo||!currentVideo.lines||!currentVideo.
 /* ============ navigation ============ */
 function showScreen(name){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById('screen-'+name).classList.add('active');window.scrollTo(0,0);}
 function tabTo(s){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.s===s));clearSelection();
-  if(s!=='learn')pausePlayer();
-  if(s==='learn'){showScreen(currentVideo?'study':'library');}
+  pausePlayer();
+  if(s==='learn'){showScreen('library');renderLibrary();}
   else if(s==='vocab'){showScreen('vocab');renderVocab();}
   else if(s==='quiz'){showScreen('quiz');renderQuiz();}
   else if(s==='streak'){showScreen('streak');renderStreak();}
