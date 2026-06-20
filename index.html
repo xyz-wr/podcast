@@ -333,7 +333,7 @@
 <div class="modal-bg" id="tiModal">
   <div class="modal">
     <h3>자막 입력</h3>
-    <p style="font-size:12px;color:var(--ink-soft);margin:0 0 8px;line-height:1.55;">영어는 학습 기준, 한국어는 뜻 확인용(선택). <b>.srt / .vtt</b> 파일을 올리거나 텍스트를 붙여넣으세요. <code>챕터 N: 제목</code> 줄은 자동으로 챕터가 되고, <code>0:1111초</code>처럼 붙은 한국어 시간 라벨은 제거돼요.</p>
+    <p style="font-size:12px;color:var(--ink-soft);margin:0 0 8px;line-height:1.55;">영어는 학습 기준, 한국어는 뜻 확인용(선택). <b>.srt / .vtt</b> 파일을 올리거나 텍스트를 붙여넣으세요. <code>챕터 N: 제목</code> 줄은 자동으로 챕터가 되고, <code>0:1111초</code>처럼 붙은 한국어 시간 라벨은 제거돼요.<br>⚙ <b>AI 키</b>가 있으면 구두점 없는 줄글도 문장 단위로 정리하고, 한국어 자막이 없으면 자연스러운 번역을 자동으로 채워줘요.</p>
     <label class="fld">영어 자막 (.srt / .vtt / 텍스트)</label>
     <input type="file" id="enFile" accept=".srt,.vtt,.txt" style="font-size:12px;">
     <textarea id="enText" placeholder="1
@@ -345,7 +345,7 @@ One of Hey Tablo's most popular episodes,"></textarea>
 0:01 첫 줄 번역"></textarea>
     <div class="row" style="margin-top:12px;">
       <button class="ghost sm" onclick="closeModal('tiModal')">닫기</button>
-      <button class="secondary grow" onclick="applyTranscript()">자막 적용</button>
+      <button class="secondary grow" id="tiApplyBtn" onclick="applyTranscript()">자막 적용</button>
     </div>
   </div>
 </div>
@@ -639,6 +639,12 @@ function renderLibrary(){const el=document.getElementById('libList');
     html+=none.map(videoCardHTML).join('');}
   el.innerHTML=html;}
 async function saveFolders(){await idbPut('settings',{key:'folders',value:JSON.stringify(folders)});}
+/* 영상이 빠져나가 비게 된 폴더는 자동 삭제 (방금 만든 빈 폴더는 건드리지 않음 — 영상 제거 이벤트에서만 호출) */
+async function pruneEmptyFolder(fid){
+  if(!fid||!folders.some(f=>f.id===fid))return false;
+  const all=await idbAll('videos');
+  if(all.some(v=>v.folderId===fid))return false;
+  folders=folders.filter(f=>f.id!==fid);await saveFolders();return true;}
 async function createFolder(){const n=await askText('새 폴더','','폴더 이름','만들기');if(!n)return null;const f={id:uid(),name:n};folders.push(f);await saveFolders();await loadAll();return f.id;}
 async function renameFolder(id){const f=folders.find(x=>x.id===id);if(!f)return;const n=await askText('폴더 이름',f.name,'','저장');if(n){f.name=n;await saveFolders();renderLibrary();}}
 async function deleteFolder(id){const f=folders.find(x=>x.id===id);if(!f)return;if(!await askConfirm('폴더 삭제','“'+f.name+'” 폴더를 삭제할까요? 안의 영상은 미분류로 이동해요.','삭제','📁'))return;
@@ -647,7 +653,7 @@ function openFolderPicker(videoId){movingVideoId=videoId;const v=videos.find(x=>
   let html=`<button class="pick-btn ${!cur?'cur':''}" onclick="moveToFolder(null)">미분류</button>`;
   html+=folders.map(f=>`<button class="pick-btn ${cur===f.id?'cur':''}" onclick="moveToFolder('${f.id}')">📁 ${esc(f.name)}</button>`).join('');
   document.getElementById('folderList').innerHTML=html;openModal('folderModal');}
-async function moveToFolder(fid){const v=videos.find(x=>x.id===movingVideoId);if(!v)return;v.folderId=fid;await idbPut('videos',v);closeModal('folderModal');await loadAll();toast('이동했어요');}
+async function moveToFolder(fid){const v=videos.find(x=>x.id===movingVideoId);if(!v)return;const old=v.folderId;v.folderId=fid;await idbPut('videos',v);if(old&&old!==fid)await pruneEmptyFolder(old);closeModal('folderModal');await loadAll();toast('이동했어요');}
 async function newFolderThenMove(){const id=movingVideoId;const fid=await createFolder();if(fid){movingVideoId=id;await moveToFolder(fid);}}
 async function fetchTitle(youtubeId){try{const r=await fetch('https://www.youtube.com/oembed?url='+encodeURIComponent('https://www.youtube.com/watch?v='+youtubeId)+'&format=json');if(!r.ok)return '';const j=await r.json();return (j.title||'').trim();}catch(e){return '';}}
 async function renameVideo(){if(!currentVideo)return;const n=await askText('영상 제목',currentVideo.title,'','저장');if(n){currentVideo.title=n;await idbPut('videos',currentVideo);document.getElementById('studyTitle').textContent=n;}}
@@ -658,6 +664,7 @@ async function deleteVideo(id){const v=await idbGet('videos',id);if(!v)return;
   const vs=await idbIdx('vocab','videoId',id);for(const x of vs)await idbDel('vocab',x.id);
   try{const rs=await idbIdx('recordings','videoId',id);for(const x of rs)await idbDel('recordings',x.id);}catch(e){}
   if(currentVideo&&currentVideo.id===id)currentVideo=null;
+  await pruneEmptyFolder(v.folderId);
   await loadAll();toast('영상을 삭제했어요');}
 
 async function addVideo(){const url=document.getElementById('newVidUrl').value;const id=extractVideoId(url);
@@ -683,8 +690,29 @@ async function applyTranscript(){
   let en=document.getElementById('enText').value, ko=document.getElementById('koText').value;
   const enF=document.getElementById('enFile').files[0], koF=document.getElementById('koFile').files[0];
   if(enF)en=await readFile(enF); if(koF)ko=await readFile(koF);
-  const lines=buildLines(en,ko);
+  let lines=buildLines(en,ko);
   if(!lines.length){toast('자막을 인식하지 못했어요. 형식을 확인해주세요');return;}
+
+  // AI 다듬기 (키가 있을 때만): 구두점 없는 줄글 → 문장 단위로, 한국어 없으면 자동 번역
+  if(GEMINI_KEY){
+    const btn=document.getElementById('tiApplyBtn');const oldTxt=btn?btn.textContent:'';
+    if(btn){btn.disabled=true;}
+    try{
+      if(looksUnpunctuated(lines)){
+        if(btn)btn.textContent='AI가 문장 정리 중…';
+        const enText=lines.map(l=>l.en).filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
+        const sents=await aiSegment(enText);
+        if(sents.length)lines=remapToLines(lines,sents);
+      }
+      if(lines.some(l=>l.en&&!l.ko)){
+        if(btn)btn.textContent='AI가 번역 추가 중…';
+        await aiTranslateLines(lines);
+      }
+    }catch(e){aiErr(e,null);} // 실패해도 원본 자막은 그대로 유지
+    finally{if(btn){btn.disabled=false;btn.textContent=oldTxt;}}
+  }
+
+  lines.forEach((l,i)=>l.idx=i);
   currentVideo.lines=lines;await idbPut('videos',currentVideo);
   document.getElementById('enText').value='';document.getElementById('koText').value='';
   document.getElementById('enFile').value='';document.getElementById('koFile').value='';
@@ -888,9 +916,9 @@ let GEMINI_KEY='', GEMINI_MODEL='gemini-2.5-flash';
 function openSettings(){tabTo('settings');}
 function renderSettings(){const i=document.getElementById('geminiKeyInput');if(i)i.value=GEMINI_KEY;const s=document.getElementById('keyStatus');if(s)s.textContent=GEMINI_KEY?'키 저장됨 ✓':'키 없음';}
 async function saveKey(){GEMINI_KEY=document.getElementById('geminiKeyInput').value.trim();await idbPut('settings',{key:'geminiKey',value:GEMINI_KEY});document.getElementById('keyStatus').textContent=GEMINI_KEY?'저장됨 ✓':'키 없음';toast('저장됨');}
-async function gemini(prompt,json){
+async function gemini(prompt,json,maxTokens){
   if(!GEMINI_KEY)throw new Error('NO_KEY');
-  const gc={temperature:0.7,maxOutputTokens:600};
+  const gc={temperature:0.7,maxOutputTokens:maxTokens||600};
   if(json)gc.responseMimeType='application/json';
   const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+GEMINI_MODEL+':generateContent?key='+encodeURIComponent(GEMINI_KEY),{
     method:'POST',headers:{'Content-Type':'application/json'},
@@ -909,6 +937,45 @@ function aiErr(e,el){const m=String(e.message||e);let msg;
   else msg='AI 오류: '+m;
   toast(msg);
   if(el)el.innerHTML='<div style="color:var(--danger);font-size:12px;line-height:1.5;">⚠ '+esc(msg)+'</div>';}
+
+/* ── AI 자막 다듬기: 구두점 없는 줄글을 문장으로 + 한국어 자동 번역 ── */
+function looksUnpunctuated(lines){
+  const txt=lines.map(l=>l.en).filter(Boolean).join(' ').trim();
+  if(txt.length<40)return false;
+  const ends=lines.filter(l=>l.en&&/[.?!…。]["'”’)\]]?$/.test(l.en.trim())).length;
+  return ends<lines.length*0.5; // 절반도 문장부호로 안 끝나면 줄글로 간주
+}
+async function aiSegment(text){
+  const prompt='You are given an English transcript with little or no punctuation. Insert correct punctuation and capitalization, then split it into natural sentences (one sentence each). Do NOT add, remove, or reword anything — only punctuate and split. Return JSON: {"sentences":["...","..."]}.\nTranscript:\n'+text;
+  const raw=await gemini(prompt,true,2000);
+  let s=[];try{s=JSON.parse(raw).sentences||[];}catch(e){}
+  return s.map(x=>String(x).trim()).filter(Boolean);
+}
+/* 새 문장 배열을 원래 줄의 타임스탬프에 단어 순서대로 재배치 */
+function remapToLines(srcLines,sentences){
+  const wt=[];
+  srcLines.forEach(l=>{(l.en||'').split(/\s+/).filter(Boolean).forEach(()=>wt.push({time:l.time,end:l.end,chapter:l.chapter||''}));});
+  let wi=0;const out=[];
+  sentences.forEach((s,i)=>{
+    const n=s.split(/\s+/).filter(Boolean).length||1;
+    const start=wt.length?Math.min(wi,wt.length-1):-1;
+    wi=Math.min(wt.length,wi+n);
+    const endIdx=wt.length?Math.min(wi-1,wt.length-1):-1;
+    out.push({idx:i,time:start>=0?wt[start].time:null,end:endIdx>=0?wt[endIdx].end:null,en:s,ko:'',chapter:start>=0?wt[start].chapter:''});
+  });
+  return out;
+}
+async function aiTranslateLines(lines){
+  const idxs=lines.map((l,i)=>(l.en&&!l.ko)?i:-1).filter(i=>i>=0);
+  for(let s=0;s<idxs.length;s+=40){
+    const batch=idxs.slice(s,s+40);const arr=batch.map(i=>lines[i].en);
+    const prompt='Translate each English line into natural, conversational Korean (구어체). Keep the SAME order and return EXACTLY '+arr.length+' items. Return JSON: {"ko":["...", "..."]}.\nLines:\n'+JSON.stringify(arr);
+    const raw=await gemini(prompt,true,1600);
+    let ko=[];try{ko=JSON.parse(raw).ko||[];}catch(e){}
+    batch.forEach((li,k)=>{if(ko[k])lines[li].ko=String(ko[k]).trim();});
+  }
+  return lines;
+}
 
 let vdId=null, vdCefr='A2', vdKoSentence='', recog=null, vdLastFeedback=null;
 function openVocabDetail(id){const v=vocab.find(x=>x.id===id);if(!v)return;
