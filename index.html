@@ -109,6 +109,9 @@
 
   /* vocab */
   .vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;padding:0 14px 14px;}
+  .vgroup-head{grid-column:1/-1;font-family:'Fraunces',serif;font-weight:600;font-size:13px;color:var(--teal-deep);margin:6px 0 1px;padding-bottom:5px;border-bottom:1px solid var(--paper-line);display:flex;align-items:center;gap:6px;}
+  .vgroup-head .cnt{font-family:'Inter',sans-serif;font-weight:500;font-size:11px;color:var(--ink-faint);}
+  .filterbar .vsep{margin-left:6px;border-left:1px solid var(--paper-line);padding-left:13px;border-radius:0 999px 999px 0;}
   .vcard{background:#FFFCF5;border:1px solid var(--paper-line);border-radius:11px;padding:11px;}
   .vcard .term{font-weight:600;font-size:14px;word-break:break-word;}
   .vcard .note{font-size:12px;color:#7a7468;margin-top:3px;min-height:15px;cursor:pointer;line-height:1.5;}
@@ -898,29 +901,45 @@ async function addSelectionToVocab(){const term=selectedText();if(!term){return;
   if(document.getElementById('screen-vocab').classList.contains('active'))renderVocab();}
 
 /* ============ vocab screen ============ */
-let vFilter='all';
+let vFilter='all', vByVideo=false;
+function vcardEl(v){const c=document.createElement('div');c.className='vcard';
+  const tcls=['word','idiom','slang'].includes(v.type)?v.type:'word';const tlab={word:'단어',idiom:'관용구',slang:'슬랭'}[tcls];
+  const jump=v.time!=null?`<span class="jump" data-id="${v.id}">${fmt(v.time)} 보기</span>`:`<span style="color:#bbb;font-size:11px;">시간 없음</span>`;
+  const exN=(v.examples||[]).length;
+  c.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;">
+      <span class="term vterm" data-id="${v.id}" style="cursor:pointer;">${esc(v.term)} ${exN?`<span style="font-size:10px;color:var(--teal-deep);">✎${exN}</span>`:'<span style="font-size:10px;color:var(--ink-faint);">›</span>'}</span><span class="tag ${tcls}">${tlab}</span></div>
+    <div class="note" data-id="${v.id}">${esc(v.note||'뜻 추가하려면 탭')}</div>
+    ${v.context?`<div style="font-size:11px;color:#9a948a;margin-top:5px;line-height:1.45;">예문: ${esc(v.context)}</div>`:''}
+    <div class="vmeta">${jump}<span class="del" data-id="${v.id}">삭제</span></div>`;
+  return c;}
 function renderVocab(){const grid=document.getElementById('vgrid');const empty=document.getElementById('vEmpty');
   const fb=document.getElementById('vfilter');
   const tags=[['all','전체'],['word','단어'],['idiom','관용구'],['slang','슬랭']];
-  fb.innerHTML=tags.map(([k,l])=>`<span class="chip ${vFilter===k?'on':''}" onclick="setVFilter('${k}')">${l}</span>`).join('');
+  fb.innerHTML=tags.map(([k,l])=>`<span class="chip ${vFilter===k?'on':''}" onclick="setVFilter('${k}')">${l}</span>`).join('')
+    +`<span class="chip vsep ${vByVideo?'on':''}" onclick="toggleVByVideo()">🎬 영상별</span>`;
   let list=vocab.slice().sort((a,b)=>b.createdAt-a.createdAt);
   if(vFilter!=='all')list=list.filter(v=>v.type===vFilter);
   empty.style.display=list.length?'none':'block';grid.innerHTML='';
-  for(const v of list){const c=document.createElement('div');c.className='vcard';
-    const tcls=['word','idiom','slang'].includes(v.type)?v.type:'word';const tlab={word:'단어',idiom:'관용구',slang:'슬랭'}[tcls];
-    const jump=v.time!=null?`<span class="jump" data-id="${v.id}">${fmt(v.time)} 보기</span>`:`<span style="color:#bbb;font-size:11px;">시간 없음</span>`;
-    const exN=(v.examples||[]).length;
-    c.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;">
-        <span class="term vterm" data-id="${v.id}" style="cursor:pointer;">${esc(v.term)} ${exN?`<span style="font-size:10px;color:var(--teal-deep);">✎${exN}</span>`:'<span style="font-size:10px;color:var(--ink-faint);">›</span>'}</span><span class="tag ${tcls}">${tlab}</span></div>
-      <div class="note" data-id="${v.id}">${esc(v.note||'뜻 추가하려면 탭')}</div>
-      ${v.context?`<div style="font-size:11px;color:#9a948a;margin-top:5px;line-height:1.45;">예문: ${esc(v.context)}</div>`:''}
-      <div class="vmeta">${jump}<span class="del" data-id="${v.id}">삭제</span></div>`;
-    grid.appendChild(c);}
+  if(vByVideo){
+    const titleOf=id=>{const vv=videos.find(x=>x.id===id);return vv?(vv.title||'제목 없음'):'(삭제된 영상)';};
+    const groups={};list.forEach(v=>{(groups[v.videoId]=groups[v.videoId]||[]).push(v);});
+    const order=videos.map(v=>v.id).filter(id=>groups[id]);
+    Object.keys(groups).forEach(id=>{if(!order.includes(id))order.push(id);});
+    for(const vid of order){
+      const h=document.createElement('div');h.className='vgroup-head';
+      h.innerHTML=`🎬 <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(titleOf(vid))}</span><span class="cnt">${groups[vid].length}개</span>`;
+      grid.appendChild(h);
+      groups[vid].forEach(v=>grid.appendChild(vcardEl(v)));
+    }
+  }else{
+    list.forEach(v=>grid.appendChild(vcardEl(v)));
+  }
   grid.querySelectorAll('.vterm').forEach(t=>t.onclick=()=>openVocabDetail(t.dataset.id));
   grid.querySelectorAll('.note').forEach(n=>n.onclick=()=>editNote(n.dataset.id));
   grid.querySelectorAll('.jump').forEach(j=>j.onclick=()=>jumpToVocab(j.dataset.id));
   grid.querySelectorAll('.del').forEach(d=>d.onclick=()=>delVocab(d.dataset.id));}
 function setVFilter(k){vFilter=k;renderVocab();}
+function toggleVByVideo(){vByVideo=!vByVideo;renderVocab();}
 function editNote(id){openVocabDetail(id);}
 async function saveMeaning(){const v=vocab.find(x=>x.id===vdId);if(!v)return;v.note=document.getElementById('vdMeaningInput').value.trim();await idbPut('vocab',v);renderVocab();}
 async function cycleTag(id){const v=vocab.find(x=>x.id===id);const order=['word','idiom','slang'];v.type=order[(order.indexOf(v.type)+1)%3];await idbPut('vocab',v);renderVocab();}
