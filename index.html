@@ -527,13 +527,25 @@ function updateSelBar(){const bar=document.getElementById('selBar');const t=sele
 function clearSelectionVisual(){document.querySelectorAll('.word.sel').forEach(w=>w.classList.remove('sel'));}
 function clearSelection(){clearSelectionVisual();sel={lineIdx:null,words:[]};document.getElementById('selBar').classList.remove('show');}
 
+/* free Google translate endpoint (EN->KO) for word/phrase meaning */
+async function translateWord(text){
+  try{
+    const r=await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ko&dt=t&q='+encodeURIComponent(text));
+    const j=await r.json();
+    return (j[0]||[]).map(x=>x[0]).join('').trim();
+  }catch(e){return '';}
+}
 async function addSelectionToVocab(){const term=selectedText();if(!term){return;}
   const ln=currentVideo.lines[sel.lineIdx];
-  const item={id:uid(),videoId:currentVideo.id,term,note:ln.ko||'',
+  const item={id:uid(),videoId:currentVideo.id,term,note:'',context:ln.en||'',contextKo:ln.ko||'',
     type:sel.words.length>1?'idiom':'word',
     time:ln.time,end:ln.end,srs:{box:1,dueAt:Date.now(),history:[]},createdAt:Date.now()};
   await idbPut('vocab',item);vocab.push(item);clearSelection();
-  renderTranscript();updateBadges();toast('단어장에 추가: '+term);}
+  renderTranscript();updateBadges();toast('단어장에 추가: '+term);
+  // auto-fill the MEANING OF THE WORD/PHRASE ONLY (not the whole-line translation)
+  const meaning=await translateWord(term);
+  if(meaning){item.note=meaning;await idbPut('vocab',item);
+    if(document.getElementById('screen-vocab').classList.contains('active'))renderVocab();}}
 
 /* ============ vocab screen ============ */
 let vFilter='all';
@@ -546,10 +558,12 @@ function renderVocab(){const grid=document.getElementById('vgrid');const empty=d
   empty.style.display=list.length?'none':'block';grid.innerHTML='';
   for(const v of list){const c=document.createElement('div');c.className='vcard';
     const tcls=v.type;const tlab={word:'단어',idiom:'관용구',slang:'슬랭'}[v.type]||'단어';
+    const jump=v.time!=null?`<span class="jump" data-id="${v.id}">${fmt(v.time)} 보기</span>`:`<span style="color:#bbb;font-size:11px;">시간 없음</span>`;
     c.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;">
         <span class="term">${esc(v.term)}</span><span class="tag ${tcls}" data-id="${v.id}">${tlab} ▾</span></div>
-      <div class="note" data-id="${v.id}">${esc(v.note||'메모 없음')}</div>
-      <div class="vmeta"><span class="jump" data-id="${v.id}">${fmt(v.time)} 보기</span><span class="del" data-id="${v.id}">삭제</span></div>`;
+      <div class="note" data-id="${v.id}">${esc(v.note||'뜻 추가하려면 탭')}</div>
+      ${v.context?`<div style="font-size:11px;color:#9a948a;margin-top:5px;line-height:1.45;">예문: ${esc(v.context)}</div>`:''}
+      <div class="vmeta">${jump}<span class="del" data-id="${v.id}">삭제</span></div>`;
     grid.appendChild(c);}
   grid.querySelectorAll('.note').forEach(n=>n.onclick=()=>editNote(n.dataset.id));
   grid.querySelectorAll('.tag').forEach(t=>t.onclick=()=>cycleTag(t.dataset.id));
