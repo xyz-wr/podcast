@@ -515,11 +515,12 @@ let ytLoading=null,player=null,playerReady=false,currentRate=1;
 const RATES=[1,0.75,0.5];
 function ensureYT(){if(window.YT&&window.YT.Player)return Promise.resolve();if(ytLoading)return ytLoading;
   ytLoading=new Promise(res=>{window.onYouTubeIframeAPIReady=()=>res();const s=document.createElement('script');s.src='https://www.youtube.com/iframe_api';document.head.appendChild(s);});return ytLoading;}
-async function mountPlayer(videoId){await ensureYT();
-  if(player){player.loadVideoById(videoId);return;}
-  player=new YT.Player('ytPlayer',{videoId,playerVars:{playsinline:1,rel:0,modestbranding:1},
+async function mountPlayer(videoId,startSeconds){startSeconds=Math.floor(startSeconds||0);await ensureYT();
+  if(player){if(startSeconds>0)player.cueVideoById({videoId,startSeconds});else player.cueVideoById(videoId);return;}
+  player=new YT.Player('ytPlayer',{videoId,playerVars:{playsinline:1,rel:0,modestbranding:1,start:startSeconds},
     events:{onReady:()=>{playerReady=true;try{player.setPlaybackRate(currentRate);}catch(e){}}}});}
 function seekTo(sec){if(!isFinite(sec))return;if(playerReady){try{player.seekTo(sec,true);player.playVideo();}catch(e){}}}
+function pausePlayer(){if(playerReady){try{player.pauseVideo();}catch(e){}}}
 function cycleRate(){currentRate=RATES[(RATES.indexOf(currentRate)+1)%RATES.length];document.getElementById('rateChip').textContent=currentRate+'×';if(playerReady)try{player.setPlaybackRate(currentRate);}catch(e){}}
 
 /* A-B loop */
@@ -552,6 +553,7 @@ function bookmarkCurrent(){if(!currentVideo||!currentVideo.lines||!currentVideo.
 /* ============ navigation ============ */
 function showScreen(name){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById('screen-'+name).classList.add('active');window.scrollTo(0,0);}
 function tabTo(s){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.s===s));clearSelection();
+  if(s!=='learn')pausePlayer();
   if(s==='learn'){showScreen(currentVideo?'study':'library');}
   else if(s==='vocab'){showScreen('vocab');renderVocab();}
   else if(s==='quiz'){showScreen('quiz');renderQuiz();}}
@@ -587,7 +589,8 @@ async function openVideo(id){currentVideo=await idbGet('videos',id);currentVideo
   document.getElementById('studyTitle').textContent=currentVideo.title;
   document.getElementById('studySub').textContent='자막 '+(currentVideo.lines?.length||0)+'줄';
   clearLoop();renderTranscript();document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.s==='learn'));
-  showScreen('study');mountPlayer(currentVideo.youtubeId);
+  showScreen('study');
+  mountPlayer(currentVideo.youtubeId,(currentVideo.bookmark&&currentVideo.bookmark.time!=null)?currentVideo.bookmark.time:0);
   if(currentVideo.bookmark)setTimeout(()=>scrollToLine(currentVideo.bookmark.idx),200);}
 
 /* ============ transcript input ============ */
@@ -686,7 +689,7 @@ async function addSelectionToVocab(){const term=selectedText();if(!term){return;
   // enrich: if the word is part of an idiom/phrasal verb in this sentence, group it; fill meaning
   try{
     if(GEMINI_KEY&&ln.en){
-      const p=`문장: "${ln.en}"\n학습자가 고른 부분: "${term}"\n이 부분이 문장 안에서 더 큰 관용구·구동사·고정표현(예: go nuts, fake it till you make it, dabble in)의 일부라면 그 "전체 표현"을 잡아줘. 아니면 고른 부분 그대로.\nJSON으로만 답: {"expression":"문장에서 쓰인 형태의 영어 표현","type":"word|idiom|slang","meaning":"그 표현의 한국어 뜻(짧게)"}`;
+      const p=`문장: "${ln.en}"\n학습자가 고른 부분: "${term}"\n이 부분이 더 큰 관용구·구동사·고정표현의 일부면 그 표현을, 아니면 고른 부분을 대상으로 해.\n관용구/표현이면 "사전 표제어 형태(citation form)"로 정규화해줘: 문장 속 구체적 대명사·목적어는 someone, something, one's, somewhere 같은 자리표시자로 바꿔.\n예) "drive you crazy"→"drive someone crazy", "makes me go nuts"→"make someone go nuts", "picked it up"→"pick something up", "on my own"→"on one's own".\n단순 단어면 기본형으로.\nJSON으로만: {"expression":"정규화된 영어 표현","type":"word|idiom|slang","meaning":"그 표현의 한국어 뜻(짧게)"}`;
       const obj=JSON.parse(await gemini(p,true));
       const exp=(obj.expression||term).trim();
       if(exp.toLowerCase()!==term.toLowerCase())toast('관용구로 저장: '+exp);
@@ -820,7 +823,7 @@ function aiErr(e,el){const m=String(e.message||e);let msg;
 
 let vdId=null, vdCefr='A2', vdKoSentence='', recog=null, vdLastFeedback=null;
 function openVocabDetail(id){const v=vocab.find(x=>x.id===id);if(!v)return;
-  vdId=id;vdCefr=v.lastCefr||'A2';vdKoSentence='';vdLastFeedback=null;
+  pausePlayer();vdId=id;vdCefr=v.lastCefr||'A2';vdKoSentence='';vdLastFeedback=null;
   document.getElementById('vdTerm').textContent=v.term;
   document.getElementById('vdMeaningInput').value=v.note||'';
   document.getElementById('vdContext').textContent=v.context?('예문: '+v.context):'';
