@@ -65,7 +65,8 @@
   .vid-card .vdel:active{background:var(--paper);color:var(--danger);}
   .folder-head{display:flex;align-items:center;gap:8px;padding:10px 16px 6px;}
   .folder-head .fn{font-family:'Fraunces',serif;font-weight:600;font-size:14px;color:var(--amber-deep);}
-  .folder-head .fa{margin-left:auto;color:var(--ink-faint);font-size:13px;background:none;border:none;padding:3px 6px;}
+  .folder-head .fa{color:var(--ink-faint);font-size:13px;background:none;border:none;padding:3px 5px;border-radius:6px;}
+  .folder-head .fa:active{background:var(--paper);}
   .pick-btn{text-align:left;background:#fff;color:var(--ink);border:1px solid var(--paper-line);padding:12px;font-weight:500;border-radius:9px;}
   .pick-btn.cur{border-color:var(--amber);color:var(--amber-deep);}
   .empty{color:var(--ink-soft);font-size:13px;text-align:center;padding:30px 14px;line-height:1.6;}
@@ -187,28 +188,11 @@
 <body>
 <main>
 
-  <!-- ===== LIBRARY ===== -->
+  <!-- ===== LIBRARY (학습) ===== -->
   <section id="screen-library" class="screen active">
     <div class="topbar">
-      <div class="grow">
-        <h1 class="serif">Personal study notebook</h1>
-      </div>
-      <button class="iconbtn" title="AI 설정" onclick="openSettings()">⚙</button>
-      <button class="iconbtn" title="백업/복원" onclick="openBackup()">⤓</button>
-    </div>
-    <div class="panel">
-      <h2>＋ 영상 추가</h2>
-      <div class="row">
-        <input type="text" id="newVidUrl" class="grow" placeholder="YouTube URL 또는 영상 ID">
-      </div>
-      <input type="text" id="newVidTitle" placeholder="제목 (비우면 영상 제목 자동)" style="margin-top:8px;">
-      <div class="row" style="margin-top:10px;">
-        <button class="secondary grow" onclick="addVideo()">영상 만들기</button>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;padding:2px 16px 8px;">
-      <span class="serif" style="font-size:15px;font-weight:600;">내 영상</span>
-      <button class="chip teal" style="margin-left:auto;" onclick="createFolder()">＋ 폴더</button>
+      <div class="grow"><div class="eyebrow">Study</div><h1 class="serif">내 영상</h1></div>
+      <button class="chip teal" onclick="createFolder()">＋ 폴더</button>
     </div>
     <div id="libList"></div>
   </section>
@@ -296,6 +280,31 @@
     <div id="streakBody"></div>
   </section>
 
+  <!-- ===== SETTINGS (더보기) ===== -->
+  <section id="screen-settings" class="screen">
+    <div class="topbar"><div class="grow"><div class="eyebrow">Personal study notebook</div><h1 class="serif">설정</h1></div></div>
+    <div class="panel">
+      <h2>＋ 영상 추가</h2>
+      <div class="row"><input type="text" id="newVidUrl" class="grow" placeholder="YouTube URL 또는 영상 ID"></div>
+      <div class="row" style="margin-top:10px;"><button class="secondary grow" onclick="addVideo()">영상 만들기</button></div>
+      <p class="hint" style="font-size:11px;color:var(--ink-soft);margin-top:8px;line-height:1.5;">제목은 영상에서 자동으로 가져와요. (학습 탭에서 제목 탭하면 수정)</p>
+    </div>
+    <div class="panel">
+      <h2>AI · 무료 Gemini</h2>
+      <p style="font-size:12px;color:var(--ink-soft);line-height:1.55;margin:0 0 8px;">CEFR 문장·영작 피드백·관용구 판별에 사용. <b>aistudio.google.com</b>에서 무료 키 발급(카드 불필요). 키는 이 기기에만 저장돼요.</p>
+      <input type="text" id="geminiKeyInput" placeholder="AIza...">
+      <div class="row" style="margin-top:10px;"><button class="secondary grow" onclick="saveKey()">키 저장</button></div>
+      <div id="keyStatus" style="font-size:12px;color:var(--ink-soft);margin-top:8px;"></div>
+    </div>
+    <div class="panel">
+      <h2>백업 / 복원</h2>
+      <p style="font-size:12px;color:var(--ink-soft);line-height:1.55;margin:0 0 10px;">모든 데이터는 이 기기에만 저장돼요. JSON으로 내보내 보관·이동하세요.</p>
+      <div class="row"><button class="secondary grow" onclick="exportData()">내보내기 (JSON)</button></div>
+      <label class="fld">가져오기</label>
+      <input type="file" id="importFile" accept=".json" style="font-size:12px;">
+    </div>
+  </section>
+
 </main>
 
 <!-- selection bar -->
@@ -312,6 +321,7 @@
   <div class="tab" data-s="vocab" onclick="tabTo('vocab')"><div class="ico">▤</div><div class="lab">단어장</div><span class="badge t hide" id="badgeVocab"></span></div>
   <div class="tab" data-s="quiz" onclick="tabTo('quiz')"><div class="ico">✦</div><div class="lab">복습</div><span class="badge r hide" id="badgeQuiz"></span></div>
   <div class="tab" data-s="streak" onclick="tabTo('streak')"><div class="ico">🔥</div><div class="lab">기록</div><span class="badge a hide" id="badgeStreak"></span></div>
+  <div class="tab" data-s="settings" onclick="tabTo('settings')"><div class="ico">⚙</div><div class="lab">더보기</div></div>
 </nav>
 
 <!-- transcript input modal -->
@@ -332,35 +342,6 @@ One of Hey Tablo's most popular episodes,"></textarea>
       <button class="ghost sm" onclick="closeModal('tiModal')">닫기</button>
       <button class="secondary grow" onclick="applyTranscript()">자막 적용</button>
     </div>
-  </div>
-</div>
-
-<!-- backup modal -->
-<div class="modal-bg" id="bkModal">
-  <div class="modal">
-    <h3>백업 / 복원</h3>
-    <p style="font-size:12px;color:var(--ink-soft);margin:0 0 12px;line-height:1.55;">모든 데이터(영상·자막·단어장·녹음)는 이 기기 브라우저에만 저장돼요. 기기를 옮기거나 안전하게 보관하려면 JSON으로 내보내세요.</p>
-    <div class="row">
-      <button class="secondary grow" onclick="exportData()">내보내기 (JSON)</button>
-    </div>
-    <label class="fld">가져오기</label>
-    <input type="file" id="importFile" accept=".json" style="font-size:12px;">
-    <div class="row" style="margin-top:12px;"><button class="ghost grow" onclick="closeModal('bkModal')">닫기</button></div>
-  </div>
-</div>
-
-<!-- AI settings modal -->
-<div class="modal-bg" id="setModal">
-  <div class="modal">
-    <h3>AI 설정 · 무료 Gemini</h3>
-    <p style="font-size:12px;color:var(--ink-soft);line-height:1.55;margin:0 0 10px;">CEFR 문장 제시·영작 피드백에 Google Gemini(무료)를 씁니다. <b>aistudio.google.com</b> → "Get API key"로 무료 키를 발급(카드 불필요)받아 붙여넣으세요. 키는 이 기기에만 저장돼요. 키가 없어도 다른 기능은 정상 작동합니다.</p>
-    <label class="fld">Gemini API 키</label>
-    <input id="geminiKeyInput" type="text" placeholder="AIza...">
-    <div class="row" style="margin-top:10px;">
-      <button class="ghost sm" onclick="closeModal('setModal')">닫기</button>
-      <button class="secondary grow" onclick="saveKey()">저장</button>
-    </div>
-    <div id="keyStatus" style="font-size:12px;color:var(--ink-soft);margin-top:8px;"></div>
   </div>
 </div>
 
@@ -606,7 +587,8 @@ function tabTo(s){document.querySelectorAll('.tab').forEach(t=>t.classList.toggl
   if(s==='learn'){showScreen(currentVideo?'study':'library');}
   else if(s==='vocab'){showScreen('vocab');renderVocab();}
   else if(s==='quiz'){showScreen('quiz');renderQuiz();}
-  else if(s==='streak'){showScreen('streak');renderStreak();}}
+  else if(s==='streak'){showScreen('streak');renderStreak();}
+  else if(s==='settings'){showScreen('settings');renderSettings();}}
 
 /* ============ library ============ */
 async function loadAll(){videos=(await idbAll('videos')).sort((a,b)=>(b.lastStudiedAt||b.createdAt)-(a.lastStudiedAt||a.createdAt));vocab=await idbAll('vocab');
@@ -626,9 +608,10 @@ function renderLibrary(){const el=document.getElementById('libList');
   videos.forEach(v=>{const fid=(v.folderId&&folders.some(f=>f.id===v.folderId))?v.folderId:'__none__';groups[fid].push(v);});
   let html='';
   for(const f of folders){const vs=groups[f.id]||[];
-    html+=`<div class="folder-head"><span class="fn">📁 ${esc(f.name)}</span>
+    html+=`<div class="folder-head">
       <button class="fa" title="이름 변경" onclick="renameFolder('${f.id}')">✎</button>
-      <button class="fa" title="폴더 삭제" onclick="deleteFolder('${f.id}')">✕</button></div>`;
+      <button class="fa" title="폴더 삭제" onclick="deleteFolder('${f.id}')">✕</button>
+      <span class="fn">📁 ${esc(f.name)}</span></div>`;
     html+=vs.length?vs.map(videoCardHTML).join(''):'<div style="font-size:12px;color:var(--ink-faint);padding:0 16px 8px;">비어 있음 (🗂로 영상 이동)</div>';}
   const none=groups.__none__;
   if(none.length){if(folders.length)html+=`<div class="folder-head"><span class="fn" style="color:var(--ink-soft);">미분류</span></div>`;
@@ -658,11 +641,9 @@ async function deleteVideo(id){const v=await idbGet('videos',id);if(!v)return;
 
 async function addVideo(){const url=document.getElementById('newVidUrl').value;const id=extractVideoId(url);
   if(!id){toast('YouTube 주소/ID를 확인해주세요');return;}
-  let title=document.getElementById('newVidTitle').value.trim();
-  if(!title){toast('제목 불러오는 중…');title=await fetchTitle(id);}
-  if(!title)title='새 영상';
+  toast('제목 불러오는 중…');let title=await fetchTitle(id);if(!title)title='새 영상';
   const v={id:uid(),youtubeId:id,title,folderId:null,lines:[],createdAt:Date.now(),lastStudiedAt:Date.now()};
-  await idbPut('videos',v);document.getElementById('newVidUrl').value='';document.getElementById('newVidTitle').value='';
+  await idbPut('videos',v);document.getElementById('newVidUrl').value='';
   await loadAll();openVideo(v.id);}
 
 async function openVideo(id){currentVideo=await idbGet('videos',id);currentVideo.lastStudiedAt=Date.now();idbPut('videos',currentVideo);
@@ -766,7 +747,7 @@ async function addSelectionToVocab(){const term=selectedText();if(!term){return;
     type:sel.words.length>1?'idiom':'word',
     time:ln.time,end:ln.end,srs:{box:1,dueAt:Date.now(),history:[]},createdAt:Date.now()};
   await idbPut('vocab',item);vocab.push(item);clearSelection();
-  renderTranscript();updateBadges();logActivity('word',term);toast('단어장에 추가: '+term);
+  renderTranscript();updateBadges();logActivity('word',item.id);toast('단어장에 추가: '+term);
   // enrich: if the word is part of an idiom/phrasal verb in this sentence, group it; fill meaning
   try{
     if(GEMINI_KEY&&ln.en){
@@ -865,7 +846,7 @@ function updateBadges(){const bv=document.getElementById('badgeVocab'),bq=docume
   const st=calcStreak(),bs=document.getElementById('badgeStreak');if(bs){bs.textContent=st;bs.classList.toggle('hide',!st);}}
 
 /* ============ backup ============ */
-function openBackup(){openModal('bkModal');}
+function openBackup(){tabTo('settings');}
 function blobToB64(b){return new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(b);});}
 async function b64ToBlob(d){return (await fetch(d)).blob();}
 async function exportData(){const recs=await idbAll('recordings');const recOut=[];
@@ -883,7 +864,8 @@ document.getElementById('importFile').addEventListener('change',async e=>{const 
 
 /* ============ AI (free Gemini) + practice ============ */
 let GEMINI_KEY='', GEMINI_MODEL='gemini-2.5-flash';
-function openSettings(){document.getElementById('geminiKeyInput').value=GEMINI_KEY;document.getElementById('keyStatus').textContent=GEMINI_KEY?'키 저장됨 ✓':'키 없음';openModal('setModal');}
+function openSettings(){tabTo('settings');}
+function renderSettings(){const i=document.getElementById('geminiKeyInput');if(i)i.value=GEMINI_KEY;const s=document.getElementById('keyStatus');if(s)s.textContent=GEMINI_KEY?'키 저장됨 ✓':'키 없음';}
 async function saveKey(){GEMINI_KEY=document.getElementById('geminiKeyInput').value.trim();await idbPut('settings',{key:'geminiKey',value:GEMINI_KEY});document.getElementById('keyStatus').textContent=GEMINI_KEY?'저장됨 ✓':'키 없음';toast('저장됨');}
 async function gemini(prompt,json){
   if(!GEMINI_KEY)throw new Error('NO_KEY');
@@ -919,7 +901,7 @@ function openVocabDetail(id){const v=vocab.find(x=>x.id===id);if(!v)return;
   document.getElementById('vdFeedback').innerHTML='';
   document.getElementById('vdMic').textContent='🎙';
   renderExamples(v);showScreen('detail');}
-function backFromDetail(){if(recog){try{recog.stop();}catch(e){}recog=null;}showScreen('vocab');renderVocab();}
+function backFromDetail(){if(recog){try{recog.stop();}catch(e){}recog=null;}document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.s==='vocab'));showScreen('vocab');renderVocab();}
 function renderCefrChips(){document.getElementById('vdCefr').innerHTML=['A1','A2','B1','B2','C1','C2'].map(l=>`<span class="chip ${l===vdCefr?'on':''}" data-cefr="${l}">${l}</span>`).join('');
   document.querySelectorAll('#vdCefr .chip').forEach(c=>c.onclick=()=>{vdCefr=c.dataset.cefr;renderCefrChips();});}
 async function vdGenerate(){const v=vocab.find(x=>x.id===vdId);const ko=document.getElementById('vdKo');
@@ -973,39 +955,37 @@ function vdVoice(){const SR=window.SpeechRecognition||window.webkitSpeechRecogni
 /* ============ streak / study record ============ */
 let activity={};
 function dkey(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-function logActivity(kind,detail){const k=dkey(new Date());const a=activity[k]||(activity[k]={studied:true,words:0,reviews:0,terms:[],videos:[]});
-  a.studied=true;a.terms=a.terms||[];a.videos=a.videos||[];
-  if(kind==='word'){a.words=(a.words||0)+1;if(detail&&!a.terms.includes(detail))a.terms.push(detail);}
+function logActivity(kind,detail){const k=dkey(new Date());const a=activity[k]||(activity[k]={studied:true,words:0,reviews:0,wordIds:[],videos:[]});
+  a.studied=true;a.wordIds=a.wordIds||[];a.videos=a.videos||[];
+  if(kind==='word'){a.words=(a.words||0)+1;if(detail&&!a.wordIds.includes(detail))a.wordIds.push(detail);}
   else if(kind==='review')a.reviews=(a.reviews||0)+1;
   else if(kind==='study'&&detail&&!a.videos.includes(detail))a.videos.push(detail);
   idbPut('settings',{key:'activity',value:JSON.stringify(activity)});updateBadges();}
 function dayActive(d){const a=activity[dkey(d)];return !!(a&&(a.studied||a.words||a.reviews));}
 function calcStreak(){let s=0;const d=new Date();d.setHours(0,0,0,0);if(!dayActive(d))d.setDate(d.getDate()-1);while(dayActive(d)){s++;d.setDate(d.getDate()-1);}return s;}
+let calY=null,calM=null,calSel=null;
+function calNav(delta){calM+=delta;if(calM<0){calM=11;calY--;}if(calM>11){calM=0;calY++;}calSel=null;renderStreak();}
+function selectDay(k){calSel=(calSel===k?null:k);renderStreak();}
 function renderStreak(){const el=document.getElementById('streakBody');
+  const today=new Date();today.setHours(0,0,0,0);
+  if(calY==null){calY=today.getFullYear();calM=today.getMonth();}
   const streak=calcStreak();const vals=Object.values(activity);
   const totalDays=vals.filter(a=>a&&(a.studied||a.words||a.reviews)).length;
   const totalReviews=vals.reduce((s,a)=>s+((a&&a.reviews)||0),0);
-  const today=new Date();today.setHours(0,0,0,0);
-  const WEEKS=14;let start=new Date(today);start.setDate(start.getDate()-(WEEKS*7-1));start.setDate(start.getDate()-start.getDay());
-  const numWeeks=Math.ceil(((today-start)/86400000+1)/7);
-  let hm='<div style="display:flex;gap:3px;overflow-x:auto;padding-bottom:4px;">';
-  for(let w=0;w<numWeeks;w++){hm+='<div style="display:flex;flex-direction:column;gap:3px;">';
-    for(let dow=0;dow<7;dow++){const d=new Date(start);d.setDate(start.getDate()+w*7+dow);
-      if(d>today){hm+='<div class="hm-cell"></div>';continue;}
-      const a=activity[dkey(d)];const c=a?((a.words||0)+(a.reviews||0)+(a.studied?1:0)):0;
-      const bg=c===0?'#ECE6D7':c<3?'#cfe0db':c<6?'#7fb3a8':'#2F6B62';
-      hm+=`<div class="hm-cell" title="${dkey(d)} · 활동 ${c}" style="background:${bg};"></div>`;}
-    hm+='</div>';}
-  hm+='</div>';
-  const recent=Object.keys(activity).filter(x=>{const a=activity[x];return a&&(a.studied||a.words||a.reviews);}).sort().reverse().slice(0,21);
-  let log='';
-  for(const x of recent){const a=activity[x];
-    log+=`<div style="border:1px solid var(--paper-line);border-radius:10px;padding:9px 11px;margin-top:8px;background:#FFFCF5;">
-      <div style="font-size:12px;font-weight:600;color:var(--teal-deep);">${x}</div>
-      ${a.videos&&a.videos.length?`<div style="font-size:12px;color:var(--ink-soft);margin-top:3px;">📺 ${a.videos.map(esc).join(', ')}</div>`:''}
-      ${a.terms&&a.terms.length?`<div style="font-size:12px;margin-top:3px;line-height:1.5;">📝 ${a.terms.map(esc).join(', ')}</div>`:''}
-      <div style="font-size:11px;color:var(--ink-faint);margin-top:3px;">단어 ${a.words||0} · 복습 ${a.reviews||0}</div>
-    </div>`;}
+  const startDow=new Date(calY,calM,1).getDay();const dim=new Date(calY,calM+1,0).getDate();
+  let cal='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;">';
+  ['일','월','화','수','목','금','토'].forEach(d=>cal+=`<div style="text-align:center;font-size:10px;color:var(--ink-soft);padding-bottom:2px;">${d}</div>`);
+  for(let i=0;i<startDow;i++)cal+='<div></div>';
+  for(let day=1;day<=dim;day++){const k=calY+'-'+String(calM+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+    const a=activity[k];const has=a&&(a.studied||a.words||a.reviews);
+    const isToday=(calY===today.getFullYear()&&calM===today.getMonth()&&day===today.getDate());const seld=calSel===k;
+    cal+=`<div onclick="selectDay('${k}')" style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:9px;cursor:pointer;font-size:13px;${seld?'background:var(--amber);color:#fff;':has?'background:var(--teal-soft);color:var(--teal-deep);font-weight:600;':isToday?'box-shadow:inset 0 0 0 1px var(--amber);':'color:var(--ink-soft);'}">${day}${(has&&!seld)?'<span style="width:4px;height:4px;border-radius:50%;background:var(--teal);margin-top:2px;"></span>':''}</div>`;}
+  cal+='</div>';
+  let detail='';
+  if(calSel){const a=activity[calSel];const ids=(a&&a.wordIds)||[];const items=ids.map(id=>vocab.find(v=>v.id===id)).filter(Boolean);
+    detail=`<div style="margin-top:16px;"><div style="font-size:12px;font-weight:600;color:var(--teal-deep);margin-bottom:8px;">${calSel} · 추가한 단어 ${items.length}개</div>`;
+    detail+=items.length?('<div style="display:flex;flex-wrap:wrap;gap:7px;">'+items.map(v=>`<span onclick="openVocabDetail('${v.id}')" style="font-size:13px;font-weight:500;background:var(--amber-soft);color:var(--amber-deep);border-radius:14px;padding:6px 12px;cursor:pointer;">${esc(v.term)}</span>`).join('')+'</div>'):'<div style="font-size:12px;color:var(--ink-faint);">이 날 추가한 단어가 없어요.</div>';
+    detail+='</div>';}
   el.innerHTML=`<div style="padding:0 14px 16px;">
     <div style="display:flex;gap:10px;margin-bottom:10px;">
       <div class="statcard"><div class="sv">🔥 ${streak}</div><div class="sl">연속 학습일</div></div>
@@ -1015,12 +995,13 @@ function renderStreak(){const el=document.getElementById('streakBody');
       <div class="statcard"><div class="sv">${vocab.length}</div><div class="sl">단어장</div></div>
       <div class="statcard"><div class="sv">${totalReviews}</div><div class="sl">복습 횟수</div></div>
     </div>
-    <div class="serif" style="font-size:14px;font-weight:600;margin-bottom:8px;">학습 잔디 (최근 ${WEEKS}주)</div>
-    ${hm}
-    <div style="display:flex;align-items:center;gap:5px;margin-top:8px;font-size:11px;color:var(--ink-soft);">적음
-      <span class="hm-cell" style="background:#ECE6D7;"></span><span class="hm-cell" style="background:#cfe0db;"></span><span class="hm-cell" style="background:#7fb3a8;"></span><span class="hm-cell" style="background:#2F6B62;"></span> 많음</div>
-    <div class="serif" style="font-size:14px;font-weight:600;margin:20px 0 2px;">일자별 기록</div>
-    ${log||'<div style="font-size:12px;color:var(--ink-faint);margin-top:6px;">아직 기록이 없어요. 오늘 학습하면 여기에 쌓여요.</div>'}
+    <div style="display:flex;align-items:center;margin-bottom:10px;">
+      <button class="fa" style="font-size:18px;color:var(--ink-soft);background:none;border:none;padding:4px 10px;" onclick="calNav(-1)">‹</button>
+      <span class="serif" style="flex:1;text-align:center;font-size:15px;font-weight:600;">${calY}년 ${calM+1}월</span>
+      <button class="fa" style="font-size:18px;color:var(--ink-soft);background:none;border:none;padding:4px 10px;" onclick="calNav(1)">›</button>
+    </div>
+    ${cal}
+    ${detail||'<div style="font-size:11px;color:var(--ink-faint);margin-top:14px;text-align:center;">날짜를 탭하면 그날 추가한 단어가 보여요. 단어를 누르면 학습 화면으로 이동.</div>'}
   </div>`;}
 
 /* ============ init ============ */
