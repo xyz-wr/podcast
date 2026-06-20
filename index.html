@@ -61,6 +61,8 @@
   .vid-meta{flex:1;min-width:0;}
   .vid-meta .t{font-weight:600;font-size:14px;line-height:1.25;}
   .vid-meta .s{font-size:11.5px;color:var(--ink-soft);margin-top:3px;}
+  .vid-card .vdel{flex:none;background:none;border:none;color:var(--ink-faint);font-size:14px;padding:4px 6px;border-radius:8px;}
+  .vid-card .vdel:active{background:var(--paper);color:var(--danger);}
   .empty{color:var(--ink-soft);font-size:13px;text-align:center;padding:30px 14px;line-height:1.6;}
 
   /* player + loop */
@@ -528,9 +530,18 @@ function renderLibrary(){const el=document.getElementById('libList');
   el.innerHTML='';for(const v of videos){const d=document.createElement('div');d.className='vid-card';d.onclick=()=>openVideo(v.id);
     const nv=vocab.filter(x=>x.videoId===v.id).length;
     d.innerHTML=`<div class="vid-thumb" style="background-image:url(https://i.ytimg.com/vi/${v.youtubeId}/mqdefault.jpg)"><div class="pl">▶</div></div>
-      <div class="vid-meta"><div class="t">${esc(v.title||'제목 없음')}</div><div class="s">자막 ${v.lines?.length||0}줄 · 단어 ${nv}개</div></div>`;
+      <div class="vid-meta"><div class="t">${esc(v.title||'제목 없음')}</div><div class="s">자막 ${v.lines?.length||0}줄 · 단어 ${nv}개</div></div>
+      <button class="vdel" title="영상 삭제" onclick="event.stopPropagation();deleteVideo('${v.id}')">✕</button>`;
     el.appendChild(d);}}
 function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+async function deleteVideo(id){const v=await idbGet('videos',id);if(!v)return;
+  if(!confirm('“'+(v.title||'이 영상')+'” 영상과 이 영상에서 담은 단어를 함께 삭제할까요?'))return;
+  await idbDel('videos',id);
+  const vs=await idbIdx('vocab','videoId',id);for(const x of vs)await idbDel('vocab',x.id);
+  try{const rs=await idbIdx('recordings','videoId',id);for(const x of rs)await idbDel('recordings',x.id);}catch(e){}
+  if(currentVideo&&currentVideo.id===id)currentVideo=null;
+  await loadAll();toast('영상을 삭제했어요');}
 
 async function addVideo(){const url=document.getElementById('newVidUrl').value;const id=extractVideoId(url);
   if(!id){toast('YouTube 주소/ID를 확인해주세요');return;}
@@ -639,10 +650,22 @@ async function addSelectionToVocab(){const term=selectedText();if(!term){return;
     time:ln.time,end:ln.end,srs:{box:1,dueAt:Date.now(),history:[]},createdAt:Date.now()};
   await idbPut('vocab',item);vocab.push(item);clearSelection();
   renderTranscript();updateBadges();toast('단어장에 추가: '+term);
-  // auto-fill the MEANING OF THE WORD/PHRASE ONLY (not the whole-line translation)
-  const meaning=await translateWord(term);
-  if(meaning){item.note=meaning;await idbPut('vocab',item);
-    if(document.getElementById('screen-vocab').classList.contains('active'))renderVocab();}}
+  // enrich: if the word is part of an idiom/phrasal verb in this sentence, group it; fill meaning
+  try{
+    if(GEMINI_KEY&&ln.en){
+      const p=`문장: "${ln.en}"\n학습자가 고른 부분: "${term}"\n이 부분이 문장 안에서 더 큰 관용구·구동사·고정표현(예: go nuts, fake it till you make it, dabble in)의 일부라면 그 "전체 표현"을 잡아줘. 아니면 고른 부분 그대로.\nJSON으로만 답: {"expression":"문장에서 쓰인 형태의 영어 표현","type":"word|idiom|slang","meaning":"그 표현의 한국어 뜻(짧게)"}`;
+      const obj=JSON.parse(await gemini(p,true));
+      const exp=(obj.expression||term).trim();
+      if(exp.toLowerCase()!==term.toLowerCase())toast('관용구로 저장: '+exp);
+      item.term=exp;
+      item.type=['word','idiom','slang'].includes(obj.type)?obj.type:item.type;
+      item.note=obj.meaning||'';
+    }else{
+      item.note=await translateWord(term);
+    }
+  }catch(e){if(!item.note){try{item.note=await translateWord(term);}catch(_){}}}
+  await idbPut('vocab',item);renderTranscript();updateBadges();
+  if(document.getElementById('screen-vocab').classList.contains('active'))renderVocab();}
 
 /* ============ vocab screen ============ */
 let vFilter='all';
