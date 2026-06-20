@@ -567,10 +567,11 @@ function buildLines(enRaw,koRaw){
   if(enHas&&koHas&&!cuesPunctuated(en.cues)&&cuesPunctuated(ko.cues)){
     const koSents=mergeSentences(ko.cues);                  // 한국어 문장 단위(시간 포함)
     const chapters=(en.chapters.length?en.chapters:ko.chapters).slice().sort((a,b)=>a.time-b.time);
+    const buckets=koSents.map(()=>[]);                      // 각 영어 큐를 '한 문장'에만 배정 → 중복 없음
+    en.cues.forEach(c=>{let bi=0;for(let i=0;i<koSents.length;i++){if(koSents[i].time!=null&&c.time!=null&&koSents[i].time<=c.time+0.25)bi=i;else if(koSents[i].time!=null&&c.time!=null&&koSents[i].time>c.time+0.25)break;}buckets[bi].push(c.text);});
     return koSents.map((c,i)=>{
-      const enT=koInRange(en.cues,c.time,c.end);            // 같은 시간대의 영어를 모음
       let chap='';for(const ch of chapters){if(c.time!=null&&ch.time<=c.time+0.5)chap=ch.title;else if(c.time!=null)break;}
-      return {idx:i,time:c.time,end:c.end,en:enT,ko:c.text,chapter:chap};
+      return {idx:i,time:c.time,end:c.end,en:buckets[i].join(' ').replace(/\s+/g,' ').trim(),ko:c.text,chapter:chap};
     });
   }
   const merged=mergeSentences(enHas?en.cues:ko.cues);
@@ -1017,37 +1018,47 @@ async function aiTranslateLines(lines){
   }
   return lines;
 }
-/* 영어(구두점 없음)를 한국어 문장 N개에 의미 기준으로 1:1 분할 */
-async function aiAlignEnToKo(enText,koTexts){
-  const prompt='You are aligning an English transcript to its Korean translation, sentence by sentence.\n'+
-    'There are '+koTexts.length+' Korean sentences, in order:\n'+koTexts.map((k,i)=>(i+1)+'. '+k).join('\n')+
-    '\n\nEnglish transcript (auto-captioned, may lack punctuation):\n"'+enText+'"\n\n'+
-    'Split the English into EXACTLY '+koTexts.length+' segments, in order, where segment i matches Korean sentence i in meaning. '+
-    'Keep the original English words in their original order — do NOT translate, reorder, drop, or invent words; you may only add light punctuation/capitalization and choose split points. '+
-    'If a Korean sentence has no matching English, use "" for it. '+
-    'Return JSON: {"en":["seg1","seg2", ...]} with EXACTLY '+koTexts.length+' items.';
-  const raw=await gemini(prompt,true,1800);
-  let en=[];try{en=JSON.parse(raw).en||[];}catch(e){}
-  return en.map(x=>String(x).trim());
+/* 단어 N개를 세그먼트 K개로 균등 분할한 '끝 인덱스' 배열 (폴백·정규화용) */
+function evenEnds(nWords,nSeg){const e=[];for(let i=1;i<=nSeg;i++)e.push(Math.max(0,Math.round(nWords*i/nSeg)-1));return e;}
+/* AI에게 '경계 단어 인덱스'만 받아서 직접 자름 → 단어 중복·누락 원천 차단 */
+async function aiAlignBoundaries(words,koTexts){
+  const numbered=words.map((w,i)=>i+':'+w).join(' ');
+  const prompt='Align an English caption stream to its Korean translation.\n'+
+    'English words as index:word —\n'+numbered+'\n\n'+
+    'Korean sentences in order ('+koTexts.length+'):\n'+koTexts.map((k,i)=>(i+1)+'. '+k).join('\n')+'\n\n'+
+    'For EACH Korean sentence, give the index of the LAST English word that belongs to it. '+
+    'The numbers must be non-decreasing, in range 0..'+(words.length-1)+', and the final one must be '+(words.length-1)+'. '+
+    'Every English word belongs to exactly one sentence (no gaps, no overlap). '+
+    'Return JSON: {"ends":[i1,i2, ...]} with EXACTLY '+koTexts.length+' integers.';
+  const raw=await gemini(prompt,true,900);
+  let ends=[];try{ends=JSON.parse(raw).ends||[];}catch(e){}
+  return ends.map(n=>parseInt(n,10));
 }
-/* 한국어 문장 기준 줄 + 각 줄의 영어를 의미에 맞게 정렬 (배치 처리, 시간은 영어 큐 기준) */
+/* 한국어 문장 기준 줄 + 영어를 의미에 맞게 1:1 정렬. 단어 스트림을 경계로 잘라 절대 중복 안 됨 */
 async function aiAlignKoLines(enCues,koSents,chapters){
-  const out=[];const B=15;
+  const out=[];const B=12;
+  const chs=(chapters||[]).slice().sort((a,b)=>a.time-b.time);
   for(let s=0;s<koSents.length;s+=B){
     const batch=koSents.slice(s,s+B);
-    const a=batch[0].time, b=batch[batch.length-1].end;
-    const enInBatch=enCues.filter(c=>c.time!=null&&c.time>=a-0.5&&c.time<((b!=null?b:a)+0.5));
-    const enText=enInBatch.map(c=>c.text).join(' ').replace(/\s+/g,' ').trim();
-    let aligned=[];try{aligned=await aiAlignEnToKo(enText,batch.map(x=>x.text));}catch(e){aligned=[];}
-    if(aligned.length===batch.length){
-      const enLines=remapSentences(wordTimesFromCues(enInBatch),aligned,chapters);
-      batch.forEach((x,i)=>out.push({time:enLines[i]?enLines[i].time:x.time,end:enLines[i]?enLines[i].end:x.end,en:aligned[i]||'',ko:x.text,chapter:enLines[i]?enLines[i].chapter:''}));
-    }else{ // 정렬 실패 시 시간 기준으로 폴백
-      batch.forEach(x=>out.push({time:x.time,end:x.end,en:koInRange(enInBatch,x.time,x.end),ko:x.text,chapter:''}));
-    }
+    const t0=(s===0)?-Infinity:batch[0].time;                 // 첫 배치는 앞쪽 단어까지 모두 포함
+    const t1=koSents[s+B]?koSents[s+B].time:Infinity;          // 다음 배치 시작 직전까지 (반열린 구간 → 겹침 없음)
+    const wt=[];enCues.forEach(c=>{if(c.time==null)return;if(c.time>=t0&&c.time<t1)(c.text||'').split(/\s+/).filter(Boolean).forEach(w=>wt.push({w,time:c.time,end:c.end}));});
+    const words=wt.map(x=>x.w);
+    if(!words.length){batch.forEach(x=>out.push({time:x.time,end:x.end,en:'',ko:x.text,chapter:chapAt(chs,x.time)}));continue;}
+    let ends=[];try{ends=await aiAlignBoundaries(words,batch.map(x=>x.text));}catch(e){ends=[];}
+    if(ends.length!==batch.length||ends.some(n=>!isFinite(n)))ends=evenEnds(words.length,batch.length);
+    else{ends=ends.map(n=>Math.max(0,Math.min(words.length-1,n)));for(let i=1;i<ends.length;i++)if(ends[i]<ends[i-1])ends[i]=ends[i-1];ends[ends.length-1]=words.length-1;}
+    let start=0;
+    batch.forEach((x,i)=>{
+      const e=ends[i];const seg=(e>=start)?words.slice(start,e+1):[];
+      const time=wt[start]?wt[start].time:x.time, endT=wt[Math.min(e,wt.length-1)]?wt[Math.min(e,wt.length-1)].end:x.end;
+      out.push({time:seg.length?time:x.time,end:seg.length?endT:x.end,en:seg.join(' '),ko:x.text,chapter:chapAt(chs,seg.length?time:x.time)});
+      start=e+1;
+    });
   }
   out.forEach((l,i)=>l.idx=i);return out;
 }
+function chapAt(chs,t){let c='';for(const ch of chs){if(t!=null&&ch.time<=t+0.5)c=ch.title;else if(t!=null)break;}return c;}
 
 let vdId=null, vdCefr='A2', vdKoSentence='', recog=null, vdLastFeedback=null;
 function openVocabDetail(id){const v=vocab.find(x=>x.id===id);if(!v)return;
