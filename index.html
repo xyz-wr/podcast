@@ -192,6 +192,7 @@
   <section id="screen-library" class="screen active">
     <div class="topbar">
       <div class="grow"><div class="eyebrow">Study</div><h1 class="serif">내 영상</h1></div>
+      <button class="chip teal" onclick="openAddVideo()">＋ 영상</button>
       <button class="chip teal" onclick="createFolder()">＋ 폴더</button>
     </div>
     <div id="libList"></div>
@@ -284,12 +285,6 @@
   <section id="screen-settings" class="screen">
     <div class="topbar"><div class="grow"><div class="eyebrow">Personal study notebook</div><h1 class="serif">설정</h1></div></div>
     <div class="panel">
-      <h2>＋ 영상 추가</h2>
-      <div class="row"><input type="text" id="newVidUrl" class="grow" placeholder="YouTube URL 또는 영상 ID"></div>
-      <div class="row" style="margin-top:10px;"><button class="secondary grow" onclick="addVideo()">영상 만들기</button></div>
-      <p class="hint" style="font-size:11px;color:var(--ink-soft);margin-top:8px;line-height:1.5;">제목은 영상에서 자동으로 가져와요. (학습 탭에서 제목 탭하면 수정)</p>
-    </div>
-    <div class="panel">
       <h2>자막 받기 · DownSub</h2>
       <p style="font-size:12px;color:var(--ink-soft);line-height:1.55;margin:0 0 10px;">영어 자막이 없거나 타임스탬프가 필요하면 DownSub에서 영상 URL로 <b>.srt</b>를 받아, 학습 화면의 <b>✎</b>에 올리세요. (txt 말고 .srt)</p>
       <div class="row"><button class="secondary grow" onclick="window.open('https://downsub.com/','_blank','noopener')">DownSub 열기 ↗</button></div>
@@ -328,6 +323,19 @@
   <div class="tab" data-s="streak" onclick="tabTo('streak')"><div class="ico">🔥</div><div class="lab">기록</div><span class="badge a hide" id="badgeStreak"></span></div>
   <div class="tab" data-s="settings" onclick="tabTo('settings')"><div class="ico">⚙</div><div class="lab">더보기</div></div>
 </nav>
+
+<!-- add video modal -->
+<div class="modal-bg" id="addVidModal">
+  <div class="modal">
+    <h3>＋ 영상 추가</h3>
+    <p style="font-size:12px;color:var(--ink-soft);margin:0 0 10px;line-height:1.55;">YouTube 주소나 영상 ID를 넣으세요. 제목은 자동으로 가져와요. (학습 화면에서 제목 탭하면 수정)</p>
+    <input type="text" id="newVidUrl" placeholder="https://youtu.be/… 또는 영상 ID">
+    <div class="row" style="margin-top:12px;">
+      <button class="ghost sm" onclick="closeModal('addVidModal')">닫기</button>
+      <button class="secondary grow" id="addVidBtn" onclick="addVideo()">영상 만들기</button>
+    </div>
+  </div>
+</div>
 
 <!-- transcript input modal -->
 <div class="modal-bg" id="tiModal">
@@ -668,12 +676,13 @@ async function deleteVideo(id){const v=await idbGet('videos',id);if(!v)return;
   await pruneEmptyFolder(v.folderId);
   await loadAll();toast('영상을 삭제했어요');}
 
+function openAddVideo(){const i=document.getElementById('newVidUrl');if(i)i.value='';openModal('addVidModal');setTimeout(()=>i&&i.focus(),50);}
 async function addVideo(){const url=document.getElementById('newVidUrl').value;const id=extractVideoId(url);
   if(!id){toast('YouTube 주소/ID를 확인해주세요');return;}
   toast('제목 불러오는 중…');let title=await fetchTitle(id);if(!title)title='새 영상';
   const v={id:uid(),youtubeId:id,title,folderId:null,lines:[],createdAt:Date.now(),lastStudiedAt:Date.now()};
   await idbPut('videos',v);document.getElementById('newVidUrl').value='';
-  await loadAll();openVideo(v.id);}
+  closeModal('addVidModal');await loadAll();openVideo(v.id);}
 
 async function openVideo(id){currentVideo=await idbGet('videos',id);currentVideo.lastStudiedAt=Date.now();idbPut('videos',currentVideo);
   document.getElementById('studyTitle').textContent=currentVideo.title;
