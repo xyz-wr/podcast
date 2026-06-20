@@ -83,6 +83,9 @@
   .chapter:first-child{border-top:none;margin-top:0;}
   .tline{display:flex;gap:9px;padding:8px 6px;border-bottom:1px solid #ECE6D7;align-items:flex-start;}
   .tline.active{background:var(--amber-bg);border-radius:10px;border-bottom-color:transparent;}
+  .tline.studied{border-left:3px solid #cfe0db;padding-left:5px;}
+  .tline.bmline{border-left-color:var(--teal);}
+  .bmflag{margin-left:2px;}
   .ttime{flex:none;font-size:11px;font-weight:600;color:var(--teal-deep);background:var(--teal-soft);border-radius:6px;padding:4px 7px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:3px;}
   .tline.active .ttime{background:var(--teal);color:#fff;}
   .twrap{flex:1;min-width:0;}
@@ -205,6 +208,7 @@
       <span class="lab">구간 반복</span>
       <span class="seg" id="loopSeg">꺼짐</span>
       <span style="margin-left:auto;display:flex;gap:6px;">
+        <span class="chip" title="현재 위치 북마크" onclick="bookmarkCurrent()">🔖</span>
         <span class="chip" id="rateChip" onclick="cycleRate()">1×</span>
         <span class="chip" id="loopClear" onclick="clearLoop()">해제</span>
       </span>
@@ -213,7 +217,10 @@
     <div class="substrip">
       <span class="ttl">자막</span>
       <span class="hint">단어 탭 → 추가 · 줄 길게 → 반복</span>
-      <span class="chip teal" id="koChip" style="margin-left:auto;" onclick="toggleKo()">한국어</span>
+      <span style="margin-left:auto;display:flex;gap:6px;">
+        <span class="chip" id="resumeChip" style="display:none;" onclick="resumeBookmark()">🔖 이어보기</span>
+        <span class="chip teal" id="koChip" onclick="toggleKo()">한국어</span>
+      </span>
     </div>
 
     <div class="tlist" id="tlist">
@@ -229,10 +236,27 @@
     <div class="empty" id="vEmpty">아직 저장한 표현이 없어요. 학습 화면에서 단어를 탭해 담아보세요.</div>
   </section>
 
-  <!-- ===== SHADOW ===== -->
-  <section id="screen-shadow" class="screen">
-    <div class="topbar"><div class="grow"><div class="eyebrow">Shadowing</div><h1 class="serif">쉐도잉 녹음</h1></div></div>
-    <div id="shadowBody"></div>
+  <!-- ===== DETAIL / PRACTICE ===== -->
+  <section id="screen-detail" class="screen">
+    <div class="topbar">
+      <button class="iconbtn" onclick="backFromDetail()">‹</button>
+      <div class="grow" style="min-width:0;"><h1 class="serif" id="vdTerm" style="font-size:20px;"></h1><div id="vdMeaning" style="font-size:13px;color:var(--ink-soft);"></div></div>
+    </div>
+    <div style="padding:0 14px 20px;">
+      <label class="fld">CEFR 등급으로 연습</label>
+      <div class="row" id="vdCefr" style="gap:6px;"></div>
+      <button class="secondary" style="width:100%;margin-top:10px;" onclick="vdGenerate()">이 등급의 한국어 문장 제시</button>
+      <div id="vdKo" style="font-size:15px;line-height:1.6;margin:10px 0;padding:11px;background:var(--amber-bg);border-radius:9px;min-height:10px;color:#5b5446;">등급을 고르고 “문장 제시”를 눌러보세요.</div>
+      <label class="fld">위 문장을 영어로 작문 (이 표현 사용)</label>
+      <div style="display:flex;gap:8px;align-items:stretch;">
+        <textarea id="vdEn" style="min-height:58px;flex:1;" placeholder="영어로 작문하거나 🎙 로 말하세요"></textarea>
+        <button class="iconbtn" id="vdMic" style="height:auto;width:44px;" title="음성 입력" onclick="vdVoice()">🎙</button>
+      </div>
+      <button class="secondary" style="width:100%;margin-top:8px;" onclick="vdFeedback()">피드백 받기</button>
+      <div id="vdFeedback" style="font-size:13px;line-height:1.7;margin:10px 0;"></div>
+      <button style="width:100%;" onclick="vdSaveExample()">＋ 이 영작을 예문으로 저장</button>
+      <div id="vdExamples"></div>
+    </div>
   </section>
 
   <!-- ===== QUIZ ===== -->
@@ -255,7 +279,6 @@
 <nav id="tabbar">
   <div class="tab active" data-s="learn" onclick="tabTo('learn')"><div class="ico">▶</div><div class="lab">학습</div></div>
   <div class="tab" data-s="vocab" onclick="tabTo('vocab')"><div class="ico">▤</div><div class="lab">단어장</div><span class="badge t hide" id="badgeVocab"></span></div>
-  <div class="tab" data-s="shadow" onclick="tabTo('shadow')"><div class="ico">🎙</div><div class="lab">쉐도잉</div></div>
   <div class="tab" data-s="quiz" onclick="tabTo('quiz')"><div class="ico">✦</div><div class="lab">복습</div><span class="badge r hide" id="badgeQuiz"></span></div>
 </nav>
 
@@ -263,7 +286,7 @@
 <div class="modal-bg" id="tiModal">
   <div class="modal">
     <h3>자막 입력</h3>
-    <p style="font-size:12px;color:var(--ink-soft);margin:0 0 8px;line-height:1.55;">영어는 학습·쉐도잉의 기준, 한국어는 뜻 확인용(선택). <b>.srt / .vtt</b> 파일을 올리거나 텍스트를 붙여넣으세요. <code>챕터 N: 제목</code> 줄은 자동으로 챕터가 되고, <code>0:1111초</code>처럼 붙은 한국어 시간 라벨은 제거돼요.</p>
+    <p style="font-size:12px;color:var(--ink-soft);margin:0 0 8px;line-height:1.55;">영어는 학습 기준, 한국어는 뜻 확인용(선택). <b>.srt / .vtt</b> 파일을 올리거나 텍스트를 붙여넣으세요. <code>챕터 N: 제목</code> 줄은 자동으로 챕터가 되고, <code>0:1111초</code>처럼 붙은 한국어 시간 라벨은 제거돼요.</p>
     <label class="fld">영어 자막 (.srt / .vtt / 텍스트)</label>
     <input type="file" id="enFile" accept=".srt,.vtt,.txt" style="font-size:12px;">
     <textarea id="enText" placeholder="1
@@ -309,29 +332,6 @@ One of Hey Tablo's most popular episodes,"></textarea>
   </div>
 </div>
 
-<!-- vocab detail / practice modal -->
-<div class="modal-bg" id="vdModal">
-  <div class="modal" style="max-height:90vh;overflow-y:auto;">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-      <div><h3 id="vdTerm" style="margin:0;"></h3><div id="vdMeaning" style="font-size:13px;color:var(--ink-soft);margin-top:2px;"></div></div>
-      <button class="iconbtn" onclick="closeModal('vdModal')">✕</button>
-    </div>
-    <label class="fld">CEFR 등급으로 연습</label>
-    <div class="row" id="vdCefr" style="gap:6px;"></div>
-    <button class="secondary" style="width:100%;margin-top:10px;" onclick="vdGenerate()">이 등급의 한국어 문장 제시</button>
-    <div id="vdKo" style="font-size:15px;line-height:1.6;margin:10px 0;padding:11px;background:var(--amber-bg);border-radius:9px;min-height:10px;color:#5b5446;"></div>
-    <label class="fld">위 문장을 영어로 작문 (이 표현 사용)</label>
-    <div style="display:flex;gap:8px;align-items:stretch;">
-      <textarea id="vdEn" style="min-height:58px;flex:1;" placeholder="영어로 작문하거나 🎙 로 말하세요"></textarea>
-      <button class="iconbtn" id="vdMic" style="height:auto;width:44px;" title="음성 입력" onclick="vdVoice()">🎙</button>
-    </div>
-    <button class="secondary" style="width:100%;margin-top:8px;" onclick="vdFeedback()">피드백 받기</button>
-    <div id="vdFeedback" style="font-size:13px;line-height:1.7;margin:10px 0;"></div>
-    <button style="width:100%;" onclick="vdSaveExample()">＋ 이 영작을 예문으로 저장</button>
-    <div id="vdExamples"></div>
-  </div>
-</div>
-
 <div id="toast"></div>
 
 <script>
@@ -355,7 +355,6 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 /* ============ state ============ */
 let videos=[],currentVideo=null,vocab=[],showKo=false;
 let sel={lineIdx:null,words:[]};
-let shadowSeg=null;
 
 /* ============ helpers ============ */
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1800);}
@@ -458,18 +457,37 @@ function seekTo(sec){if(!isFinite(sec))return;if(playerReady){try{player.seekTo(
 function cycleRate(){currentRate=RATES[(RATES.indexOf(currentRate)+1)%RATES.length];document.getElementById('rateChip').textContent=currentRate+'×';if(playerReady)try{player.setPlaybackRate(currentRate);}catch(e){}}
 
 /* A-B loop */
-let loop=null,loopTimer=null;
+let loop=null,loopTimer=null,segStopTimer=null;
 function setLoop(a,b){loop={a,b};document.getElementById('loopSeg').textContent=fmt(a)+' → '+fmt(b);clearInterval(loopTimer);seekTo(a);
   loopTimer=setInterval(()=>{if(playerReady&&loop){const t=player.getCurrentTime();if(t>=loop.b-0.06||t<loop.a-1)seekTo(loop.a);}},140);highlightActive();}
 function clearLoop(){loop=null;clearInterval(loopTimer);document.getElementById('loopSeg').textContent='꺼짐';highlightActive();}
 function highlightActive(){document.querySelectorAll('.tline').forEach(el=>{const i=+el.dataset.i;const ln=currentVideo&&currentVideo.lines[i];el.classList.toggle('active',!!(loop&&ln&&ln.time===loop.a));});}
+
+/* ============ bookmark (이어보기) ============ */
+function markStudied(idx,time){if(!currentVideo)return;const bm=currentVideo.bookmark;
+  if(!bm||idx>bm.idx){currentVideo.bookmark={idx,time};idbPut('videos',currentVideo);applyStudied();updateResume();}}
+function applyStudied(){const bm=currentVideo&&currentVideo.bookmark;
+  document.querySelectorAll('.bmflag').forEach(f=>f.remove());
+  document.querySelectorAll('.tline').forEach(el=>{const i=+el.dataset.i;
+    el.classList.toggle('studied',!!(bm&&i<=bm.idx));el.classList.toggle('bmline',!!(bm&&i===bm.idx));});
+  if(bm){const tc=document.querySelector('.tline[data-i="'+bm.idx+'"] .ttime');
+    if(tc){const s=document.createElement('span');s.className='bmflag';s.textContent='🔖';tc.appendChild(s);}}}
+function updateResume(){const c=document.getElementById('resumeChip');if(!c)return;const bm=currentVideo&&currentVideo.bookmark;
+  if(bm&&bm.time!=null){c.style.display='';c.textContent='🔖 이어보기 '+fmt(bm.time);}else c.style.display='none';}
+function scrollToLine(idx){const el=document.querySelector('.tline[data-i="'+idx+'"]');if(el)el.scrollIntoView({block:'center',behavior:'smooth'});}
+function resumeBookmark(){const bm=currentVideo&&currentVideo.bookmark;if(!bm)return;if(bm.time!=null)seekTo(bm.time);scrollToLine(bm.idx);}
+function bookmarkCurrent(){if(!currentVideo||!currentVideo.lines||!currentVideo.lines.length)return;
+  let t=0;try{t=player.getCurrentTime();}catch(e){}
+  let idx=0,time=null;for(const l of currentVideo.lines){if(l.time!=null&&l.time<=t+0.3){idx=l.idx;time=l.time;}else if(l.time!=null)break;}
+  if(time==null){time=currentVideo.lines[0].time;idx=0;}
+  currentVideo.bookmark={idx,time};idbPut('videos',currentVideo);applyStudied();updateResume();scrollToLine(idx);
+  toast('여기까지 북마크'+(time!=null?' · '+fmt(time):''));}
 
 /* ============ navigation ============ */
 function showScreen(name){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById('screen-'+name).classList.add('active');window.scrollTo(0,0);}
 function tabTo(s){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.s===s));clearSelection();
   if(s==='learn'){showScreen(currentVideo?'study':'library');}
   else if(s==='vocab'){showScreen('vocab');renderVocab();}
-  else if(s==='shadow'){showScreen('shadow');renderShadow();}
   else if(s==='quiz'){showScreen('quiz');renderQuiz();}}
 
 /* ============ library ============ */
@@ -494,7 +512,8 @@ async function openVideo(id){currentVideo=await idbGet('videos',id);currentVideo
   document.getElementById('studyTitle').textContent=currentVideo.title;
   document.getElementById('studySub').textContent='자막 '+(currentVideo.lines?.length||0)+'줄';
   clearLoop();renderTranscript();document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.s==='learn'));
-  showScreen('study');mountPlayer(currentVideo.youtubeId);}
+  showScreen('study');mountPlayer(currentVideo.youtubeId);
+  if(currentVideo.bookmark)setTimeout(()=>scrollToLine(currentVideo.bookmark.idx),200);}
 
 /* ============ transcript input ============ */
 function openTranscriptInput(){openModal('tiModal');}
@@ -532,17 +551,17 @@ function renderTranscript(){const el=document.getElementById('tlist');const ls=c
       <span class="twrap"><span class="ten">${ln.en?words:'<i style="color:#9a948a">— 영어 자막 없음 —</i>'}</span>
       <span class="tko" ${showKo?'':'style="display:none"'}>${esc(ln.ko||'')}</span></span></div>`;
   }
-  el.innerHTML=html;wireTranscript();highlightActive();updateKoChip();}
+  el.innerHTML=html;wireTranscript();highlightActive();updateKoChip();applyStudied();updateResume();}
 
 function updateKoChip(){const c=document.getElementById('koChip');c.classList.toggle('on',showKo);}
 function toggleKo(){showKo=!showKo;document.querySelectorAll('.tko').forEach(e=>e.style.display=showKo?'':'none');document.getElementById('koChip').classList.toggle('on',showKo);}
 
 function wireTranscript(){
-  document.querySelectorAll('.ttime').forEach(t=>t.onclick=e=>{e.stopPropagation();seekTo(+t.dataset.seek);});
+  document.querySelectorAll('.ttime').forEach(t=>t.onclick=e=>{e.stopPropagation();const s=+t.dataset.seek;if(!isFinite(s))return;seekTo(s);markStudied(+t.closest('.tline').dataset.i,s);});
   document.querySelectorAll('.word').forEach(w=>w.onclick=e=>{e.stopPropagation();const line=+w.closest('.tline').dataset.i;toggleWord(line,+w.dataset.i,w);});
   // long-press to set loop
   document.querySelectorAll('.tline').forEach(el=>{
-    let timer=null;const start=e=>{if(e.target.closest('.word')||e.target.closest('.ttime'))return;if(el.dataset.time==='')return;timer=setTimeout(()=>{const a=+el.dataset.time,b=+el.dataset.end;if(!isFinite(a))return;setLoop(a,b);toast('구간 반복: '+fmt(a)+' → '+fmt(b));},480);};
+    let timer=null;const start=e=>{if(e.target.closest('.word')||e.target.closest('.ttime'))return;if(el.dataset.time==='')return;timer=setTimeout(()=>{const a=+el.dataset.time,b=+el.dataset.end;if(!isFinite(a))return;setLoop(a,b);markStudied(+el.dataset.i,a);toast('구간 반복: '+fmt(a)+' → '+fmt(b));},480);};
     const cancel=()=>{clearTimeout(timer);};
     el.addEventListener('pointerdown',start);el.addEventListener('pointerup',cancel);el.addEventListener('pointerleave',cancel);el.addEventListener('pointercancel',cancel);
   });
@@ -616,63 +635,6 @@ async function cycleTag(id){const v=vocab.find(x=>x.id===id);const order=['word'
 async function delVocab(id){const v=vocab.find(x=>x.id===id);if(!confirm('“'+v.term+'” 삭제할까요?'))return;await idbDel('vocab',id);vocab=vocab.filter(x=>x.id!==id);renderVocab();updateBadges();if(currentVideo)renderTranscript();}
 async function jumpToVocab(id){const v=vocab.find(x=>x.id===id);const vid=await idbGet('videos',v.videoId);if(!vid)return;
   await openVideo(vid.id);setTimeout(()=>setLoop(v.time,v.end||v.time+4),400);}
-
-/* ============ shadowing ============ */
-let mediaRec=null,recChunks=[],recStream=null,recStartT=0,segStopTimer=null;
-function renderShadow(){const el=document.getElementById('shadowBody');
-  if(!currentVideo){el.innerHTML='<div class="empty">학습 화면에서 영상을 연 뒤, 자막 줄을 길게 눌러 반복 구간을 정하면 그 구간을 따라 말하기 연습할 수 있어요.</div>';return;}
-  const seg=loop||shadowSeg;
-  if(!seg){el.innerHTML='<div class="empty">반복 구간이 없어요. 학습 화면에서 자막 줄을 길게 눌러 A-B 구간을 먼저 정해주세요.</div>';return;}
-  shadowSeg={a:seg.a,b:seg.b};
-  const ln=(currentVideo.lines||[]).find(l=>Math.abs(l.time-seg.a)<0.5);
-  el.innerHTML=`<div class="seg-card">
-    <div style="font-size:11px;color:var(--ink-soft);font-weight:600;">${fmt(seg.a)} → ${fmt(seg.b)}</div>
-    <div style="font-size:15px;line-height:1.7;margin:6px 0 4px;">${esc(ln?ln.en||ln.ko:'')||'<i>이 구간 자막</i>'}</div>
-    ${ln&&ln.ko?`<div style="font-size:12.5px;color:#7a7468;">${esc(ln.ko)}</div>`:''}
-    <div class="row" style="margin-top:12px;">
-      <button class="secondary grow" onclick="playSeg()">▶ 원본 듣기</button>
-      <span class="chip" onclick="cycleRate()" id="rateChip2">${currentRate}×</span>
-    </div>
-    <div id="recWrap" style="text-align:center;margin-top:6px;">
-      <div class="recbtn" id="recBtn" onclick="toggleRec()">●</div>
-      <div style="font-size:12px;color:var(--ink-soft);" id="recStatus">탭해서 녹음 시작</div>
-    </div>
-    <canvas class="wave" id="wave" width="520" height="54" style="margin-top:10px;"></canvas>
-    <div id="takeList"></div>
-  </div>`;
-  renderTakes();}
-function playSeg(){if(!shadowSeg)return;seekTo(shadowSeg.a);clearTimeout(segStopTimer);
-  const dur=(shadowSeg.b-shadowSeg.a)/currentRate*1000+150;
-  segStopTimer=setTimeout(()=>{if(playerReady)try{player.pauseVideo();}catch(e){}},dur);}
-async function toggleRec(){const btn=document.getElementById('recBtn');
-  if(mediaRec&&mediaRec.state==='recording'){mediaRec.stop();return;}
-  try{recStream=await navigator.mediaDevices.getUserMedia({audio:true});}catch(e){toast('마이크 권한이 필요해요');return;}
-  mediaRec=new MediaRecorder(recStream);recChunks=[];recStartT=Date.now();
-  mediaRec.ondataavailable=e=>recChunks.push(e.data);
-  mediaRec.onstop=async()=>{const blob=new Blob(recChunks,{type:mediaRec.mimeType||'audio/webm'});
-    recStream.getTracks().forEach(t=>t.stop());btn.classList.remove('recording');btn.textContent='●';
-    document.getElementById('recStatus').textContent='탭해서 녹음 시작';
-    const takes=await idbIdx('recordings','videoId',currentVideo.id);
-    const segTakes=takes.filter(t=>Math.abs(t.time-shadowSeg.a)<0.5);
-    const rec={id:uid(),videoId:currentVideo.id,time:shadowSeg.a,end:shadowSeg.b,blob,dur:(Date.now()-recStartT)/1000,takeNo:segTakes.length+1,createdAt:Date.now()};
-    await idbPut('recordings',rec);drawWave(blob);renderTakes();toast('녹음 저장됨');};
-  mediaRec.start();btn.classList.add('recording');btn.textContent='■';document.getElementById('recStatus').textContent='녹음 중… 탭해서 정지';}
-async function renderTakes(){const wrap=document.getElementById('takeList');if(!wrap)return;
-  const all=await idbIdx('recordings','videoId',currentVideo.id);
-  const takes=all.filter(t=>Math.abs(t.time-shadowSeg.a)<0.5).sort((a,b)=>b.createdAt-a.createdAt);
-  if(!takes.length){wrap.innerHTML='';return;}
-  wrap.innerHTML='<div style="font-size:11px;color:var(--ink-soft);font-weight:600;margin:12px 0 2px;">내 녹음</div>';
-  takes.forEach(t=>{const row=document.createElement('div');row.className='take';
-    row.innerHTML=`<button class="sm" data-p="${t.id}">▶</button><span style="flex:1">테이크 ${t.takeNo} · ${t.dur.toFixed(1)}s</span><span class="del" data-d="${t.id}" style="color:var(--danger);font-weight:600;cursor:pointer;">삭제</span>`;
-    wrap.appendChild(row);
-    row.querySelector('[data-p]').onclick=()=>{const u=URL.createObjectURL(t.blob);const a=new Audio(u);a.playbackRate=1;a.play();drawWave(t.blob);};
-    row.querySelector('[data-d]').onclick=async()=>{await idbDel('recordings',t.id);renderTakes();};});}
-async function drawWave(blob){const cv=document.getElementById('wave');if(!cv)return;const ctx=cv.getContext('2d');
-  ctx.clearRect(0,0,cv.width,cv.height);
-  try{const ab=await blob.arrayBuffer();const ac=new (window.AudioContext||window.webkitAudioContext)();const buf=await ac.decodeAudioData(ab);
-    const data=buf.getChannelData(0);const N=cv.width;const step=Math.floor(data.length/N);
-    ctx.fillStyle='#2F6B62';for(let i=0;i<N;i++){let max=0;for(let j=0;j<step;j++){const v=Math.abs(data[i*step+j]||0);if(v>max)max=v;}const h=Math.max(1,max*cv.height);ctx.fillRect(i,(cv.height-h)/2,1,h);}ac.close();
-  }catch(e){ctx.fillStyle='#ccc';ctx.fillText('파형 표시 불가',10,30);}}
 
 /* ============ quiz / SRS ============ */
 const INTERVALS=[0,0,1,3,7,16,30];
@@ -769,7 +731,9 @@ function openVocabDetail(id){const v=vocab.find(x=>x.id===id);if(!v)return;
   document.getElementById('vdKo').textContent='등급을 고르고 "문장 제시"를 눌러보세요.';
   document.getElementById('vdEn').value='';
   document.getElementById('vdFeedback').innerHTML='';
-  renderExamples(v);openModal('vdModal');}
+  document.getElementById('vdMic').textContent='🎙';
+  renderExamples(v);showScreen('detail');}
+function backFromDetail(){if(recog){try{recog.stop();}catch(e){}recog=null;}showScreen('vocab');renderVocab();}
 function renderCefrChips(){document.getElementById('vdCefr').innerHTML=['A1','A2','B1','B2','C1','C2'].map(l=>`<span class="chip ${l===vdCefr?'on':''}" data-cefr="${l}">${l}</span>`).join('');
   document.querySelectorAll('#vdCefr .chip').forEach(c=>c.onclick=()=>{vdCefr=c.dataset.cefr;renderCefrChips();});}
 async function vdGenerate(){const v=vocab.find(x=>x.id===vdId);const ko=document.getElementById('vdKo');
