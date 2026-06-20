@@ -61,8 +61,13 @@
   .vid-meta{flex:1;min-width:0;}
   .vid-meta .t{font-weight:600;font-size:14px;line-height:1.25;}
   .vid-meta .s{font-size:11.5px;color:var(--ink-soft);margin-top:3px;}
-  .vid-card .vdel{flex:none;background:none;border:none;color:var(--ink-faint);font-size:14px;padding:4px 6px;border-radius:8px;}
+  .vid-card .vdel{flex:none;background:none;border:none;color:var(--ink-faint);font-size:14px;padding:4px 5px;border-radius:8px;}
   .vid-card .vdel:active{background:var(--paper);color:var(--danger);}
+  .folder-head{display:flex;align-items:center;gap:8px;padding:10px 16px 6px;}
+  .folder-head .fn{font-family:'Fraunces',serif;font-weight:600;font-size:14px;color:var(--amber-deep);}
+  .folder-head .fa{margin-left:auto;color:var(--ink-faint);font-size:13px;background:none;border:none;padding:3px 6px;}
+  .pick-btn{text-align:left;background:#fff;color:var(--ink);border:1px solid var(--paper-line);padding:12px;font-weight:500;border-radius:9px;}
+  .pick-btn.cur{border-color:var(--amber);color:var(--amber-deep);}
   .empty{color:var(--ink-soft);font-size:13px;text-align:center;padding:30px 14px;line-height:1.6;}
 
   /* player + loop */
@@ -196,13 +201,14 @@
       <div class="row">
         <input type="text" id="newVidUrl" class="grow" placeholder="YouTube URL 또는 영상 ID">
       </div>
-      <input type="text" id="newVidTitle" placeholder="제목" style="margin-top:8px;">
+      <input type="text" id="newVidTitle" placeholder="제목 (비우면 영상 제목 자동)" style="margin-top:8px;">
       <div class="row" style="margin-top:10px;">
         <button class="secondary grow" onclick="addVideo()">영상 만들기</button>
       </div>
     </div>
     <div style="display:flex;align-items:center;padding:2px 16px 8px;">
       <span class="serif" style="font-size:15px;font-weight:600;">내 영상</span>
+      <button class="chip teal" style="margin-left:auto;" onclick="createFolder()">＋ 폴더</button>
     </div>
     <div id="libList"></div>
   </section>
@@ -212,7 +218,7 @@
     <div class="topbar">
       <button class="iconbtn" onclick="showScreen('library')">‹</button>
       <div class="grow" style="min-width:0;">
-        <div class="serif" id="studyTitle" style="font-size:15px;font-weight:600;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">영상</div>
+        <div class="serif" id="studyTitle" onclick="renameVideo()" style="font-size:15px;font-weight:600;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;" title="탭해서 제목 수정">영상</div>
         <div id="studySub" style="font-size:11px;color:var(--ink-soft);"></div>
       </div>
       <button class="iconbtn" title="자막 입력" onclick="openTranscriptInput()">✎</button>
@@ -358,6 +364,30 @@ One of Hey Tablo's most popular episodes,"></textarea>
   </div>
 </div>
 
+<!-- text input dialog -->
+<div class="modal-bg" id="textModal" style="align-items:center;">
+  <div class="confirm-card" style="text-align:left;">
+    <h3 id="textTitle" style="text-align:center;">입력</h3>
+    <input type="text" id="textInput" placeholder="">
+    <div class="cf-btns" style="margin-top:14px;">
+      <button class="ghost" id="textCancel">취소</button>
+      <button class="secondary" id="textOk">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- folder picker -->
+<div class="modal-bg" id="folderModal">
+  <div class="modal">
+    <h3>폴더로 이동</h3>
+    <div id="folderList" style="display:flex;flex-direction:column;gap:8px;"></div>
+    <div class="row" style="margin-top:12px;">
+      <button class="ghost grow" onclick="newFolderThenMove()">＋ 새 폴더</button>
+      <button class="ghost" onclick="closeModal('folderModal')">닫기</button>
+    </div>
+  </div>
+</div>
+
 <!-- pretty confirm dialog -->
 <div class="modal-bg" id="confirmModal" style="align-items:center;">
   <div class="confirm-card">
@@ -392,7 +422,7 @@ const idbIdx=(s,i,v)=>idbReq(s,'readonly',o=>o.index(i).getAll(v));
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 
 /* ============ state ============ */
-let videos=[],currentVideo=null,vocab=[],showKo=false;
+let videos=[],currentVideo=null,vocab=[],showKo=false,folders=[],movingVideoId=null;
 let sel={lineIdx:null,words:[]};
 let lastPlayedLine=null;
 
@@ -412,6 +442,14 @@ function askConfirm(title,message,okLabel,icon){return new Promise(res=>{
   ok.onclick=()=>done(true);cancel.onclick=()=>done(false);
   modal.onclick=e=>{if(e.target===modal)done(false);};
   modal.classList.add('show');});}
+function askText(title,current,placeholder,okLabel){return new Promise(res=>{
+  const modal=document.getElementById('textModal'),inp=document.getElementById('textInput'),ok=document.getElementById('textOk'),cancel=document.getElementById('textCancel');
+  document.getElementById('textTitle').textContent=title;inp.value=current||'';inp.placeholder=placeholder||'';ok.textContent=okLabel||'확인';
+  const done=v=>{modal.classList.remove('show');ok.onclick=null;cancel.onclick=null;modal.onclick=null;inp.onkeydown=null;res(v);};
+  ok.onclick=()=>done(inp.value.trim());cancel.onclick=()=>done(null);
+  inp.onkeydown=e=>{if(e.key==='Enter')done(inp.value.trim());};
+  modal.onclick=e=>{if(e.target===modal)done(null);};
+  modal.classList.add('show');setTimeout(()=>{try{inp.focus();}catch(e){}},60);});}
 function wordsOf(s){return (s||'').split(/\s+/).filter(Boolean);}
 function cleanTerm(s){return s.replace(/^[^\w'’-]+|[^\w'’-]+$/g,'');}
 
@@ -571,16 +609,44 @@ function tabTo(s){document.querySelectorAll('.tab').forEach(t=>t.classList.toggl
   else if(s==='streak'){showScreen('streak');renderStreak();}}
 
 /* ============ library ============ */
-async function loadAll(){videos=(await idbAll('videos')).sort((a,b)=>(b.lastStudiedAt||b.createdAt)-(a.lastStudiedAt||a.createdAt));vocab=await idbAll('vocab');renderLibrary();updateBadges();}
+async function loadAll(){videos=(await idbAll('videos')).sort((a,b)=>(b.lastStudiedAt||b.createdAt)-(a.lastStudiedAt||a.createdAt));vocab=await idbAll('vocab');
+  try{const fk=await idbGet('settings','folders');folders=fk&&fk.value?JSON.parse(fk.value):[];}catch(e){folders=[];}
+  renderLibrary();updateBadges();}
+function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function videoCardHTML(v){const nv=vocab.filter(x=>x.videoId===v.id).length;
+  return `<div class="vid-card" onclick="openVideo('${v.id}')">
+    <div class="vid-thumb" style="background-image:url(https://i.ytimg.com/vi/${v.youtubeId}/mqdefault.jpg)"><div class="pl">▶</div></div>
+    <div class="vid-meta"><div class="t">${esc(v.title||'제목 없음')}</div><div class="s">자막 ${v.lines?.length||0}줄 · 단어 ${nv}개</div></div>
+    <button class="vdel" title="폴더 이동" onclick="event.stopPropagation();openFolderPicker('${v.id}')">🗂</button>
+    <button class="vdel" title="영상 삭제" onclick="event.stopPropagation();deleteVideo('${v.id}')">✕</button>
+  </div>`;}
 function renderLibrary(){const el=document.getElementById('libList');
   if(!videos.length){el.innerHTML='<div class="empty">아직 영상이 없어요. 위에서 YouTube 영상을 추가해보세요.</div>';return;}
-  el.innerHTML='';for(const v of videos){const d=document.createElement('div');d.className='vid-card';d.onclick=()=>openVideo(v.id);
-    const nv=vocab.filter(x=>x.videoId===v.id).length;
-    d.innerHTML=`<div class="vid-thumb" style="background-image:url(https://i.ytimg.com/vi/${v.youtubeId}/mqdefault.jpg)"><div class="pl">▶</div></div>
-      <div class="vid-meta"><div class="t">${esc(v.title||'제목 없음')}</div><div class="s">자막 ${v.lines?.length||0}줄 · 단어 ${nv}개</div></div>
-      <button class="vdel" title="영상 삭제" onclick="event.stopPropagation();deleteVideo('${v.id}')">✕</button>`;
-    el.appendChild(d);}}
-function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+  const groups={__none__:[]};folders.forEach(f=>groups[f.id]=[]);
+  videos.forEach(v=>{const fid=(v.folderId&&folders.some(f=>f.id===v.folderId))?v.folderId:'__none__';groups[fid].push(v);});
+  let html='';
+  for(const f of folders){const vs=groups[f.id]||[];
+    html+=`<div class="folder-head"><span class="fn">📁 ${esc(f.name)}</span>
+      <button class="fa" title="이름 변경" onclick="renameFolder('${f.id}')">✎</button>
+      <button class="fa" title="폴더 삭제" onclick="deleteFolder('${f.id}')">✕</button></div>`;
+    html+=vs.length?vs.map(videoCardHTML).join(''):'<div style="font-size:12px;color:var(--ink-faint);padding:0 16px 8px;">비어 있음 (🗂로 영상 이동)</div>';}
+  const none=groups.__none__;
+  if(none.length){if(folders.length)html+=`<div class="folder-head"><span class="fn" style="color:var(--ink-soft);">미분류</span></div>`;
+    html+=none.map(videoCardHTML).join('');}
+  el.innerHTML=html;}
+async function saveFolders(){await idbPut('settings',{key:'folders',value:JSON.stringify(folders)});}
+async function createFolder(){const n=await askText('새 폴더','','폴더 이름','만들기');if(!n)return null;const f={id:uid(),name:n};folders.push(f);await saveFolders();await loadAll();return f.id;}
+async function renameFolder(id){const f=folders.find(x=>x.id===id);if(!f)return;const n=await askText('폴더 이름',f.name,'','저장');if(n){f.name=n;await saveFolders();renderLibrary();}}
+async function deleteFolder(id){const f=folders.find(x=>x.id===id);if(!f)return;if(!await askConfirm('폴더 삭제','“'+f.name+'” 폴더를 삭제할까요? 안의 영상은 미분류로 이동해요.','삭제','📁'))return;
+  folders=folders.filter(x=>x.id!==id);for(const v of videos){if(v.folderId===id){v.folderId=null;await idbPut('videos',v);}}await saveFolders();await loadAll();}
+function openFolderPicker(videoId){movingVideoId=videoId;const v=videos.find(x=>x.id===videoId);const cur=v&&v.folderId;
+  let html=`<button class="pick-btn ${!cur?'cur':''}" onclick="moveToFolder(null)">미분류</button>`;
+  html+=folders.map(f=>`<button class="pick-btn ${cur===f.id?'cur':''}" onclick="moveToFolder('${f.id}')">📁 ${esc(f.name)}</button>`).join('');
+  document.getElementById('folderList').innerHTML=html;openModal('folderModal');}
+async function moveToFolder(fid){const v=videos.find(x=>x.id===movingVideoId);if(!v)return;v.folderId=fid;await idbPut('videos',v);closeModal('folderModal');await loadAll();toast('이동했어요');}
+async function newFolderThenMove(){const id=movingVideoId;const fid=await createFolder();if(fid){movingVideoId=id;await moveToFolder(fid);}}
+async function fetchTitle(youtubeId){try{const r=await fetch('https://www.youtube.com/oembed?url='+encodeURIComponent('https://www.youtube.com/watch?v='+youtubeId)+'&format=json');if(!r.ok)return '';const j=await r.json();return (j.title||'').trim();}catch(e){return '';}}
+async function renameVideo(){if(!currentVideo)return;const n=await askText('영상 제목',currentVideo.title,'','저장');if(n){currentVideo.title=n;await idbPut('videos',currentVideo);document.getElementById('studyTitle').textContent=n;}}
 
 async function deleteVideo(id){const v=await idbGet('videos',id);if(!v)return;
   if(!await askConfirm('영상 삭제','“'+(v.title||'이 영상')+'” 영상과 이 영상에서 담은 단어가 함께 삭제돼요.'))return;
@@ -592,8 +658,10 @@ async function deleteVideo(id){const v=await idbGet('videos',id);if(!v)return;
 
 async function addVideo(){const url=document.getElementById('newVidUrl').value;const id=extractVideoId(url);
   if(!id){toast('YouTube 주소/ID를 확인해주세요');return;}
-  const title=document.getElementById('newVidTitle').value.trim()||'새 영상';
-  const v={id:uid(),youtubeId:id,title,lines:[],createdAt:Date.now(),lastStudiedAt:Date.now()};
+  let title=document.getElementById('newVidTitle').value.trim();
+  if(!title){toast('제목 불러오는 중…');title=await fetchTitle(id);}
+  if(!title)title='새 영상';
+  const v={id:uid(),youtubeId:id,title,folderId:null,lines:[],createdAt:Date.now(),lastStudiedAt:Date.now()};
   await idbPut('videos',v);document.getElementById('newVidUrl').value='';document.getElementById('newVidTitle').value='';
   await loadAll();openVideo(v.id);}
 
@@ -604,7 +672,7 @@ async function openVideo(id){currentVideo=await idbGet('videos',id);currentVideo
   showScreen('study');
   mountPlayer(currentVideo.youtubeId,(currentVideo.bookmark&&currentVideo.bookmark.time!=null)?currentVideo.bookmark.time:0);
   if(currentVideo.bookmark)setTimeout(()=>scrollToLine(currentVideo.bookmark.idx),200);
-  logActivity('study');}
+  logActivity('study',currentVideo.title);}
 
 /* ============ transcript input ============ */
 function openTranscriptInput(){openModal('tiModal');}
@@ -698,7 +766,7 @@ async function addSelectionToVocab(){const term=selectedText();if(!term){return;
     type:sel.words.length>1?'idiom':'word',
     time:ln.time,end:ln.end,srs:{box:1,dueAt:Date.now(),history:[]},createdAt:Date.now()};
   await idbPut('vocab',item);vocab.push(item);clearSelection();
-  renderTranscript();updateBadges();logActivity('word');toast('단어장에 추가: '+term);
+  renderTranscript();updateBadges();logActivity('word',term);toast('단어장에 추가: '+term);
   // enrich: if the word is part of an idiom/phrasal verb in this sentence, group it; fill meaning
   try{
     if(GEMINI_KEY&&ln.en){
@@ -905,8 +973,11 @@ function vdVoice(){const SR=window.SpeechRecognition||window.webkitSpeechRecogni
 /* ============ streak / study record ============ */
 let activity={};
 function dkey(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-function logActivity(kind){const a=activity[dkey(new Date())]||(activity[dkey(new Date())]={studied:true,words:0,reviews:0});
-  a.studied=true;if(kind==='word')a.words=(a.words||0)+1;else if(kind==='review')a.reviews=(a.reviews||0)+1;
+function logActivity(kind,detail){const k=dkey(new Date());const a=activity[k]||(activity[k]={studied:true,words:0,reviews:0,terms:[],videos:[]});
+  a.studied=true;a.terms=a.terms||[];a.videos=a.videos||[];
+  if(kind==='word'){a.words=(a.words||0)+1;if(detail&&!a.terms.includes(detail))a.terms.push(detail);}
+  else if(kind==='review')a.reviews=(a.reviews||0)+1;
+  else if(kind==='study'&&detail&&!a.videos.includes(detail))a.videos.push(detail);
   idbPut('settings',{key:'activity',value:JSON.stringify(activity)});updateBadges();}
 function dayActive(d){const a=activity[dkey(d)];return !!(a&&(a.studied||a.words||a.reviews));}
 function calcStreak(){let s=0;const d=new Date();d.setHours(0,0,0,0);if(!dayActive(d))d.setDate(d.getDate()-1);while(dayActive(d)){s++;d.setDate(d.getDate()-1);}return s;}
@@ -926,6 +997,15 @@ function renderStreak(){const el=document.getElementById('streakBody');
       hm+=`<div class="hm-cell" title="${dkey(d)} · 활동 ${c}" style="background:${bg};"></div>`;}
     hm+='</div>';}
   hm+='</div>';
+  const recent=Object.keys(activity).filter(x=>{const a=activity[x];return a&&(a.studied||a.words||a.reviews);}).sort().reverse().slice(0,21);
+  let log='';
+  for(const x of recent){const a=activity[x];
+    log+=`<div style="border:1px solid var(--paper-line);border-radius:10px;padding:9px 11px;margin-top:8px;background:#FFFCF5;">
+      <div style="font-size:12px;font-weight:600;color:var(--teal-deep);">${x}</div>
+      ${a.videos&&a.videos.length?`<div style="font-size:12px;color:var(--ink-soft);margin-top:3px;">📺 ${a.videos.map(esc).join(', ')}</div>`:''}
+      ${a.terms&&a.terms.length?`<div style="font-size:12px;margin-top:3px;line-height:1.5;">📝 ${a.terms.map(esc).join(', ')}</div>`:''}
+      <div style="font-size:11px;color:var(--ink-faint);margin-top:3px;">단어 ${a.words||0} · 복습 ${a.reviews||0}</div>
+    </div>`;}
   el.innerHTML=`<div style="padding:0 14px 16px;">
     <div style="display:flex;gap:10px;margin-bottom:10px;">
       <div class="statcard"><div class="sv">🔥 ${streak}</div><div class="sl">연속 학습일</div></div>
@@ -939,6 +1019,8 @@ function renderStreak(){const el=document.getElementById('streakBody');
     ${hm}
     <div style="display:flex;align-items:center;gap:5px;margin-top:8px;font-size:11px;color:var(--ink-soft);">적음
       <span class="hm-cell" style="background:#ECE6D7;"></span><span class="hm-cell" style="background:#cfe0db;"></span><span class="hm-cell" style="background:#7fb3a8;"></span><span class="hm-cell" style="background:#2F6B62;"></span> 많음</div>
+    <div class="serif" style="font-size:14px;font-weight:600;margin:20px 0 2px;">일자별 기록</div>
+    ${log||'<div style="font-size:12px;color:var(--ink-faint);margin-top:6px;">아직 기록이 없어요. 오늘 학습하면 여기에 쌓여요.</div>'}
   </div>`;}
 
 /* ============ init ============ */
