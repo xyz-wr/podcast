@@ -57,7 +57,7 @@ en = parse_srt(EN_SRC)
 # to the Korean cue with the largest time overlap (no mid-phrase word cuts).
 # "word" interpolates per word and buckets by time (tighter to KO boundaries,
 # but can split a word into the neighbouring line).
-MODE = sys.argv[4] if len(sys.argv) >= 5 else "phrase"
+MODE = sys.argv[4] if len(sys.argv) >= 5 else "word"
 
 buckets = [[] for _ in ko]
 nwords = 0
