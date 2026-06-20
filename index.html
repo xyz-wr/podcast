@@ -160,6 +160,16 @@
   .modal{background:var(--card);width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:18px 16px calc(20px + env(safe-area-inset-bottom));}
   .modal h3{margin:0 0 12px;font-family:'Fraunces',serif;font-size:17px;}
 
+  .confirm-card{background:var(--card);width:calc(100% - 48px);max-width:330px;border-radius:18px;padding:24px 20px 18px;text-align:center;border:1px solid var(--paper-line);box-shadow:0 14px 44px rgba(35,36,31,.22);animation:cfpop .18s ease-out;}
+  @keyframes cfpop{from{transform:scale(.92);opacity:.4;}to{transform:scale(1);opacity:1;}}
+  .confirm-card .cf-icon{font-size:30px;line-height:1;}
+  .confirm-card h3{font-family:'Fraunces',serif;font-weight:600;font-size:18px;margin:10px 0 6px;}
+  .confirm-card p{font-size:13px;color:var(--ink-soft);line-height:1.6;margin:0 0 18px;word-break:keep-all;}
+  .cf-btns{display:flex;gap:10px;}
+  .cf-btns button{flex:1;padding:12px;font-size:14px;}
+  button.danger{background:var(--danger);color:#fff;}
+  button.danger:hover{background:#8f3526;}
+
   ::-webkit-scrollbar{width:7px;}::-webkit-scrollbar-thumb{background:var(--paper-line);border-radius:4px;}
   .hide{display:none!important;}
 </style>
@@ -337,6 +347,19 @@ One of Hey Tablo's most popular episodes,"></textarea>
   </div>
 </div>
 
+<!-- pretty confirm dialog -->
+<div class="modal-bg" id="confirmModal" style="align-items:center;">
+  <div class="confirm-card">
+    <div class="cf-icon" id="confirmIcon">🗑️</div>
+    <h3 id="confirmTitle">삭제</h3>
+    <p id="confirmMsg"></p>
+    <div class="cf-btns">
+      <button class="ghost" id="confirmCancel">취소</button>
+      <button class="danger" id="confirmOk">삭제</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -368,6 +391,16 @@ function fmt(sec){sec=Math.max(0,Math.floor(sec));const m=Math.floor(sec/60),s=s
 function extractVideoId(input){input=(input||'').trim();const ps=[/youtu\.be\/([a-zA-Z0-9_-]{6,})/,/[?&]v=([a-zA-Z0-9_-]{6,})/,/embed\/([a-zA-Z0-9_-]{6,})/,/shorts\/([a-zA-Z0-9_-]{6,})/];for(const p of ps){const m=input.match(p);if(m)return m[1];}if(/^[a-zA-Z0-9_-]{6,}$/.test(input))return input;return null;}
 function openModal(id){document.getElementById(id).classList.add('show');}
 function closeModal(id){document.getElementById(id).classList.remove('show');}
+function askConfirm(title,message,okLabel,icon){return new Promise(res=>{
+  const modal=document.getElementById('confirmModal'),ok=document.getElementById('confirmOk'),cancel=document.getElementById('confirmCancel');
+  document.getElementById('confirmTitle').textContent=title;
+  document.getElementById('confirmMsg').textContent=message;
+  document.getElementById('confirmIcon').textContent=icon||'🗑️';
+  ok.textContent=okLabel||'삭제';
+  const done=v=>{modal.classList.remove('show');ok.onclick=null;cancel.onclick=null;modal.onclick=null;res(v);};
+  ok.onclick=()=>done(true);cancel.onclick=()=>done(false);
+  modal.onclick=e=>{if(e.target===modal)done(false);};
+  modal.classList.add('show');});}
 function wordsOf(s){return (s||'').split(/\s+/).filter(Boolean);}
 function cleanTerm(s){return s.replace(/^[^\w'’-]+|[^\w'’-]+$/g,'');}
 
@@ -536,7 +569,7 @@ function renderLibrary(){const el=document.getElementById('libList');
 function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 
 async function deleteVideo(id){const v=await idbGet('videos',id);if(!v)return;
-  if(!confirm('“'+(v.title||'이 영상')+'” 영상과 이 영상에서 담은 단어를 함께 삭제할까요?'))return;
+  if(!await askConfirm('영상 삭제','“'+(v.title||'이 영상')+'” 영상과 이 영상에서 담은 단어가 함께 삭제돼요.'))return;
   await idbDel('videos',id);
   const vs=await idbIdx('vocab','videoId',id);for(const x of vs)await idbDel('vocab',x.id);
   try{const rs=await idbIdx('recordings','videoId',id);for(const x of rs)await idbDel('recordings',x.id);}catch(e){}
@@ -695,7 +728,7 @@ function setVFilter(k){vFilter=k;renderVocab();}
 function editNote(id){openVocabDetail(id);}
 async function saveMeaning(){const v=vocab.find(x=>x.id===vdId);if(!v)return;v.note=document.getElementById('vdMeaningInput').value.trim();await idbPut('vocab',v);renderVocab();}
 async function cycleTag(id){const v=vocab.find(x=>x.id===id);const order=['word','idiom','slang'];v.type=order[(order.indexOf(v.type)+1)%3];await idbPut('vocab',v);renderVocab();}
-async function delVocab(id){const v=vocab.find(x=>x.id===id);if(!confirm('“'+v.term+'” 삭제할까요?'))return;await idbDel('vocab',id);vocab=vocab.filter(x=>x.id!==id);renderVocab();updateBadges();if(currentVideo)renderTranscript();}
+async function delVocab(id){const v=vocab.find(x=>x.id===id);if(!await askConfirm('단어 삭제','“'+v.term+'”을(를) 단어장에서 삭제할까요?'))return;await idbDel('vocab',id);vocab=vocab.filter(x=>x.id!==id);renderVocab();updateBadges();if(currentVideo)renderTranscript();}
 async function jumpToVocab(id){const v=vocab.find(x=>x.id===id);const vid=await idbGet('videos',v.videoId);if(!vid)return;
   await openVideo(vid.id);setTimeout(()=>setLoop(v.time,v.end||v.time+4),400);}
 
