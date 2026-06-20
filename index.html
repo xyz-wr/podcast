@@ -472,7 +472,7 @@ function parsePlain(raw){
     const cues=splitSentences(raw).map(t=>({time:null,end:null,text:t}));
     return {cues,chapters:[],noTime:true};
   }
-  const cues=[],chapters=[];let pendingChapter=null,curTime=null,buf=[];
+  const cues=[],chapters=[];let pendingChapter=null,curTime=null,buf=[],lead=[];
   const flush=()=>{if(curTime!=null&&buf.length){cues.push({time:curTime,end:null,text:buf.join(' ').replace(/\s+/g,' ').trim()});}buf=[];};
   for(let line of rawLines){
     line=line.trim();if(!line)continue;
@@ -481,11 +481,12 @@ function parsePlain(raw){
     const m=line.match(TIME_RE);
     if(m&&/^\d{1,2}:\d{2}/.test(line)){
       const t=tcToSec(m[1]),txt=(m[3]||'').trim();
-      if(txt){flush();curTime=t;buf=[txt];}          // "0:05 text" or glued "0:0505초text"
-      else{flush();curTime=t;}                         // timestamp alone (YouTube copy)
+      flush();curTime=t;buf=lead.length?lead:[];lead=[]; // 첫 타임스탬프 앞에 있던 글도 살려서 첫 줄에 붙임
+      if(txt)buf.push(txt);                            // "0:05 text" / "0:0505초text" / 단독 타임스탬프
       if(pendingChapter!=null){chapters.push({time:t,title:pendingChapter});pendingChapter=null;}
     }else{
       if(curTime!=null)buf.push(line);                // text line following a timestamp
+      else lead.push(line);                           // text BEFORE the first timestamp — keep it
     }
   }
   flush();
@@ -700,9 +701,10 @@ async function applyTranscript(){
     try{
       if(looksUnpunctuated(lines)){
         if(btn)btn.textContent='AI가 문장 정리 중…';
-        const enText=lines.map(l=>l.en).filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
+        const enParsed=parseAny(en);                        // 병합 전 원본 큐 (세밀한 시간 보존)
+        const enText=enParsed.cues.map(c=>c.text).filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
         const sents=await aiSegment(enText);
-        if(sents.length)lines=remapToLines(lines,sents);
+        if(sents.length)lines=remapSentences(wordTimesFromCues(enParsed.cues),sents,enParsed.chapters);
       }
       if(lines.some(l=>l.en&&!l.ko)){
         if(btn)btn.textContent='AI가 번역 추가 중…';
@@ -951,17 +953,25 @@ async function aiSegment(text){
   let s=[];try{s=JSON.parse(raw).sentences||[];}catch(e){}
   return s.map(x=>String(x).trim()).filter(Boolean);
 }
-/* 새 문장 배열을 원래 줄의 타임스탬프에 단어 순서대로 재배치 */
-function remapToLines(srcLines,sentences){
+/* 원본 자막 큐(0:05/0:08/0:11…)의 단어별 시간표 — 병합 전이라 세밀한 시간 유지 */
+function wordTimesFromCues(cues){
   const wt=[];
-  srcLines.forEach(l=>{(l.en||'').split(/\s+/).filter(Boolean).forEach(()=>wt.push({time:l.time,end:l.end,chapter:l.chapter||''}));});
+  cues.forEach(c=>{(c.text||'').split(/\s+/).filter(Boolean).forEach(()=>wt.push({time:c.time,end:c.end}));});
+  return wt;
+}
+/* AI가 나눈 문장들을 단어 순서대로 원본 큐 시간에 재배치 (+ 챕터 시간 기준 재지정) */
+function remapSentences(wt,sentences,chapters){
+  const chs=(chapters||[]).slice().sort((a,b)=>a.time-b.time);
   let wi=0;const out=[];
   sentences.forEach((s,i)=>{
     const n=s.split(/\s+/).filter(Boolean).length||1;
-    const start=wt.length?Math.min(wi,wt.length-1):-1;
+    const has=wt.length>0;
+    const start=has?Math.min(wi,wt.length-1):-1;
     wi=Math.min(wt.length,wi+n);
-    const endIdx=wt.length?Math.min(wi-1,wt.length-1):-1;
-    out.push({idx:i,time:start>=0?wt[start].time:null,end:endIdx>=0?wt[endIdx].end:null,en:s,ko:'',chapter:start>=0?wt[start].chapter:''});
+    const endIdx=has?Math.min(wi-1,wt.length-1):-1;
+    const time=start>=0?wt[start].time:null, end=endIdx>=0?wt[endIdx].end:null;
+    let chap='';for(const ch of chs){if(time!=null&&ch.time<=time+0.5)chap=ch.title;else if(time!=null)break;}
+    out.push({idx:i,time,end,en:s,ko:'',chapter:chap});
   });
   return out;
 }
