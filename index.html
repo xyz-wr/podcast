@@ -718,16 +718,21 @@ async function applyTranscript(){
   let lines=buildLines(en,ko);
   if(!lines.length){toast('자막을 인식하지 못했어요. 형식을 확인해주세요');return;}
 
-  // 한국어로 이미 문장 구분이 됐으면(buildLines의 한국어 기준 분리) AI 재분리는 생략
-  const koSegmented=(function(){const k=parseAny(ko),e=parseAny(en);return e.cues.length>0&&k.cues.length>0&&!cuesPunctuated(e.cues)&&cuesPunctuated(k.cues);})();
-  // AI 다듬기 (키가 있을 때만): 구두점 없는 줄글 → 문장 단위로, 한국어 없으면 자동 번역
+  const enParsed=parseAny(en), koParsed=parseAny(ko);
+  // 영어엔 .?!이 거의 없고 한국어엔 문장부호가 있는 경우 → 한국어 문장 기준으로 영어를 의미에 맞게 1:1 정렬
+  const koSegmented=enParsed.cues.length>0&&koParsed.cues.length>0&&!cuesPunctuated(enParsed.cues)&&cuesPunctuated(koParsed.cues);
+  // AI 다듬기 (키가 있을 때만)
   if(GEMINI_KEY){
     const btn=document.getElementById('tiApplyBtn');const oldTxt=btn?btn.textContent:'';
     if(btn){btn.disabled=true;}
     try{
-      if(looksUnpunctuated(lines)&&!koSegmented){
+      if(koSegmented){
+        if(btn)btn.textContent='AI가 영어·한국어 정렬 중…';
+        const koSents=mergeSentences(koParsed.cues);
+        const aligned=await aiAlignKoLines(enParsed.cues,koSents,(enParsed.chapters.length?enParsed.chapters:koParsed.chapters));
+        if(aligned.length)lines=aligned;
+      }else if(looksUnpunctuated(lines)){
         if(btn)btn.textContent='AI가 문장 정리 중…';
-        const enParsed=parseAny(en);                        // 병합 전 원본 큐 (세밀한 시간 보존)
         const enText=enParsed.cues.map(c=>c.text).filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
         const sents=await aiSegment(enText);
         if(sents.length)lines=remapSentences(wordTimesFromCues(enParsed.cues),sents,enParsed.chapters);
@@ -1011,6 +1016,37 @@ async function aiTranslateLines(lines){
     batch.forEach((li,k)=>{if(ko[k])lines[li].ko=String(ko[k]).trim();});
   }
   return lines;
+}
+/* 영어(구두점 없음)를 한국어 문장 N개에 의미 기준으로 1:1 분할 */
+async function aiAlignEnToKo(enText,koTexts){
+  const prompt='You are aligning an English transcript to its Korean translation, sentence by sentence.\n'+
+    'There are '+koTexts.length+' Korean sentences, in order:\n'+koTexts.map((k,i)=>(i+1)+'. '+k).join('\n')+
+    '\n\nEnglish transcript (auto-captioned, may lack punctuation):\n"'+enText+'"\n\n'+
+    'Split the English into EXACTLY '+koTexts.length+' segments, in order, where segment i matches Korean sentence i in meaning. '+
+    'Keep the original English words in their original order — do NOT translate, reorder, drop, or invent words; you may only add light punctuation/capitalization and choose split points. '+
+    'If a Korean sentence has no matching English, use "" for it. '+
+    'Return JSON: {"en":["seg1","seg2", ...]} with EXACTLY '+koTexts.length+' items.';
+  const raw=await gemini(prompt,true,1800);
+  let en=[];try{en=JSON.parse(raw).en||[];}catch(e){}
+  return en.map(x=>String(x).trim());
+}
+/* 한국어 문장 기준 줄 + 각 줄의 영어를 의미에 맞게 정렬 (배치 처리, 시간은 영어 큐 기준) */
+async function aiAlignKoLines(enCues,koSents,chapters){
+  const out=[];const B=15;
+  for(let s=0;s<koSents.length;s+=B){
+    const batch=koSents.slice(s,s+B);
+    const a=batch[0].time, b=batch[batch.length-1].end;
+    const enInBatch=enCues.filter(c=>c.time!=null&&c.time>=a-0.5&&c.time<((b!=null?b:a)+0.5));
+    const enText=enInBatch.map(c=>c.text).join(' ').replace(/\s+/g,' ').trim();
+    let aligned=[];try{aligned=await aiAlignEnToKo(enText,batch.map(x=>x.text));}catch(e){aligned=[];}
+    if(aligned.length===batch.length){
+      const enLines=remapSentences(wordTimesFromCues(enInBatch),aligned,chapters);
+      batch.forEach((x,i)=>out.push({time:enLines[i]?enLines[i].time:x.time,end:enLines[i]?enLines[i].end:x.end,en:aligned[i]||'',ko:x.text,chapter:enLines[i]?enLines[i].chapter:''}));
+    }else{ // 정렬 실패 시 시간 기준으로 폴백
+      batch.forEach(x=>out.push({time:x.time,end:x.end,en:koInRange(enInBatch,x.time,x.end),ko:x.text,chapter:''}));
+    }
+  }
+  out.forEach((l,i)=>l.idx=i);return out;
 }
 
 let vdId=null, vdCefr='A2', vdKoSentence='', recog=null, vdLastFeedback=null;
