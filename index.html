@@ -778,7 +778,9 @@ async function applyTranscript(){
     if(btn){btn.disabled=true;}
     try{
       if(interleaved){
-        /* 쌍이 이미 맞춰져 있음 — 아무 것도 안 함 */
+        if(btn)btn.textContent='AI가 영어·한국어 정렬 중…';
+        const aligned=await aiAlignInterleaved([en,ko].filter(s=>s&&s.trim()).join('\n'));
+        if(aligned.length)lines=aligned;
       }else if(koSegmented){
         if(btn)btn.textContent='AI가 영어·한국어 정렬 중…';
         const koSents=mergeSentences(koParsed.cues);
@@ -796,6 +798,8 @@ async function applyTranscript(){
       }
     }catch(e){aiErr(e,null);} // 실패해도 원본 자막은 그대로 유지
     finally{if(btn){btn.disabled=false;btn.textContent=oldTxt;}}
+  }else if(interleaved){
+    toast('⚙ AI 키를 넣으면 영어·한국어를 더 깔끔히 정렬해요');
   }
 
   lines.forEach((l,i)=>l.idx=i);
