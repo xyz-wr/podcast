@@ -502,6 +502,20 @@ function parseAny(raw){
 /* nearest cue by time */
 function nearest(cues,t){let best=null,bd=1e9;for(const c of cues){const d=Math.abs(c.time-t);if(d<bd){bd=d;best=c;}}return (best&&bd<=6)?best:null;}
 
+/* no/sparse punctuation -> chunk cues into ~12-word lines (each keeps a timestamp) */
+function chunkCues(cues){
+  const lines=[];let buf=null,wc=0;
+  const flush=()=>{if(buf){lines.push(buf);buf=null;wc=0;}};
+  for(const c of cues){
+    const words=(c.text||'').split(/\s+/).filter(Boolean);
+    if(words.length>20&&cues.length<=2){ // one big block (e.g. prose paste) -> split by words, same time
+      flush();for(let i=0;i<words.length;i+=14)lines.push({time:c.time,end:c.end,text:words.slice(i,i+14).join(' ')});continue;}
+    if(!buf){buf={time:c.time,end:c.end,text:c.text};wc=words.length;}
+    else{buf.text=(buf.text+' '+c.text).replace(/\s+/g,' ').trim();if(c.end!=null)buf.end=c.end;wc+=words.length;}
+    if(wc>=12)flush();
+  }
+  flush();return lines;
+}
 /* merge fragmented cues, then re-split into full sentences by . ? ! (boundaries may sit mid-fragment) */
 function mergeSentences(cues){
   if(!cues.length)return [];
@@ -511,6 +525,8 @@ function mergeSentences(cues){
     marks.push({pos:combined.length,time:c.time,end:c.end});
     combined+=(c.text||'');
   }
+  const puncts=(combined.match(/[.?!…。]/g)||[]).length;
+  if(puncts<Math.max(2,cues.length/8))return chunkCues(cues); // 구두점이 거의 없으면 시간 단위로 끊기
   const cueAt=idx=>{let r=marks[0];for(const m of marks){if(m.pos<=idx)r=m;else break;}return r;};
   const out=[];const re=/\S[\s\S]*?[.?!…。]+["'”’)\]]*(?=\s|$)/g;let m,last=0;
   while((m=re.exec(combined))){
@@ -519,7 +535,7 @@ function mergeSentences(cues){
     last=re.lastIndex;
   }
   if(last<combined.length){const rest=combined.slice(last).trim();if(rest){const a=cueAt(last);out.push({time:a.time,end:a.end,text:rest});}}
-  return out.length?out:[{time:cues[0].time,end:cues[cues.length-1].end,text:combined.trim()}];
+  return out.length?out:chunkCues(cues);
 }
 /* gather korean cue text falling within a sentence's time span */
 function koInRange(koCues,a,b){
