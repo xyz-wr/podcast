@@ -508,6 +508,36 @@ function parseAny(raw){
   return parsePlain(raw);
 }
 
+/* 한 줄에 영어·한국어가 번갈아 섞인 형태인지 (예: "hey everybody 헤이 여러분! it's adinga ...") */
+function isInterleaved(raw){
+  if(!raw||/-->/.test(raw))return false;
+  if(!/[가-힣]/.test(raw)||!/[a-zA-Z]/.test(raw))return false;
+  const words=raw.replace(/\s+/g,' ').trim().split(' ');
+  let trans=0,prev=null;
+  for(const w of words){const k=/[가-힣]/.test(w),e=/[a-zA-Z]/.test(w)&&!k,lang=k?'k':(e?'e':null);
+    if(lang&&prev&&lang!==prev)trans++;if(lang)prev=lang;}
+  return trans>=3; // 영-한-영-한… 전환이 충분히 잦으면 번갈아형으로 판단
+}
+/* 번갈아형 → 영어덩어리+그 한국어번역을 한 쌍으로 묶음. (한국어→영어로 바뀌는 지점이 새 쌍의 시작) */
+function parseBilingual(raw){
+  const tokens=raw.replace(/\r/g,'').replace(/\n/g,' ').replace(/\s+/g,' ').trim().split(' ');
+  const pairs=[];let cur={time:null,en:[],ko:[]},seenKo=false;
+  const flush=()=>{if(cur.en.length||cur.ko.length)pairs.push({time:cur.time,en:cur.en.join(' '),ko:cur.ko.join(' ')});cur={time:null,en:[],ko:[]};seenKo=false;};
+  for(const tok of tokens){
+    if(!tok)continue;
+    const tm=tok.match(/^(\d{1,2}:\d{2}(?::\d{2})?)$/);
+    if(tm){if(cur.en.length||cur.ko.length)flush();cur.time=tcToSec(tm[1]);continue;}
+    const isKo=/[가-힣]/.test(tok), isEn=/[a-zA-Z]/.test(tok)&&!isKo;
+    if(isEn&&seenKo)flush();                 // 한국어가 끝나고 영어가 다시 시작 → 새 쌍
+    if(isKo){cur.ko.push(tok);seenKo=true;}
+    else if(isEn){cur.en.push(tok);}
+    else{(seenKo?cur.ko:cur.en).push(tok);}  // 숫자·기호는 진행 중인 쪽에 붙임
+  }
+  flush();
+  for(let i=0;i<pairs.length;i++)if(pairs[i].time!=null)pairs[i].end=(pairs[i+1]&&pairs[i+1].time!=null)?pairs[i+1].time:pairs[i].time+3;
+  return pairs;
+}
+
 /* nearest cue by time */
 function nearest(cues,t){let best=null,bd=1e9;for(const c of cues){const d=Math.abs(c.time-t);if(d<bd){bd=d;best=c;}}return (best&&bd<=6)?best:null;}
 
@@ -572,6 +602,12 @@ function alignWordsToKo(enCues,koSents){
 }
 /* merge english + korean into unified, sentence-level lines */
 function buildLines(enRaw,koRaw){
+  // 영어·한국어가 한 줄에 번갈아 섞여 들어온 경우(어느 칸에 넣었든) → 쌍으로 분리
+  const combined=[enRaw,koRaw].filter(s=>s&&s.trim()).join('\n');
+  if(isInterleaved(combined)){
+    const pairs=parseBilingual(combined);
+    if(pairs.length)return pairs.map((p,i)=>({idx:i,time:p.time,end:p.end!=null?p.end:null,en:p.en,ko:p.ko,chapter:''}));
+  }
   const en=parseAny(enRaw),ko=parseAny(koRaw);
   const enHas=en.cues.length>0, koHas=ko.cues.length>0;
   // 영어엔 .?! 구분이 거의 없는데 한국어엔 문장부호가 있으면 → 한국어 문장 기준으로 줄을 나눔
@@ -730,14 +766,17 @@ async function applyTranscript(){
   if(!lines.length){toast('자막을 인식하지 못했어요. 형식을 확인해주세요');return;}
 
   const enParsed=parseAny(en), koParsed=parseAny(ko);
+  const interleaved=isInterleaved([en,ko].filter(s=>s&&s.trim()).join('\n')); // 번갈아형이면 이미 쌍으로 정렬됨 → AI 재정렬 생략
   // 영어엔 .?!이 거의 없고 한국어엔 문장부호가 있는 경우 → 한국어 문장 기준으로 영어를 의미에 맞게 1:1 정렬
-  const koSegmented=enParsed.cues.length>0&&koParsed.cues.length>0&&!cuesPunctuated(enParsed.cues)&&cuesPunctuated(koParsed.cues);
+  const koSegmented=!interleaved&&enParsed.cues.length>0&&koParsed.cues.length>0&&!cuesPunctuated(enParsed.cues)&&cuesPunctuated(koParsed.cues);
   // AI 다듬기 (키가 있을 때만)
   if(GEMINI_KEY){
     const btn=document.getElementById('tiApplyBtn');const oldTxt=btn?btn.textContent:'';
     if(btn){btn.disabled=true;}
     try{
-      if(koSegmented){
+      if(interleaved){
+        /* 쌍이 이미 맞춰져 있음 — 아무 것도 안 함 */
+      }else if(koSegmented){
         if(btn)btn.textContent='AI가 영어·한국어 정렬 중…';
         const koSents=mergeSentences(koParsed.cues);
         const aligned=await aiAlignKoLines(enParsed.cues,koSents,(enParsed.chapters.length?enParsed.chapters:koParsed.chapters));
