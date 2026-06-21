@@ -8,7 +8,8 @@
       "startSec": 0.0,
       "endSec": 3.0,
       "en": "hey everybody it's Ariannita la Gringa and welcome back to my YouTube channel",
-      "ko": "헤이 여러분! Ariannita la Gringa입니다. 제 YouTube 채널에 다시 오신 것을 환영합니다."
+      "ko": "헤이 여러분! Ariannita la Gringa입니다. 제 YouTube 채널에 다시 오신 것을 환영합니다.",
+      "idioms": []
     },
     {
       "i": 2,
@@ -17,7 +18,10 @@
       "startSec": 3.0,
       "endSec": 10.0,
       "en": "in today's video I will ask people around Cincinnati, Ohio what they do for a living and how much they make each year",
-      "ko": "오늘 영상에서는 오하이오주 신시내티 주변 사람들에게 무슨 일을 하며, 매년 얼마를 버는지 물어보겠습니다."
+      "ko": "오늘 영상에서는 오하이오주 신시내티 주변 사람들에게 무슨 일을 하며, 매년 얼마를 버는지 물어보겠습니다.",
+      "idioms": [
+        "for a living"
+      ]
     },
     {
       "i": 3,
@@ -26,7 +30,8 @@
       "startSec": 10.0,
       "endSec": 11.5,
       "en": "let's go",
-      "ko": "갑시다!"
+      "ko": "갑시다!",
+      "idioms": []
     },
     {
       "i": 4,
@@ -35,7 +40,8 @@
       "startSec": 11.5,
       "endSec": 19.0,
       "en": "hi, what's your name?",
-      "ko": "안녕, 이름이 뭐예요?"
+      "ko": "안녕, 이름이 뭐예요?",
+      "idioms": []
     },
     {
       "i": 5,
@@ -44,7 +50,8 @@
       "startSec": 19.0,
       "endSec": 21.0,
       "en": "my name is Austin",
-      "ko": "제 이름은 오스틴이에요."
+      "ko": "제 이름은 오스틴이에요.",
+      "idioms": []
     },
     {
       "i": 6,
@@ -53,7 +60,10 @@
       "startSec": 21.0,
       "endSec": 22.0,
       "en": "hi Austin, what do you do for a living?",
-      "ko": "안녕 오스틴, 무슨 일을 하시나요?"
+      "ko": "안녕 오스틴, 무슨 일을 하시나요?",
+      "idioms": [
+        "for a living"
+      ]
     },
     {
       "i": 7,
@@ -62,7 +72,10 @@
       "startSec": 22.0,
       "endSec": 30.0,
       "en": "I work downtown at Divisions Maintenance Group and I manage a book of business for various different clients and I help them with their facility maintenance",
-      "ko": "저는 시내에 있는 Divisions Maintenance Group에서 근무하며, 다양한 고객의 비즈니스 장부를 관리하고 시설 유지 관리를 돕습니다."
+      "ko": "저는 시내에 있는 Divisions Maintenance Group에서 근무하며, 다양한 고객의 비즈니스 장부를 관리하고 시설 유지 관리를 돕습니다.",
+      "idioms": [
+        "a book of business"
+      ]
     },
     {
       "i": 8,
@@ -71,7 +84,10 @@
       "startSec": 30.0,
       "endSec": 36.0,
       "en": "when Americans ask \"what do you do for a living?\" they want to find out your job and what you do for work",
-      "ko": "미국인들이 \"어떤 일을 하시나요?\"라고 물으면, 그들은 당신의 직업과 일에서 무엇을 하는지 알고 싶어합니다."
+      "ko": "미국인들이 \"어떤 일을 하시나요?\"라고 물으면, 그들은 당신의 직업과 일에서 무엇을 하는지 알고 싶어합니다.",
+      "idioms": [
+        "for a living"
+      ]
     },
     {
       "i": 9,
@@ -80,7 +96,8 @@
       "startSec": 36.0,
       "endSec": 41.0,
       "en": "what's your favorite part about your job?",
-      "ko": "당신의 직업에서 가장 좋아하는 부분은 무엇입니까?"
+      "ko": "당신의 직업에서 가장 좋아하는 부분은 무엇입니까?",
+      "idioms": []
     },
     {
       "i": 10,
@@ -89,7 +106,8 @@
       "startSec": 41.0,
       "endSec": 47.0,
       "en": "probably my favorite part is just seeing my client's reaction when I solve a problem for them",
-      "ko": "아마도 제가 가장 좋아하는 부분은, 고객의 문제를 해결해 줬을 때 고객의 반응을 보는 것입니다."
+      "ko": "아마도 제가 가장 좋아하는 부분은, 고객의 문제를 해결해 줬을 때 고객의 반응을 보는 것입니다.",
+      "idioms": []
     },
     {
       "i": 11,
@@ -98,7 +116,8 @@
       "startSec": 47.0,
       "endSec": 48.0,
       "en": "and then what kind of projects do you work on?",
-      "ko": "그럼 어떤 프로젝트를 진행하시나요?"
+      "ko": "그럼 어떤 프로젝트를 진행하시나요?",
+      "idioms": []
     },
     {
       "i": 12,
@@ -107,7 +126,8 @@
       "startSec": 48.0,
       "endSec": 52.0,
       "en": "well, right now I won't say the name",
-      "ko": "글쎄요, 지금은 이름을 밝히지 않겠습니다."
+      "ko": "글쎄요, 지금은 이름을 밝히지 않겠습니다.",
+      "idioms": []
     }
   ]
 }
