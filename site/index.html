@@ -1061,23 +1061,44 @@ async function loadSyncConfig(){
   try{const k=await idbGet('settings','sbKey');SB_KEY=(k&&k.value)||'';}catch(e){}
   try{const c=await idbGet('settings','syncCode');SYNC_CODE=(c&&c.value)||'';}catch(e){}
 }
+function normSbUrl(s){return (s||'').trim().replace(/\/+$/,'').replace(/\/rest\/v1$/,'').replace(/\/+$/,'');}
 async function saveSyncConfig(){
   const u=document.getElementById('sbUrlInput'),k=document.getElementById('sbKeyInput'),c=document.getElementById('syncCodeInput');
   if(!u||!k||!c)return;
-  SB_URL=u.value.trim().replace(/\/+$/,'');
+  SB_URL=normSbUrl(u.value); u.value=SB_URL;   // 정규화한 값을 칸에도 반영
   SB_KEY=k.value.trim();
   SYNC_CODE=c.value.trim();
   await idbPut('settings',{key:'sbUrl',value:SB_URL});
   await idbPut('settings',{key:'sbKey',value:SB_KEY});
   await idbPut('settings',{key:'syncCode',value:SYNC_CODE});
-  document.getElementById('syncStatus').textContent = sbReady()? '연결됨 ✓ (코드: '+SYNC_CODE+')' : '동기화 꺼짐 (값을 모두 입력하세요)';
-  toast('동기화 설정 저장됨');
-  if(sbReady()){await pushGeminiKey();await syncPull();await loadAll();}
+  const ss=document.getElementById('syncStatus');
+  if(!sbReady()){ss.textContent='동기화 꺼짐 (값을 모두 입력하세요)';toast('저장됨');return;}
+  ss.textContent='연결 확인 중…';
+  try{
+    await sbSelect('vocab');                    // 실제 연결 테스트 (실패 시 throw)
+    await pushGeminiKey(); await syncPull(); await pushAll(); await loadAll();
+    ss.textContent='연결됨 ✓ (코드: '+SYNC_CODE+')';
+    toast('동기화 설정 저장됨');
+  }catch(e){
+    ss.textContent='연결 실패: '+e.message+' — URL·키·코드를 확인하세요';
+    toast('연결 실패');
+  }
 }
 async function syncNow(){
   if(!sbReady()){toast('동기화 설정을 먼저 입력하세요');return;}
-  try{await flushQueue();await pushGeminiKey();await syncPull();await loadAll();toast('동기화 완료');}
+  try{await flushQueue();await pushGeminiKey();await syncPull();await pushAll();await loadAll();toast('동기화 완료');}
   catch(e){toast('동기화 실패: '+e.message);}
+}
+async function pushAll(){
+  if(!sbReady())return;
+  for(const table of SYNCED_STORES){
+    const all=await idbAll(table); const rows=[];
+    for(const v of all){
+      if(!v.updatedAt){ v.updatedAt=Date.now(); await idbReq(table,'readwrite',o=>o.put(v)); }
+      rows.push({sync_code:SYNC_CODE,id:v.id,data:v,deleted:false,updated_at:v.updatedAt});
+    }
+    if(rows.length) await sbUpsert(table,rows);
+  }
 }
 /* ===== sync ===== */
 let SYNC_APPLYING=false;
