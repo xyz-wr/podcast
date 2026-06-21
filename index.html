@@ -293,18 +293,6 @@
       <div class="row"><button class="secondary grow" onclick="window.open('https://downsub.com/','_blank','noopener')">DownSub 열기 ↗</button></div>
     </div>
     <div class="panel">
-      <h2>SRT → JSON 변환</h2>
-      <p style="font-size:12px;color:var(--ink-soft);line-height:1.55;margin:0 0 10px;">영어·한국어 <b>.srt</b>를 올리면 학습용 <b>정렬쌍 JSON</b>으로 변환해 내려받아요. <b>⚙ AI 키</b>가 있으면 한국어 문장에 맞춰 영어를 <b>의미 기반</b>으로 1:1 정렬하고, <b>영어만</b> 올리면 문장 단위로 나눠 <b>자연스러운 한국어</b>까지 자동으로 채워줘요. (키가 없으면 시간 기반으로 정렬) 받은 JSON은 학습 화면 <b>✎</b>에 그대로 올리면 됩니다.</p>
-      <label class="fld">영어 자막 (.srt / .vtt)</label>
-      <input type="file" id="convEnFile" accept=".srt,.vtt,.txt" style="font-size:12px;">
-      <label class="fld">한국어 자막 (.srt / .vtt · 선택)</label>
-      <input type="file" id="convKoFile" accept=".srt,.vtt,.txt" style="font-size:12px;">
-      <label class="fld">제목 (선택 · 파일 이름에 쓰여요)</label>
-      <input type="text" id="convTitle" placeholder="experiences-part1">
-      <div class="row" style="margin-top:10px;"><button class="secondary grow" id="convBtn" onclick="convertSrtToJson()">JSON 만들기 · 내려받기</button></div>
-      <div id="convStatus" style="font-size:12px;color:var(--ink-soft);margin-top:8px;"></div>
-    </div>
-    <div class="panel">
       <h2>AI · 무료 Gemini</h2>
       <p style="font-size:12px;color:var(--ink-soft);line-height:1.55;margin:0 0 8px;">CEFR 문장·영작 피드백·관용구 판별에 사용. <b>aistudio.google.com</b>에서 무료 키 발급(카드 불필요). 키는 이 기기에만 저장돼요.</p>
       <input type="text" id="geminiKeyInput" placeholder="AIza...">
@@ -1038,29 +1026,6 @@ function updateBadges(){const bv=document.getElementById('badgeVocab'),bq=docume
   bq.textContent=nq;bq.classList.toggle('hide',!nq);
   const st=calcStreak(),bs=document.getElementById('badgeStreak');if(bs){bs.textContent=st;bs.classList.toggle('hide',!st);}}
 
-/* ============ SRT → JSON 변환 ============ */
-function secToTc(s){if(s==null||isNaN(s))s=0;if(s<0)s=0;const ms=Math.round(s*1000);const z=(n,l)=>String(n).padStart(l||2,'0');
-  return z(Math.floor(ms/3600000))+':'+z(Math.floor(ms%3600000/60000))+':'+z(Math.floor(ms%60000/1000))+','+z(ms%1000,3);}
-async function convertSrtToJson(){
-  const enF=document.getElementById('convEnFile').files[0], koF=document.getElementById('convKoFile').files[0];
-  const st=document.getElementById('convStatus'), btn=document.getElementById('convBtn'), old=btn?btn.textContent:'';
-  if(!enF&&!koF){toast('영어 또는 한국어 .srt를 올려주세요');return;}
-  const en=enF?await readFile(enF):'', ko=koF?await readFile(koF):'';
-  if(!GEMINI_KEY&&st)st.textContent='⚙ 키가 없어 시간 기반으로 정렬해요(의미 기반은 AI 키 필요)';
-  if(btn)btn.disabled=true;
-  let lines=[];
-  try{lines=await alignToLines(en,ko,btn);}catch(e){lines=[];}
-  finally{if(btn){btn.disabled=false;btn.textContent=old;}}
-  if(!lines.length){toast('자막을 인식하지 못했어요. 형식을 확인해주세요');if(st)st.textContent='변환 실패 — 형식 확인';return;}
-  const pairs=lines.map((l,i)=>({i:i+1,start:secToTc(l.time),end:secToTc(l.end),en:(l.en||'').trim(),ko:(l.ko||'').trim()}));
-  const title=(document.getElementById('convTitle').value||'subtitles').trim();
-  const blob=new Blob([JSON.stringify({title,pairs},null,2)],{type:'application/json'});
-  const url=URL.createObjectURL(blob);const a=document.createElement('a');
-  a.href=url;a.download=(title.replace(/[\\/:*?"<>|]+/g,'_')||'subtitles')+'.json';a.click();
-  setTimeout(()=>URL.revokeObjectURL(url),1000);
-  const mode=GEMINI_KEY?'의미 기반(AI)':'시간 기반';
-  toast(pairs.length+'줄 변환 · JSON 내려받음');if(st)st.textContent='✓ '+pairs.length+'줄 · '+mode+' 변환 · 내려받음';
-}
 /* ============ backup ============ */
 function openBackup(){tabTo('settings');}
 function blobToB64(b){return new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(b);});}
