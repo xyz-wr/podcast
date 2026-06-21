@@ -177,6 +177,7 @@
   #selBar .stxt{flex:1;font-size:12.5px;color:var(--ink-soft);min-width:0;}
   #selBar .stxt b{color:var(--ink);}
   #selBar button{display:flex;align-items:center;gap:5px;}
+  #selBar button:disabled{opacity:.45;cursor:default;}
 
   /* toast + modal */
   #toast{position:fixed;bottom:calc(var(--tabh) + 24px);left:50%;transform:translateX(-50%) translateY(16px);background:var(--ink);color:#fff;padding:9px 16px;border-radius:20px;font-size:13px;opacity:0;transition:.25s;pointer-events:none;z-index:80;}
@@ -348,7 +349,7 @@
   <i style="font-size:16px;color:var(--amber-deep);">✎</i>
   <span class="stxt" id="selTxt"></span>
   <button class="ghost sm" onclick="clearSelection()">취소</button>
-  <button class="sm" onclick="addSelectionToVocab()">＋ 단어장에 추가</button>
+  <button class="sm" id="selAdd" onclick="addSelectionToVocab()">＋ 단어장에 추가</button>
 </div>
 
 <!-- tab bar -->
@@ -943,9 +944,14 @@ function toggleWord(lineIdx,wordIdx,elFromCurrent){
   updateSelBar();
 }
 function selectedText(){if(sel.lineIdx===null||!sel.words.length)return '';const ln=currentVideo.lines[sel.lineIdx];const tks=wordsOf(ln.en||ln.ko);return cleanTerm(sel.words.map(i=>tks[i]).join(' '));}
-function updateSelBar(){const bar=document.getElementById('selBar');const t=selectedText();
+function termInVocab(term){if(!term||!currentVideo)return false;const t=term.trim().toLowerCase();
+  return vocab.some(v=>v.videoId===currentVideo.id&&(v.term||'').trim().toLowerCase()===t);}
+function updateSelBar(){const bar=document.getElementById('selBar');const t=selectedText();const btn=document.getElementById('selAdd');
   if(!t){bar.classList.remove('show');return;}
-  document.getElementById('selTxt').innerHTML='선택됨 · <b>“'+esc(t)+'”</b>';bar.classList.add('show');}
+  const dup=termInVocab(t);
+  document.getElementById('selTxt').innerHTML=(dup?'이미 단어장에 있어요 · ':'선택됨 · ')+'<b>“'+esc(t)+'”</b>';
+  if(btn){btn.disabled=dup;btn.textContent=dup?'추가됨':'＋ 단어장에 추가';}
+  bar.classList.add('show');}
 function clearSelectionVisual(){document.querySelectorAll('.word.sel').forEach(w=>w.classList.remove('sel'));}
 function clearSelection(){clearSelectionVisual();sel={lineIdx:null,words:[]};document.getElementById('selBar').classList.remove('show');}
 
@@ -958,6 +964,7 @@ async function translateWord(text){
   }catch(e){return '';}
 }
 async function addSelectionToVocab(){const term=selectedText();if(!term){return;}
+  if(termInVocab(term)){toast('이미 단어장에 있어요');clearSelection();return;}
   const ln=currentVideo.lines[sel.lineIdx];
   const item={id:uid(),videoId:currentVideo.id,term,note:'',context:ln.en||'',contextKo:ln.ko||'',
     type:sel.words.length>1?'idiom':'word',
