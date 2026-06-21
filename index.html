@@ -1046,6 +1046,24 @@ function updateBadges(){const bv=document.getElementById('badgeVocab'),bq=docume
   bq.textContent=nq;bq.classList.toggle('hide',!nq);
   const st=calcStreak(),bs=document.getElementById('badgeStreak');if(bs){bs.textContent=st;bs.classList.toggle('hide',!st);}}
 
+/* ============ SRT → JSON 변환 ============ */
+function secToTc(s){if(s==null||isNaN(s))s=0;if(s<0)s=0;const ms=Math.round(s*1000);const z=(n,l)=>String(n).padStart(l||2,'0');
+  return z(Math.floor(ms/3600000))+':'+z(Math.floor(ms%3600000/60000))+':'+z(Math.floor(ms%60000/1000))+','+z(ms%1000,3);}
+async function convertSrtToJson(){
+  const enF=document.getElementById('convEnFile').files[0], koF=document.getElementById('convKoFile').files[0];
+  const st=document.getElementById('convStatus');
+  if(!enF&&!koF){toast('영어 또는 한국어 .srt를 올려주세요');return;}
+  const en=enF?await readFile(enF):'', ko=koF?await readFile(koF):'';
+  const lines=buildLines(en,ko);
+  if(!lines.length){toast('자막을 인식하지 못했어요. 형식을 확인해주세요');if(st)st.textContent='변환 실패 — 형식 확인';return;}
+  const pairs=lines.map((l,i)=>({i:i+1,start:secToTc(l.time),end:secToTc(l.end),en:(l.en||'').trim(),ko:(l.ko||'').trim()}));
+  const title=(document.getElementById('convTitle').value||'subtitles').trim();
+  const blob=new Blob([JSON.stringify({title,pairs},null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');
+  a.href=url;a.download=(title.replace(/[\\/:*?"<>|]+/g,'_')||'subtitles')+'.json';a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast(pairs.length+'줄 변환 · JSON 내려받음');if(st)st.textContent='✓ '+pairs.length+'줄 변환됨';
+}
 /* ============ backup ============ */
 function openBackup(){tabTo('settings');}
 function blobToB64(b){return new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(b);});}
