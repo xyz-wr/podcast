@@ -113,6 +113,7 @@
   .word.mute{color:var(--ink-faint);}
   .word.sel{background:var(--amber-soft);color:var(--amber-deep);font-weight:600;box-shadow:inset 0 0 0 1px var(--amber);}
   .word.saved{background:var(--amber-soft);color:var(--amber-deep);font-weight:600;}
+  .word.idiom{text-decoration:underline;text-decoration-color:var(--amber-deep);text-decoration-thickness:2px;text-underline-offset:2px;}
   .lacts{display:flex;gap:6px;margin-top:6px;}
   .lact{font-size:10.5px;font-weight:600;color:var(--ink-soft);border:1px solid var(--paper-line);background:#fff;border-radius:10px;padding:3px 9px;cursor:pointer;}
   .lact.on{color:var(--amber-deep);border-color:#eccba6;background:var(--amber-soft);}
@@ -873,6 +874,15 @@ async function applyTranscript(){
   else toast(lines.length+'줄을 불러왔어요');}
 
 /* ============ transcript render ============ */
+function idiomIdxSet(tokens,idioms){const set=new Set();
+  if(!idioms||!idioms.length)return set;
+  const norm=tokens.map(t=>cleanTerm(t).toLowerCase());
+  for(const ph of idioms){const pw=String(ph).toLowerCase().split(/\s+/).map(w=>cleanTerm(w)).filter(Boolean);
+    if(!pw.length)continue;
+    for(let i=0;i+pw.length<=norm.length;i++){let ok=true;
+      for(let j=0;j<pw.length;j++){if(norm[i+j]!==pw[j]){ok=false;break;}}
+      if(ok)for(let j=0;j<pw.length;j++)set.add(i+j);}}
+  return set;}
 function renderTranscript(){const el=document.getElementById('tlist');const ls=currentVideo.lines||[];lastPlayedLine=null;
   if(!ls.length){el.innerHTML='<div class="empty">아직 자막이 없어요.<br>오른쪽 위 ✎ 를 눌러 자막을 넣어보세요.</div>';return;}
   const saved=new Set(vocab.filter(v=>v.videoId===currentVideo.id).map(v=>v.term.toLowerCase()));
@@ -880,8 +890,9 @@ function renderTranscript(){const el=document.getElementById('tlist');const ls=c
   for(const ln of ls){
     if(ln.chapter&&ln.chapter!==lastCh){html+=`<div class="chapter">${esc(ln.chapter)}</div>`;lastCh=ln.chapter;}
     const tks=wordsOf(ln.en||ln.ko);
-    let words='';tks.forEach((w,i)=>{const mute=/^\(.*\)$/.test(w);const sv=saved.has(cleanTerm(w).toLowerCase());
-      words+=`<span class="word${mute?' mute':''}${sv?' saved':''}" data-i="${i}">${esc(w)}</span> `;});
+    const idSet=idiomIdxSet(tks,ln.idioms);
+    let words='';tks.forEach((w,i)=>{const mute=/^\(.*\)$/.test(w);const sv=saved.has(cleanTerm(w).toLowerCase());const id=idSet.has(i)?' idiom':'';
+      words+=`<span class="word${mute?' mute':''}${sv?' saved':''}${id}" data-i="${i}">${esc(w)}</span> `;});
     const timeChip=ln.time!=null
       ? `<span class="ttime" data-seek="${ln.time}">${fmt(ln.time)}</span>`
       : `<span class="ttime" style="opacity:.4;cursor:default;">—</span>`;
@@ -1393,7 +1404,8 @@ function parseAlignedJson(raw){
     end:tc(p.end),
     en:String(p.en!=null?p.en:(p.text!=null?p.text:'')).trim(),
     ko:String(p.ko!=null?p.ko:'').trim(),
-    chapter:String(p.chapter||'').trim()
+    chapter:String(p.chapter||'').trim(),
+    idioms:Array.isArray(p.idioms)?p.idioms.filter(x=>typeof x==='string'&&x.trim()):[]
   }));
   if(!lines.length)return null;
   for(let i=0;i<lines.length;i++)if(lines[i].end==null)lines[i].end=(lines[i+1]&&lines[i+1].time!=null)?lines[i+1].time:(lines[i].time!=null?lines[i].time+3:null);
