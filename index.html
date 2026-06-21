@@ -938,8 +938,13 @@ function toggleWord(lineIdx,wordIdx,elFromCurrent){
   const ln=currentVideo.lines[lineIdx];
   if(lastPlayedLine!==lineIdx&&ln&&ln.time!=null){seekTo(ln.time);markStudied(lineIdx,ln.time);lastPlayedLine=lineIdx;}
   if(sel.lineIdx!==lineIdx){clearSelectionVisual();sel={lineIdx,words:[]};}
-  const pos=sel.words.indexOf(wordIdx);
-  if(pos>=0)sel.words.splice(pos,1);else sel.words.push(wordIdx);
+  // tapping any word inside an idiom selects/deselects the whole idiom phrase
+  const wrap=elFromCurrent&&elFromCurrent.closest('.idiomwrap');
+  if(wrap){const idxs=[...wrap.querySelectorAll('.word')].map(x=>+x.dataset.i);
+    if(idxs.every(i=>sel.words.includes(i)))sel.words=sel.words.filter(i=>!idxs.includes(i));
+    else idxs.forEach(i=>{if(!sel.words.includes(i))sel.words.push(i);});
+  }else{const pos=sel.words.indexOf(wordIdx);
+    if(pos>=0)sel.words.splice(pos,1);else sel.words.push(wordIdx);}
   sel.words.sort((a,b)=>a-b);
   // repaint this line's word states
   const lineEl=document.querySelector('.tline[data-i="'+lineIdx+'"]');
