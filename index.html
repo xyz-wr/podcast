@@ -1170,6 +1170,22 @@ async function restoreQueue(){
   try{const q=await idbGet('settings','syncQueue');_queue=(q&&q.value)||[];}catch(e){_queue=[];}
 }
 window.addEventListener('online',flushQueue);
+async function syncPull(){
+  if(!sbReady())return;
+  SYNC_APPLYING=true;
+  try{
+    for(const table of SYNCED_STORES){
+      let rows; try{rows=await sbSelect(table);}catch(e){console.warn('syncPull '+table,e.message);continue;}
+      for(const row of rows){
+        const local=await idbGet(table,row.id);
+        const localT=local?(local.updatedAt||0):-1;
+        const action=syncResolve(localT,row);
+        if(action==='put') await idbReq(table,'readwrite',o=>o.put(row.data));
+        else if(action==='delete' && local) await idbReq(table,'readwrite',o=>o.delete(row.id));
+      }
+    }
+  }finally{SYNC_APPLYING=false;}
+}
 async function gemini(prompt,json,maxTokens){
   if(!GEMINI_KEY)throw new Error('NO_KEY');
   const gc={temperature:0.7,maxOutputTokens:maxTokens||600};
@@ -1451,7 +1467,8 @@ function renderStreak(){const el=document.getElementById('streakBody');
   try{const ak=await idbGet('settings','activity');activity=ak&&ak.value?JSON.parse(ak.value):{};}catch(e){activity={};}
   await loadSyncConfig();
   await restoreQueue();
-  await loadAll();})();
+  await loadAll();
+  if(sbReady()){await syncPull();await flushQueue();await loadAll();}})();
 document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('show');}));
 </script>
 </body>
