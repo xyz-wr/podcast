@@ -1071,6 +1071,40 @@ async function saveSyncConfig(){
   toast('동기화 설정 저장됨');
   if(sbReady() && typeof syncPull==='function'){await syncPull();await loadAll();}
 }
+/* ===== sync ===== */
+let SYNC_APPLYING=false;
+function syncResolve(localUpdatedAt, remote){
+  if(!(remote.updated_at > localUpdatedAt)) return 'skip';
+  return remote.deleted ? 'delete' : 'put';
+}
+function runSyncSelfTest(){
+  const cases=[
+    [syncResolve(100,{updated_at:200,deleted:false})==='put','remote newer -> put'],
+    [syncResolve(300,{updated_at:200,deleted:false})==='skip','local newer -> skip'],
+    [syncResolve(200,{updated_at:200,deleted:false})==='skip','equal -> skip'],
+    [syncResolve(0,{updated_at:50,deleted:true})==='delete','remote newer tombstone -> delete'],
+    [syncResolve(-1,{updated_at:0,deleted:false})==='put','absent local -> put'],
+  ];
+  const pass=cases.every(c=>c[0]);
+  console.log('runSyncSelfTest:', pass?'PASS':'FAIL', cases.filter(c=>!c[0]).map(c=>c[1]));
+  return pass;
+}
+function sbHeaders(){return {'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'};}
+async function sbUpsert(table, rows){
+  if(!sbReady()||!rows.length)return;
+  const r=await fetch(SB_URL+'/rest/v1/'+table+'?on_conflict=sync_code,id',{
+    method:'POST',
+    headers:{...sbHeaders(),'Prefer':'resolution=merge-duplicates'},
+    body:JSON.stringify(rows)});
+  if(!r.ok)throw new Error('sbUpsert '+table+' '+r.status);
+}
+async function sbSelect(table){
+  if(!sbReady())return [];
+  const r=await fetch(SB_URL+'/rest/v1/'+table+'?sync_code=eq.'+encodeURIComponent(SYNC_CODE)+'&select=*',{
+    headers:sbHeaders()});
+  if(!r.ok)throw new Error('sbSelect '+table+' '+r.status);
+  return r.json();
+}
 async function gemini(prompt,json,maxTokens){
   if(!GEMINI_KEY)throw new Error('NO_KEY');
   const gc={temperature:0.7,maxOutputTokens:maxTokens||600};
