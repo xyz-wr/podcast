@@ -294,7 +294,7 @@
     </div>
     <div class="panel">
       <h2>SRT → JSON 변환</h2>
-      <p style="font-size:12px;color:var(--ink-soft);line-height:1.55;margin:0 0 10px;">영어·한국어 <b>.srt</b>를 올리면 학습용 <b>정렬쌍 JSON</b>으로 변환해 내려받아요. 한국어 문장 기준으로 영어가 시간에 맞춰 정렬돼요. 받은 JSON은 학습 화면 <b>✎</b>에 그대로 올리면 됩니다.</p>
+      <p style="font-size:12px;color:var(--ink-soft);line-height:1.55;margin:0 0 10px;">영어·한국어 <b>.srt</b>를 올리면 학습용 <b>정렬쌍 JSON</b>으로 변환해 내려받아요. <b>⚙ AI 키</b>가 있으면 한국어 문장에 맞춰 영어를 <b>의미 기반</b>으로 1:1 정렬하고, <b>영어만</b> 올리면 문장 단위로 나눠 <b>자연스러운 한국어</b>까지 자동으로 채워줘요. (키가 없으면 시간 기반으로 정렬) 받은 JSON은 학습 화면 <b>✎</b>에 그대로 올리면 됩니다.</p>
       <label class="fld">영어 자막 (.srt / .vtt)</label>
       <input type="file" id="convEnFile" accept=".srt,.vtt,.txt" style="font-size:12px;">
       <label class="fld">한국어 자막 (.srt / .vtt · 선택)</label>
@@ -800,50 +800,41 @@ async function openVideo(id){currentVideo=await idbGet('videos',id);currentVideo
 /* ============ transcript input ============ */
 function openTranscriptInput(){openModal('tiModal');}
 function readFile(f){return new Promise(r=>{if(!f)return r('');const rd=new FileReader();rd.onload=()=>r(rd.result);rd.readAsText(f);});}
+/* 공통 정렬 파이프라인 — JSON이면 그대로, 아니면 buildLines + (키 있으면) AI 의미정렬.
+   · EN+KO: 한국어 문장 기준으로 영어를 의미로 1:1 정렬(aiAlignKoLines) / 번갈아형은 aiAlignInterleaved
+   · EN 전용: 문장 단위로 나눈 뒤(aiSegment) 자연스러운 구어체 한국어를 자동 작성(aiTranslateLines)
+   btn: 진행 표시 버튼(선택). 반환: lines 배열([] = 인식 실패). */
+async function alignToLines(en, ko, btn){
+  const jsonLines=parseAlignedJson(en)||parseAlignedJson(ko); // 이미 정렬된 JSON이면 그대로
+  if(jsonLines)return jsonLines;
+  let lines=buildLines(en,ko);
+  if(!lines.length)return [];
+  const enParsed=parseAny(en), koParsed=parseAny(ko);
+  const interleaved=isInterleaved([en,ko].filter(s=>s&&s.trim()).join('\n'));
+  const koSegmented=!interleaved&&enParsed.cues.length>0&&koParsed.cues.length>0&&!cuesPunctuated(enParsed.cues)&&cuesPunctuated(koParsed.cues);
+  if(GEMINI_KEY){
+    const set=t=>{if(btn)btn.textContent=t;};
+    try{
+      if(interleaved){set('AI가 영어·한국어 정렬 중…');const a=await aiAlignInterleaved([en,ko].filter(s=>s&&s.trim()).join('\n'));if(a.length)lines=a;}
+      else if(koSegmented){set('AI가 영어·한국어 정렬 중…');const koSents=mergeSentences(koParsed.cues);const a=await aiAlignKoLines(enParsed.cues,koSents,(enParsed.chapters.length?enParsed.chapters:koParsed.chapters));if(a.length)lines=a;}
+      else if(looksUnpunctuated(lines)){set('AI가 문장 단위로 나누는 중…');const enText=enParsed.cues.map(c=>c.text).filter(Boolean).join(' ').replace(/\s+/g,' ').trim();const sents=await aiSegment(enText);if(sents.length)lines=remapSentences(wordTimesFromCues(enParsed.cues),sents,enParsed.chapters);}
+      if(lines.some(l=>l.en&&!l.ko)){set('AI가 자연스러운 한국어 번역 중…');await aiTranslateLines(lines);}
+    }catch(e){aiErr(e,null);} // 실패해도 buildLines 결과는 유지
+  }
+  return lines;
+}
 async function applyTranscript(){
   let en=document.getElementById('enText').value, ko=document.getElementById('koText').value;
   const enF=document.getElementById('enFile').files[0], koF=document.getElementById('koFile').files[0];
   if(enF)en=await readFile(enF); if(koF)ko=await readFile(koF);
-  let lines, isJson=false;
-  const jsonLines=parseAlignedJson(en)||parseAlignedJson(ko); // 정렬쌍 JSON이면 그대로 사용(이미 완성된 정렬 → AI 생략)
-  if(jsonLines){lines=jsonLines;isJson=true;}
-  else lines=buildLines(en,ko);
+  const interleaved=!parseAlignedJson(en)&&!parseAlignedJson(ko)&&isInterleaved([en,ko].filter(s=>s&&s.trim()).join('\n'));
+  const btn=document.getElementById('tiApplyBtn');const oldTxt=btn?btn.textContent:'';
+  if(btn)btn.disabled=true;
+  let lines=[];
+  try{lines=await alignToLines(en,ko,btn);}
+  finally{if(btn){btn.disabled=false;btn.textContent=oldTxt;}}
   if(!lines.length){toast('자막을 인식하지 못했어요. 형식을 확인해주세요');return;}
-
-  const enParsed=isJson?{cues:[],chapters:[]}:parseAny(en), koParsed=isJson?{cues:[],chapters:[]}:parseAny(ko);
-  const interleaved=!isJson&&isInterleaved([en,ko].filter(s=>s&&s.trim()).join('\n')); // 번갈아형이면 이미 쌍으로 정렬됨 → AI 재정렬 생략
-  // 영어엔 .?!이 거의 없고 한국어엔 문장부호가 있는 경우 → 한국어 문장 기준으로 영어를 의미에 맞게 1:1 정렬
-  const koSegmented=!interleaved&&enParsed.cues.length>0&&koParsed.cues.length>0&&!cuesPunctuated(enParsed.cues)&&cuesPunctuated(koParsed.cues);
-  // AI 다듬기 (키가 있고 JSON이 아닐 때만)
-  if(GEMINI_KEY&&!isJson){
-    const btn=document.getElementById('tiApplyBtn');const oldTxt=btn?btn.textContent:'';
-    if(btn){btn.disabled=true;}
-    try{
-      if(interleaved){
-        if(btn)btn.textContent='AI가 영어·한국어 정렬 중…';
-        const aligned=await aiAlignInterleaved([en,ko].filter(s=>s&&s.trim()).join('\n'));
-        if(aligned.length)lines=aligned;
-      }else if(koSegmented){
-        if(btn)btn.textContent='AI가 영어·한국어 정렬 중…';
-        const koSents=mergeSentences(koParsed.cues);
-        const aligned=await aiAlignKoLines(enParsed.cues,koSents,(enParsed.chapters.length?enParsed.chapters:koParsed.chapters));
-        if(aligned.length)lines=aligned;
-      }else if(looksUnpunctuated(lines)){
-        if(btn)btn.textContent='AI가 문장 정리 중…';
-        const enText=enParsed.cues.map(c=>c.text).filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
-        const sents=await aiSegment(enText);
-        if(sents.length)lines=remapSentences(wordTimesFromCues(enParsed.cues),sents,enParsed.chapters);
-      }
-      if(lines.some(l=>l.en&&!l.ko)){
-        if(btn)btn.textContent='AI가 번역 추가 중…';
-        await aiTranslateLines(lines);
-      }
-    }catch(e){aiErr(e,null);} // 실패해도 원본 자막은 그대로 유지
-    finally{if(btn){btn.disabled=false;btn.textContent=oldTxt;}}
-  }else if(interleaved){
-    toast('⚙ AI 키를 넣으면 영어·한국어를 더 깔끔히 정렬해요');
-  }
-
+  if(!GEMINI_KEY&&interleaved)toast('⚙ AI 키를 넣으면 영어·한국어를 더 깔끔히 정렬해요');
   lines.forEach((l,i)=>l.idx=i);
   currentVideo.lines=lines;await idbPut('videos',currentVideo);
   document.getElementById('enText').value='';document.getElementById('koText').value='';
@@ -1052,10 +1043,14 @@ function secToTc(s){if(s==null||isNaN(s))s=0;if(s<0)s=0;const ms=Math.round(s*10
   return z(Math.floor(ms/3600000))+':'+z(Math.floor(ms%3600000/60000))+':'+z(Math.floor(ms%60000/1000))+','+z(ms%1000,3);}
 async function convertSrtToJson(){
   const enF=document.getElementById('convEnFile').files[0], koF=document.getElementById('convKoFile').files[0];
-  const st=document.getElementById('convStatus');
+  const st=document.getElementById('convStatus'), btn=document.getElementById('convBtn'), old=btn?btn.textContent:'';
   if(!enF&&!koF){toast('영어 또는 한국어 .srt를 올려주세요');return;}
   const en=enF?await readFile(enF):'', ko=koF?await readFile(koF):'';
-  const lines=buildLines(en,ko);
+  if(!GEMINI_KEY&&st)st.textContent='⚙ 키가 없어 시간 기반으로 정렬해요(의미 기반은 AI 키 필요)';
+  if(btn)btn.disabled=true;
+  let lines=[];
+  try{lines=await alignToLines(en,ko,btn);}catch(e){lines=[];}
+  finally{if(btn){btn.disabled=false;btn.textContent=old;}}
   if(!lines.length){toast('자막을 인식하지 못했어요. 형식을 확인해주세요');if(st)st.textContent='변환 실패 — 형식 확인';return;}
   const pairs=lines.map((l,i)=>({i:i+1,start:secToTc(l.time),end:secToTc(l.end),en:(l.en||'').trim(),ko:(l.ko||'').trim()}));
   const title=(document.getElementById('convTitle').value||'subtitles').trim();
@@ -1063,7 +1058,8 @@ async function convertSrtToJson(){
   const url=URL.createObjectURL(blob);const a=document.createElement('a');
   a.href=url;a.download=(title.replace(/[\\/:*?"<>|]+/g,'_')||'subtitles')+'.json';a.click();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
-  toast(pairs.length+'줄 변환 · JSON 내려받음');if(st)st.textContent='✓ '+pairs.length+'줄 변환됨';
+  const mode=GEMINI_KEY?'의미 기반(AI)':'시간 기반';
+  toast(pairs.length+'줄 변환 · JSON 내려받음');if(st)st.textContent='✓ '+pairs.length+'줄 · '+mode+' 변환 · 내려받음';
 }
 /* ============ backup ============ */
 function openBackup(){tabTo('settings');}
