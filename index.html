@@ -1426,13 +1426,14 @@ function vdVoice(){const SR=window.SpeechRecognition||window.webkitSpeechRecogni
   if(recog){try{recog.stop();}catch(e){}return;}   // 다시 누르면 멈춤 (onend가 마무리)
   recog=new SR();recog.lang='en-US';recog.continuous=true;recog.interimResults=true;recog.maxAlternatives=1;
   const base=en.value?en.value.trim()+' ':'';      // 시작 시점의 기존 텍스트
-  let finalT='';
-  recog.onresult=e=>{let interim='';
-    for(let i=e.resultIndex;i<e.results.length;i++){const r=e.results[i];
-      if(r.isFinal)finalT+=r[0].transcript+' '; else interim+=r[0].transcript;}
-    en.value=base+finalT+interim;};                // 말하는 중 실시간 반영
+  let lastFinal='';
+  recog.onresult=e=>{let finalStr='',interim='';   // 매번 전체를 처음부터 재구성 → 중복 없음(멱등)
+    for(let i=0;i<e.results.length;i++){const r=e.results[i];
+      if(r.isFinal)finalStr+=r[0].transcript.trim()+' '; else interim+=r[0].transcript;}
+    lastFinal=finalStr;
+    en.value=(base+finalStr+interim).replace(/\s+/g,' ').trimStart();}; // 말하는 중 실시간 반영
   recog.onerror=e=>{toast('음성 인식: '+e.error);};
-  recog.onend=()=>{mic.textContent='🎙';recog=null;en.value=(base+finalT).trim();};  // 멈추면 최종본 반영
+  recog.onend=()=>{mic.textContent='🎙';recog=null;en.value=(base+lastFinal).replace(/\s+/g,' ').trim();};  // 멈추면 최종본 반영
   try{recog.start();mic.textContent='⏹';toast('말하세요… (다시 누르면 끝)');}catch(e){recog=null;mic.textContent='🎙';toast('음성 시작 실패');}}
 
 /* ============ streak / study record ============ */
