@@ -67,24 +67,44 @@ idioms: Array.isArray(p.idioms) ? p.idioms.filter(x=>typeof x==='string' && x.tr
 
 (정확한 변수/색은 구현 시 팔레트에 맞춰 조정)
 
+## 관용구 부착 방식 (큐레이션 표현 목록 + 자동 매칭)
+
+작성자가 줄마다 손으로 인덱스를 맞추는 대신, **영상별로 관용구 표현 목록을 큐레이션**하고
+각 줄의 `en`에 그 표현이 등장하면 `idioms`에 자동 부착한다. 부착 매칭은 앱의 렌더 매칭과
+동일한 정규화를 쓴다(소문자 + `cleanTerm` + 연속 단어열). 공유 헬퍼:
+
+```python
+def mark_idioms(pairs, phrases):
+    import re
+    def toks(s): return [re.sub(r"^[^\w'-]+|[^\w'-]+$", "", w).lower()
+                          for w in (s or "").split()]
+    norm_ph = [toks(p) for p in phrases]
+    for p in pairs:
+        t = toks(p.get("en",""))
+        found = []
+        for raw, pw in zip(phrases, norm_ph):
+            if pw and any(t[i:i+len(pw)] == pw for i in range(len(t)-len(pw)+1)):
+                found.append(raw)
+        p["idioms"] = found
+    return pairs
+```
+
 ## 스킬 변경 (subtitle-to-aligned-json)
 
 - `SKILL.md` 출력 형식·빌드 템플릿에 `idioms` 추가.
-- 빌드 스크립트는 `EN[]`/`KO[]`와 나란히 **`IDIOMS[]`** (줄별 관용구 목록, 대부분 `[]`)를
-  둔다. 작성자가 변환할 때 관용구를 직접 식별해 채운다.
-- 길이 검증: `assert len(EN)==len(KO)==len(IDIOMS)==len(ko_cues)`.
-- pairs 생성 시 `"idioms": IDIOMS[i]` 포함. 빈 배열인 줄도 그대로 둔다(또는 생략 가능 —
-  앱이 둘 다 허용).
+- 빌드 스크립트는 영상별 `IDIOM_PHRASES = [...]`(작성자 큐레이션)를 두고, pairs 생성 후
+  `mark_idioms(pairs, IDIOM_PHRASES)` 호출 → 각 쌍에 `"idioms"` 부착.
+- 출력 JSON 형식 예시에 `idioms` 필드 추가.
 
 ## 기존 샘플 백필 (samples/ 4개)
 
-- **build 스크립트 있는 3개** (`restaurant-order`/`build_restaurant.py`,
-  `experiences-part1`/`build_experiences.py`, `asking-living`/`build_meaning.py`):
-  각 스크립트에 `IDIOMS[]`를 추가하고 재실행해 `.json` 재생성.
-  - 전제: 각 스크립트의 원본 SRT(`KO_SRC`/`EN_SRC`, Downloads 경로)가 존재해야 재실행 가능.
-    없으면 그 영상은 `.json`을 직접 편집해 `idioms`만 추가(스크립트는 다음 빌드 때 반영).
-- **build 스크립트 없는 1개** (`ariannita-cincinnati`): 빌드 스크립트가 없으므로
-  `ariannita-cincinnati.json`을 **직접 편집**해 각 쌍에 `idioms` 추가.
+원본 SRT(Downloads)가 없어 빌드 스크립트 재실행이 불가하므로, **기존 `.json`을 직접
+패치**한다. `samples/add_idioms.py` 신설:
+
+- 4개 영상 각각의 큐레이션 `IDIOM_PHRASES` 사전을 담는다.
+- 각 `samples/<slug>/<slug>.json`을 읽어 `mark_idioms(pairs, phrases[slug])`로 `idioms`
+  부착 후 같은 파일에 다시 쓴다. (원본 SRT 불필요, 반복 실행 안전)
+- 4개 모두 동일 방식(빌드 스크립트 유무와 무관, `ariannita-cincinnati` 포함).
 
 ## 영향 범위
 
@@ -94,9 +114,8 @@ idioms: Array.isArray(p.idioms) ? p.idioms.filter(x=>typeof x==='string' && x.tr
 | `renderTranscript` (~876) | `idiomIdxSet()` 호출 → 토큰 span에 `idiom` 클래스 |
 | 신설 | `idiomIdxSet(tokens, idioms)` |
 | CSS | `.word.idiom` 스타일 |
-| `subtitle-to-aligned-json/SKILL.md` | 출력 형식·템플릿에 `idioms`/`IDIOMS[]`/assert |
-| `samples/*/build_*.py` (3개) | `IDIOMS[]` 추가 + 재실행 |
-| `samples/ariannita-cincinnati.json` | `idioms` 직접 추가 |
+| `subtitle-to-aligned-json/SKILL.md` | 출력 형식·템플릿에 `idioms`/`IDIOM_PHRASES`/`mark_idioms` |
+| `samples/add_idioms.py` (신설) | 4개 영상 큐레이션 표현 + JSON 직접 패치 |
 
 ## 엣지 케이스
 
