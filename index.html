@@ -9,6 +9,15 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+  /* ===== 이어보기 (resume / continue-watching) ===== */
+  .resume-sec-t{font-size:12px;color:var(--ink-soft);padding:8px 16px 2px;font-weight:600;}
+  .resume-row{display:flex;gap:10px;overflow-x:auto;padding:4px 16px 10px;-webkit-overflow-scrolling:touch;}
+  .rcard{position:relative;flex:0 0 auto;width:150px;cursor:pointer;}
+  .rcard .rthumb{width:150px;height:84px;border-radius:10px;background-size:cover;background-position:center;position:relative;}
+  .rcard .rt{font-size:12px;margin-top:4px;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .rcard .rtime{font-size:11px;color:var(--ink-soft);margin-top:2px;}
+  .rcard .rx{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.55);color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:12px;cursor:pointer;line-height:1;}
+  .rcard .rplay{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);background:rgba(0,0,0,.55);color:#fff;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:13px;}
   :root{
     --paper:#F6F3EC; --paper-line:#E3DCC9; --ink:#23241F; --ink-soft:#5B5A50; --ink-faint:#9a948a;
     --amber:#C2772E; --amber-deep:#8F5419; --amber-soft:#FBE8D2; --amber-bg:#FFF7E9;
@@ -198,6 +207,7 @@
       <button class="chip teal" onclick="openAddVideo()">＋ 영상</button>
       <button class="chip teal" onclick="createFolder()">＋ 폴더</button>
     </div>
+    <div id="resumeRow" style="display:none;"></div>
     <div id="libList"></div>
   </section>
 
@@ -670,9 +680,12 @@ function ensureYT(){if(window.YT&&window.YT.Player)return Promise.resolve();if(y
 async function mountPlayer(videoId,startSeconds){startSeconds=Math.floor(startSeconds||0);await ensureYT();
   if(player){if(startSeconds>0)player.cueVideoById({videoId,startSeconds});else player.cueVideoById(videoId);return;}
   player=new YT.Player('ytPlayer',{videoId,playerVars:{playsinline:1,rel:0,modestbranding:1,start:startSeconds},
-    events:{onReady:()=>{playerReady=true;try{player.setPlaybackRate(currentRate);}catch(e){}}}});}
+    events:{onReady:()=>{playerReady=true;try{player.setPlaybackRate(currentRate);}catch(e){}},
+      onStateChange:(e)=>{const S=YT.PlayerState;
+        if(e.data===S.PAUSED){saveResume();}
+        else if(e.data===S.ENDED){saveResume();clearResume(currentVideo);}}}});}
 function seekTo(sec){if(!isFinite(sec))return;if(playerReady){try{player.seekTo(sec,true);player.playVideo();}catch(e){}}}
-function pausePlayer(){if(playerReady){try{player.pauseVideo();}catch(e){}}}
+function pausePlayer(){saveResume();if(playerReady){try{player.pauseVideo();}catch(e){}}}
 function cycleRate(){currentRate=RATES[(RATES.indexOf(currentRate)+1)%RATES.length];document.getElementById('rateChip').textContent=currentRate+'×';if(playerReady)try{player.setPlaybackRate(currentRate);}catch(e){}}
 
 /* A-B loop */
@@ -682,7 +695,12 @@ function setLoop(a,b){loop={a,b};document.getElementById('loopSeg').textContent=
 function clearLoop(){loop=null;clearInterval(loopTimer);document.getElementById('loopSeg').textContent='꺼짐';highlightActive();}
 function highlightActive(){document.querySelectorAll('.tline').forEach(el=>{const i=+el.dataset.i;const ln=currentVideo&&currentVideo.lines[i];el.classList.toggle('active',!!(loop&&ln&&ln.time===loop.a));});}
 
-/* ============ bookmark (이어보기) ============ */
+/* ============ resume (재생 위치 이어보기) ============ */
+function saveResume(){if(!currentVideo||!playerReady)return;let t=0;try{t=player.getCurrentTime();}catch(e){return;}
+  if(!isFinite(t)||t<2)return;currentVideo.resume={time:t,at:Date.now()};idbPut('videos',currentVideo);}
+function clearResume(v){if(!v||!v.resume)return;delete v.resume;idbPut('videos',v);}
+
+/* ============ bookmark (학습 진도) ============ */
 function markStudied(idx,time){if(!currentVideo)return;const bm=currentVideo.bookmark;
   if(!bm||idx>bm.idx){currentVideo.bookmark={idx,time};idbPut('videos',currentVideo);applyStudied();updateResume();}}
 function applyStudied(){const bm=currentVideo&&currentVideo.bookmark;
@@ -691,10 +709,10 @@ function applyStudied(){const bm=currentVideo&&currentVideo.bookmark;
     el.classList.toggle('studied',!!(bm&&i<=bm.idx));el.classList.toggle('bmline',!!(bm&&i===bm.idx));});
   if(bm){const tc=document.querySelector('.tline[data-i="'+bm.idx+'"] .ttime');
     if(tc){const s=document.createElement('span');s.className='bmflag';s.textContent='🔖';tc.appendChild(s);}}}
-function updateResume(){const c=document.getElementById('resumeChip');if(!c)return;const bm=currentVideo&&currentVideo.bookmark;
-  if(bm&&bm.time!=null){c.style.display='';c.textContent='🔖 이어보기 '+fmt(bm.time);}else c.style.display='none';}
+function updateResume(){const c=document.getElementById('resumeChip');if(!c)return;const r=currentVideo&&currentVideo.resume;
+  if(r&&r.time!=null){c.style.display='';c.textContent='🔖 이어보기 '+fmt(r.time);}else c.style.display='none';}
 function scrollToLine(idx){const el=document.querySelector('.tline[data-i="'+idx+'"]');if(el)el.scrollIntoView({block:'center',behavior:'smooth'});}
-function resumeBookmark(){const bm=currentVideo&&currentVideo.bookmark;if(!bm)return;if(bm.time!=null)seekTo(bm.time);scrollToLine(bm.idx);}
+function resumeBookmark(){const r=currentVideo&&currentVideo.resume;if(!r)return;if(r.time!=null)seekTo(r.time);}
 function bookmarkCurrent(){if(!currentVideo||!currentVideo.lines||!currentVideo.lines.length)return;
   let t=0;try{t=player.getCurrentTime();}catch(e){}
   let idx=0,time=null;for(const l of currentVideo.lines){if(l.time!=null&&l.time<=t+0.3){idx=l.idx;time=l.time;}else if(l.time!=null)break;}
@@ -717,6 +735,20 @@ async function loadAll(){videos=(await idbAll('videos')).sort((a,b)=>(b.lastStud
   try{const fk=await idbGet('settings','folders');folders=fk&&fk.value?JSON.parse(fk.value):[];}catch(e){folders=[];}
   renderLibrary();updateBadges();}
 function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function resumeCardHTML(v){return `<div class="rcard" onclick="openVideo('${v.id}')">
+    <div class="rthumb" style="background-image:url(https://i.ytimg.com/vi/${v.youtubeId}/mqdefault.jpg)">
+      <button class="rx" title="이어보기에서 제거" onclick="event.stopPropagation();removeResume('${v.id}')">✕</button>
+      <span class="rplay">▶</span>
+    </div>
+    <div class="rt">${esc(v.title||'제목 없음')}</div>
+    <div class="rtime">이어보기 ${fmt(v.resume.time)}</div>
+  </div>`;}
+function renderResumeRow(){const el=document.getElementById('resumeRow');if(!el)return;
+  const list=videos.filter(v=>v.resume&&v.resume.time!=null).sort((a,b)=>(b.resume.at||0)-(a.resume.at||0)).slice(0,8);
+  if(!list.length){el.style.display='none';el.innerHTML='';return;}
+  el.style.display='';
+  el.innerHTML='<div class="resume-sec-t">이어보기</div><div class="resume-row">'+list.map(resumeCardHTML).join('')+'</div>';}
+async function removeResume(id){const v=videos.find(x=>x.id===id);if(!v)return;delete v.resume;await idbPut('videos',v);renderResumeRow();}
 function videoCardHTML(v){const nv=vocab.filter(x=>x.videoId===v.id).length;
   return `<div class="vid-card" onclick="openVideo('${v.id}')">
     <div class="vid-thumb" style="background-image:url(https://i.ytimg.com/vi/${v.youtubeId}/mqdefault.jpg)"><div class="pl">▶</div></div>
@@ -724,7 +756,7 @@ function videoCardHTML(v){const nv=vocab.filter(x=>x.videoId===v.id).length;
     <button class="vdel" title="폴더 이동" onclick="event.stopPropagation();openFolderPicker('${v.id}')">🗂</button>
     <button class="vdel" title="영상 삭제" onclick="event.stopPropagation();deleteVideo('${v.id}')">✕</button>
   </div>`;}
-function renderLibrary(){const el=document.getElementById('libList');
+function renderLibrary(){renderResumeRow();const el=document.getElementById('libList');
   if(!videos.length){el.innerHTML='<div class="empty">아직 영상이 없어요. 위에서 YouTube 영상을 추가해보세요.</div>';return;}
   const groups={__none__:[]};folders.forEach(f=>groups[f.id]=[]);
   videos.forEach(v=>{const fid=(v.folderId&&folders.some(f=>f.id===v.folderId))?v.folderId:'__none__';groups[fid].push(v);});
@@ -781,8 +813,11 @@ async function openVideo(id){currentVideo=await idbGet('videos',id);currentVideo
   document.getElementById('studySub').textContent='자막 '+(currentVideo.lines?.length||0)+'줄';
   clearLoop();renderTranscript();document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.s==='learn'));
   showScreen('study');
-  mountPlayer(currentVideo.youtubeId,(currentVideo.bookmark&&currentVideo.bookmark.time!=null)?currentVideo.bookmark.time:0);
+  const startAt=(currentVideo.resume&&currentVideo.resume.time!=null)?currentVideo.resume.time
+    :(currentVideo.bookmark&&currentVideo.bookmark.time!=null)?currentVideo.bookmark.time:0;
+  mountPlayer(currentVideo.youtubeId,startAt);
   if(currentVideo.bookmark)setTimeout(()=>scrollToLine(currentVideo.bookmark.idx),200);
+  updateResume();
   logActivity('study',currentVideo.title);}
 
 /* ============ transcript input ============ */
@@ -1517,6 +1552,8 @@ function renderStreak(){const el=document.getElementById('streakBody');
   await loadAll();
   await autoSync(true);})();   // 앱 열 때 자동: 받아오기 + 내 데이터 올리기 (버튼 불필요)
 document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('show');}));
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveResume();});
+window.addEventListener('pagehide',()=>{saveResume();});
 </script>
 </body>
 </html>
