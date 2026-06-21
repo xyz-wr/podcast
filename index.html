@@ -1092,7 +1092,7 @@ function renderSettings(){const i=document.getElementById('geminiKeyInput');if(i
   const u=document.getElementById('sbUrlInput'); if(u)u.value=SB_URL;
   const k=document.getElementById('sbKeyInput'); if(k)k.value=SB_KEY;
   const c=document.getElementById('syncCodeInput'); if(c)c.value=SYNC_CODE;
-  const ss=document.getElementById('syncStatus'); if(ss)ss.textContent=(typeof sbReady==='function'&&sbReady())?'연결됨 ✓':'동기화 꺼짐';
+  const ss=document.getElementById('syncStatus'); if(ss)ss.textContent=sbReady()?'연결됨 ✓':'동기화 꺼짐';
 }
 async function saveKey(){GEMINI_KEY=document.getElementById('geminiKeyInput').value.trim();await idbPut('settings',{key:'geminiKey',value:GEMINI_KEY});document.getElementById('keyStatus').textContent=GEMINI_KEY?'저장됨 ✓':'키 없음';toast('저장됨');}
 async function loadSyncConfig(){
@@ -1101,9 +1101,11 @@ async function loadSyncConfig(){
   try{const c=await idbGet('settings','syncCode');SYNC_CODE=(c&&c.value)||'';}catch(e){}
 }
 async function saveSyncConfig(){
-  SB_URL=document.getElementById('sbUrlInput').value.trim().replace(/\/+$/,'');
-  SB_KEY=document.getElementById('sbKeyInput').value.trim();
-  SYNC_CODE=document.getElementById('syncCodeInput').value.trim();
+  const u=document.getElementById('sbUrlInput'),k=document.getElementById('sbKeyInput'),c=document.getElementById('syncCodeInput');
+  if(!u||!k||!c)return;
+  SB_URL=u.value.trim().replace(/\/+$/,'');
+  SB_KEY=k.value.trim();
+  SYNC_CODE=c.value.trim();
   await idbPut('settings',{key:'sbUrl',value:SB_URL});
   await idbPut('settings',{key:'sbKey',value:SB_KEY});
   await idbPut('settings',{key:'syncCode',value:SYNC_CODE});
