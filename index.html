@@ -95,6 +95,7 @@
   .substrip .hint{font-size:10.5px;color:var(--ink-soft);}
 
   /* transcript */
+  .study-tools{position:sticky;top:0;z-index:30;background:var(--paper);}
   .tlist{padding:2px 6px;}
   .chapter{font-family:'Fraunces',serif;font-weight:600;font-size:13px;color:var(--amber-deep);padding:12px 8px 5px;border-top:1px solid var(--paper-line);margin-top:4px;}
   .chapter:first-child{border-top:none;margin-top:0;}
@@ -224,11 +225,12 @@
 
     <div class="video-frame"><div id="ytPlayer"></div></div>
 
+    <div class="study-tools">
     <div class="loopbar" id="loopBar">
       <span class="lab">구간 반복</span>
       <span class="seg" id="loopSeg">꺼짐</span>
       <span style="margin-left:auto;display:flex;gap:6px;">
-        <span class="chip" title="현재 위치 북마크" onclick="bookmarkCurrent()">🔖</span>
+        <span class="chip" id="bmChip" title="탭: 현재 위치 북마크 · 길게: 해제">🔖</span>
         <span class="chip" id="rateChip" onclick="cycleRate()">1×</span>
         <span class="chip" id="loopClear" onclick="clearLoop()">해제</span>
       </span>
@@ -241,6 +243,7 @@
         <span class="chip" id="resumeChip" style="display:none;" onclick="resumeBookmark()">🔖 이어보기</span>
         <span class="chip teal" id="koChip" onclick="toggleKo()">한국어</span>
       </span>
+    </div>
     </div>
 
     <div class="tlist" id="tlist">
@@ -719,6 +722,7 @@ function bookmarkCurrent(){if(!currentVideo||!currentVideo.lines||!currentVideo.
   if(time==null){time=currentVideo.lines[0].time;idx=0;}
   currentVideo.bookmark={idx,time};idbPut('videos',currentVideo);applyStudied();updateResume();scrollToLine(idx);
   toast('여기까지 북마크'+(time!=null?' · '+fmt(time):''));}
+function clearBookmark(){if(!currentVideo||!currentVideo.bookmark)return;delete currentVideo.bookmark;idbPut('videos',currentVideo);applyStudied();toast('학습 진도 북마크 해제');}
 
 /* ============ navigation ============ */
 function showScreen(name){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById('screen-'+name).classList.add('active');window.scrollTo(0,0);}
@@ -1554,6 +1558,11 @@ function renderStreak(){const el=document.getElementById('streakBody');
 document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('show');}));
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveResume();});
 window.addEventListener('pagehide',()=>{saveResume();});
+(function(){const bc=document.getElementById('bmChip');if(!bc)return;let t=null,fired=false;
+  const start=()=>{fired=false;t=setTimeout(()=>{fired=true;clearBookmark();},480);};
+  const cancel=()=>{if(t){clearTimeout(t);t=null;}};
+  bc.addEventListener('pointerdown',start);bc.addEventListener('pointerup',cancel);bc.addEventListener('pointerleave',cancel);
+  bc.addEventListener('click',e=>{if(fired){fired=false;e.preventDefault();return;}bookmarkCurrent();});})();
 </script>
 </body>
 </html>
