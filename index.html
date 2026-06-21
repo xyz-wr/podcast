@@ -113,7 +113,8 @@
   .word.mute{color:var(--ink-faint);}
   .word.sel{background:var(--amber-soft);color:var(--amber-deep);font-weight:600;box-shadow:inset 0 0 0 1px var(--amber);}
   .word.saved{background:var(--amber-soft);color:var(--amber-deep);font-weight:600;}
-  .word.idiom{text-decoration:underline;text-decoration-color:var(--amber-deep);text-decoration-thickness:2px;text-underline-offset:2px;}
+  .idiomwrap{background:#F8C8DC;border-radius:6px;padding:1px 3px;box-decoration-break:clone;-webkit-box-decoration-break:clone;}
+  .idiomwrap .word.saved{background:transparent;}
   .lacts{display:flex;gap:6px;margin-top:6px;}
   .lact{font-size:10.5px;font-weight:600;color:var(--ink-soft);border:1px solid var(--paper-line);background:#fff;border-radius:10px;padding:3px 9px;cursor:pointer;}
   .lact.on{color:var(--amber-deep);border-color:#eccba6;background:var(--amber-soft);}
@@ -891,8 +892,13 @@ function renderTranscript(){const el=document.getElementById('tlist');const ls=c
     if(ln.chapter&&ln.chapter!==lastCh){html+=`<div class="chapter">${esc(ln.chapter)}</div>`;lastCh=ln.chapter;}
     const tks=wordsOf(ln.en||ln.ko);
     const idSet=idiomIdxSet(tks,ln.idioms);
-    let words='';tks.forEach((w,i)=>{const mute=/^\(.*\)$/.test(w);const sv=saved.has(cleanTerm(w).toLowerCase());const id=idSet.has(i)?' idiom':'';
-      words+=`<span class="word${mute?' mute':''}${sv?' saved':''}${id}" data-i="${i}">${esc(w)}</span> `;});
+    let words='',inId=false;
+    tks.forEach((w,i)=>{const mute=/^\(.*\)$/.test(w);const sv=saved.has(cleanTerm(w).toLowerCase());
+      if(idSet.has(i)&&!inId){words+='<span class="idiomwrap">';inId=true;}
+      words+=`<span class="word${mute?' mute':''}${sv?' saved':''}" data-i="${i}">${esc(w)}</span>`;
+      if(inId&&!idSet.has(i+1)){words+='</span>';inId=false;}
+      words+=' ';});
+    if(inId)words+='</span>';
     const timeChip=ln.time!=null
       ? `<span class="ttime" data-seek="${ln.time}">${fmt(ln.time)}</span>`
       : `<span class="ttime" style="opacity:.4;cursor:default;">—</span>`;
