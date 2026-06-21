@@ -1367,7 +1367,7 @@ async function aiAlignInterleaved(raw){
   return lines;
 }
 
-let vdId=null, vdCefr='A2', vdKoSentence='', recog=null, vdLastFeedback=null;
+let vdId=null, vdCefr='A2', vdKoSentence='', recog=null, vdLastFeedback=null, voiceOn=false, voiceBase='', voiceFinal='';
 function openVocabDetail(id){const v=vocab.find(x=>x.id===id);if(!v)return;
   pausePlayer();vdId=id;vdCefr=v.lastCefr||'A2';vdKoSentence='';vdLastFeedback=null;
   document.getElementById('vdTerm').textContent=v.term;
@@ -1379,7 +1379,7 @@ function openVocabDetail(id){const v=vocab.find(x=>x.id===id);if(!v)return;
   document.getElementById('vdFeedback').innerHTML='';
   document.getElementById('vdMic').textContent='🎙';
   renderExamples(v);showScreen('detail');}
-function backFromDetail(){if(recog){try{recog.stop();}catch(e){}recog=null;}document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.s==='vocab'));showScreen('vocab');renderVocab();}
+function backFromDetail(){voiceOn=false;if(recog){try{recog.stop();}catch(e){}recog=null;}document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.s==='vocab'));showScreen('vocab');renderVocab();}
 function renderCefrChips(){document.getElementById('vdCefr').innerHTML=['A1','A2','B1','B2','C1','C2'].map(l=>`<span class="chip ${l===vdCefr?'on':''}" data-cefr="${l}">${l}</span>`).join('');
   document.querySelectorAll('#vdCefr .chip').forEach(c=>c.onclick=()=>{vdCefr=c.dataset.cefr;renderCefrChips();});}
 async function vdGenerate(){const v=vocab.find(x=>x.id===vdId);const ko=document.getElementById('vdKo');
@@ -1422,19 +1422,26 @@ function renderExamples(v){const el=document.getElementById('vdExamples');const 
   el.querySelectorAll('[data-ex]').forEach(b=>b.onclick=async()=>{v.examples.splice(+b.dataset.ex,1);await idbPut('vocab',v);renderExamples(v);renderVocab();});}
 function vdVoice(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){toast('이 브라우저는 음성인식을 지원하지 않아요 (크롬 권장)');return;}
+  const en=document.getElementById('vdEn');
+  if(voiceOn){voiceOn=false;try{recog&&recog.stop();}catch(e){}return;}   // 다시 누르면 종료(플래그로 확실히)
+  voiceOn=true; voiceBase=en.value?en.value.trim()+' ':''; voiceFinal='';  // 시작
+  document.getElementById('vdMic').textContent='⏹'; toast('말하세요… (다시 누르면 끝)');
+  vdStartRecog();}
+function vdStartRecog(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   const mic=document.getElementById('vdMic'),en=document.getElementById('vdEn');
-  if(recog){try{recog.stop();}catch(e){}return;}   // 다시 누르면 멈춤 (onend가 마무리)
-  recog=new SR();recog.lang='en-US';recog.continuous=true;recog.interimResults=true;recog.maxAlternatives=1;
-  const base=en.value?en.value.trim()+' ':'';      // 시작 시점의 기존 텍스트
-  let lastFinal='';
-  recog.onresult=e=>{let finalStr='',interim='';   // 매번 전체를 처음부터 재구성 → 중복 없음(멱등)
+  recog=new SR();recog.lang='en-US';recog.interimResults=true;recog.maxAlternatives=1;  // 한 발화씩(continuous 안 씀)
+  let sessionFinal='';
+  recog.onresult=e=>{let interim='',lastF='';      // 이 발화의 '마지막 final'만 취함(누적 final 중복 방지)
     for(let i=0;i<e.results.length;i++){const r=e.results[i];
-      if(r.isFinal)finalStr+=r[0].transcript.trim()+' '; else interim+=r[0].transcript;}
-    lastFinal=finalStr;
-    en.value=(base+finalStr+interim).replace(/\s+/g,' ').trimStart();}; // 말하는 중 실시간 반영
-  recog.onerror=e=>{toast('음성 인식: '+e.error);};
-  recog.onend=()=>{mic.textContent='🎙';recog=null;en.value=(base+lastFinal).replace(/\s+/g,' ').trim();};  // 멈추면 최종본 반영
-  try{recog.start();mic.textContent='⏹';toast('말하세요… (다시 누르면 끝)');}catch(e){recog=null;mic.textContent='🎙';toast('음성 시작 실패');}}
+      if(r.isFinal)lastF=r[0].transcript.trim(); else interim+=r[0].transcript;}
+    sessionFinal=lastF;
+    en.value=(voiceBase+' '+voiceFinal+' '+lastF+' '+interim).replace(/\s+/g,' ').trim();};  // 실시간 반영
+  recog.onerror=e=>{if(e.error!=='no-speech'&&e.error!=='aborted')toast('음성 인식: '+e.error);};
+  recog.onend=()=>{
+    voiceFinal=(voiceFinal+' '+sessionFinal).replace(/\s+/g,' ').trim();   // 이 발화 확정분만 1회 커밋
+    if(voiceOn){try{vdStartRecog();}catch(e){voiceOn=false;recog=null;mic.textContent='🎙';}}  // 계속 듣기: 다음 발화로
+    else{recog=null;mic.textContent='🎙';en.value=(voiceBase+' '+voiceFinal).replace(/\s+/g,' ').trim();}};  // 정지: 최종 반영
+  try{recog.start();}catch(e){voiceOn=false;recog=null;mic.textContent='🎙';toast('음성 시작 실패');}}
 
 /* ============ streak / study record ============ */
 let activity={};
