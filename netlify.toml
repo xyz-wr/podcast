@@ -1,0 +1,5 @@
+# Netlify 자동 배포 설정
+# 빌드 때 index.html(소스)을 publish 폴더로 복사 → 공개 사이트에는 index.html만 나감
+[build]
+  command = "mkdir -p _site && cp index.html _site/index.html"
+  publish = "_site"
