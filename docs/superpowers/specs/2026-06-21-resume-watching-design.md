@@ -41,26 +41,27 @@ v.resume = { time: Number /* 초 */, at: Number /* Date.now(), 정렬용 */ }
 
 ## 동작 설계
 
-### 1. 이어보기 지점 자동 저장
+### 1. 이어보기 지점 = "나간 지점"만 저장
+
+이어보기는 **영상에서 나간 그 순간의 재생 위치**만 기억하면 된다. 주기적(폴링) 저장은
+하지 않는다. 영상을 벗어나는 "이벤트"에서만 `saveResume()`를 호출한다.
 
 `saveResume()` 신설:
 
 - `player.getCurrentTime()`을 읽어 `currentVideo.resume = {time, at: Date.now()}` 저장(`idbPut`).
 - `time < 2` 이면 스킵(시작 직후/잡음 방지).
-- IndexedDB 쓰기는 5초 간격이라 부담 없음. 단, 저장 시 `loadAll` 재렌더는 하지 않는다
-  (학습 화면 깜빡임 방지). 홈 섹션은 다음 `renderLibrary` 때 갱신.
+- 저장 시 `loadAll` 재렌더는 하지 않는다(학습 화면 깜빡임 방지). 홈 섹션은 다음
+  `renderLibrary` 때 갱신.
 
-플레이어에 `onStateChange` 추가(`mountPlayer`의 events):
+저장을 호출하는 "나가는" 지점:
 
-- `PLAYING` → 5초 간격 인터벌(`resumeTimer`)로 `saveResume()` 시작
-- `PAUSED` / `ENDED` → 인터벌 정지 + 즉시 `saveResume()`
-- `ENDED` → `resume` 제거(`delete v.resume`) 후 저장 → 다 본 영상은 이어보기 목록에서 빠짐
-
-영상을 벗어나는 경로에서도 저장:
-
+- 플레이어 `onStateChange`(`mountPlayer`의 events) 추가 → `PAUSED` / `ENDED` 시 즉시 `saveResume()`
+  - `ENDED` → `resume` 제거(`delete v.resume`) 후 저장 → 다 본 영상은 이어보기 목록에서 빠짐
 - `pausePlayer()` 내부에서 `saveResume()` 호출
 - 다른 영상으로 `openVideo` 진입 직전 현재 영상 저장
 - `tabTo()`(학습 화면을 떠날 때) — 이미 `pausePlayer()`를 호출하므로 자동 포함
+- `document` `visibilitychange`(hidden) / `pagehide` — 앱/탭을 떠나거나 백그라운드로 갈 때
+  현재 위치 저장(모바일에서 갑작스런 종료 대비). 폴링이 아니라 이벤트 1회.
 
 ### 2. 영상 열 때 (`openVideo`)
 
@@ -84,8 +85,8 @@ resume.time  →  bookmark.time  →  0
 
 - `#screen-library` 안, `#libList` **위**에 가로 스크롤 섹션(`#resumeRow`) 추가.
 - 표시 대상: `v.resume && v.resume.time != null` 인 영상, `resume.at` **내림차순**, 최대 **8개**.
-- 카드 구성: 썸네일 + 제목 + `이어보기 mm:ss`(+ `v.lines` 마지막 시각 대비 진행% 가능하면).
-  탭 → `openVideo(id)` (resume 지점에서 재생).
+- 카드 구성: 썸네일 + 제목 + `이어보기 mm:ss`. 탭 → `openVideo(id)` (resume 지점에서 재생).
+  (진행% 등 부가 표시는 없음 — 나간 지점만 보여준다)
 - 카드에 **✕** 버튼 = 이어보기에서 제거(`delete v.resume` 후 저장 + 재렌더). 학습 진도는 보존.
 - 진행 중 영상이 없으면 섹션 전체 숨김(빈 영역 없음).
 - `renderLibrary()`에서 `renderResumeRow()`를 함께 호출.
@@ -94,11 +95,12 @@ resume.time  →  bookmark.time  →  0
 
 | 위치 | 변경 |
 |--|--|
-| `mountPlayer` (~670) | `onStateChange` 이벤트 추가, `resumeTimer` 관리 |
+| `mountPlayer` (~670) | `onStateChange` 이벤트 추가(PAUSED/ENDED 시 저장) |
 | `pausePlayer` (~675) | `saveResume()` 호출 추가 |
 | bookmark 섹션 (~685) | `saveResume`/`clearResume` 신설, `updateResume`/`resumeBookmark`를 `resume` 기준으로 변경 |
 | `openVideo` (~779) | 시작 위치 우선순위 `resume → bookmark → 0` |
 | `renderLibrary` (~727) | `renderResumeRow()` 호출 |
+| `init`/전역 | `visibilitychange`/`pagehide` 리스너에서 `saveResume()` |
 | 신설 | `renderResumeRow()`, `resumeCardHTML()`, `removeResume(id)` |
 | `#screen-library` 마크업 | `#resumeRow` 컨테이너 + 섹션 제목 |
 | CSS | 가로 스크롤 행 / 이어보기 카드 스타일 |
@@ -112,8 +114,8 @@ resume.time  →  bookmark.time  →  0
 
 ## 테스트 관점
 
-- 영상 재생 → 5초 후 떠남 → 다시 열면 그 지점에서 재생되는가.
-- 일시정지 시 즉시 저장되는가.
+- 영상 재생 → 잠시 본 뒤 떠남(탭 이동/뒤로/일시정지) → 다시 열면 나간 지점에서 재생되는가.
+- 일시정지 / 백그라운드 전환(visibilitychange) 시 그 지점이 저장되는가.
 - 끝까지 본 영상이 이어보기 목록에서 사라지는가(ENDED).
 - 홈 "이어보기" 섹션이 최신순으로 뜨고, ✕로 제거되며, 학습 진도는 보존되는가.
 - 자막 줄 탭(학습 진도)이 resume과 충돌하지 않는가.
