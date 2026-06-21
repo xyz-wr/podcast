@@ -293,6 +293,18 @@
       <div class="row"><button class="secondary grow" onclick="window.open('https://downsub.com/','_blank','noopener')">DownSub 열기 ↗</button></div>
     </div>
     <div class="panel">
+      <h2>SRT → JSON 변환</h2>
+      <p style="font-size:12px;color:var(--ink-soft);line-height:1.55;margin:0 0 10px;">영어·한국어 <b>.srt</b>를 올리면 학습용 <b>정렬쌍 JSON</b>으로 변환해 내려받아요. 한국어 문장 기준으로 영어가 시간에 맞춰 정렬돼요. 받은 JSON은 학습 화면 <b>✎</b>에 그대로 올리면 됩니다.</p>
+      <label class="fld">영어 자막 (.srt / .vtt)</label>
+      <input type="file" id="convEnFile" accept=".srt,.vtt,.txt" style="font-size:12px;">
+      <label class="fld">한국어 자막 (.srt / .vtt · 선택)</label>
+      <input type="file" id="convKoFile" accept=".srt,.vtt,.txt" style="font-size:12px;">
+      <label class="fld">제목 (선택 · 파일 이름에 쓰여요)</label>
+      <input type="text" id="convTitle" placeholder="experiences-part1">
+      <div class="row" style="margin-top:10px;"><button class="secondary grow" id="convBtn" onclick="convertSrtToJson()">JSON 만들기 · 내려받기</button></div>
+      <div id="convStatus" style="font-size:12px;color:var(--ink-soft);margin-top:8px;"></div>
+    </div>
+    <div class="panel">
       <h2>AI · 무료 Gemini</h2>
       <p style="font-size:12px;color:var(--ink-soft);line-height:1.55;margin:0 0 8px;">CEFR 문장·영작 피드백·관용구 판별에 사용. <b>aistudio.google.com</b>에서 무료 키 발급(카드 불필요). 키는 이 기기에만 저장돼요.</p>
       <input type="text" id="geminiKeyInput" placeholder="AIza...">
@@ -428,10 +440,19 @@ function db(){return _db?Promise.resolve(_db):new Promise((res,rej)=>{const r=in
     if(!d.objectStoreNames.contains('settings'))d.createObjectStore('settings',{keyPath:'key'});};
   r.onsuccess=e=>{_db=e.target.result;res(_db);};r.onerror=()=>rej(r.error);});}
 function idbReq(store,mode,fn){return db().then(d=>new Promise((res,rej)=>{const t=d.transaction(store,mode);const s=t.objectStore(store);const r=fn(s);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);}));}
-const idbPut=(s,v)=>idbReq(s,'readwrite',o=>o.put(v)).then(()=>v);
+const idbPut=(s,v)=>{
+  if(SYNCED_STORES.includes(s)) v.updatedAt=Date.now();
+  return idbReq(s,'readwrite',o=>o.put(v)).then(()=>{
+    if(SYNCED_STORES.includes(s)) queuePush(s,{sync_code:SYNC_CODE,id:v.id,data:v,deleted:false,updated_at:v.updatedAt});
+    return v;
+  });
+};
 const idbGet=(s,k)=>idbReq(s,'readonly',o=>o.get(k));
 const idbAll=(s)=>idbReq(s,'readonly',o=>o.getAll());
-const idbDel=(s,k)=>idbReq(s,'readwrite',o=>o.delete(k));
+const idbDel=(s,k)=>idbReq(s,'readwrite',o=>o.delete(k)).then(r=>{
+  if(SYNCED_STORES.includes(s)) queuePush(s,{sync_code:SYNC_CODE,id:k,data:null,deleted:true,updated_at:Date.now()});
+  return r;
+});
 const idbIdx=(s,i,v)=>idbReq(s,'readonly',o=>o.index(i).getAll(v));
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 
@@ -1105,6 +1126,32 @@ async function sbSelect(table){
   if(!r.ok)throw new Error('sbSelect '+table+' '+r.status);
   return r.json();
 }
+const SYNCED_STORES=['vocab','videos'];
+let _queue=[], _flushT=null;
+function queuePush(table,row){
+  if(SYNC_APPLYING || !sbReady())return;
+  _queue.push({table,row});
+  idbPut('settings',{key:'syncQueue',value:_queue});   // 영속(오프라인 대비)
+  clearTimeout(_flushT); _flushT=setTimeout(flushQueue,800);
+}
+async function flushQueue(){
+  if(!sbReady()||!_queue.length)return;
+  const batch=_queue; _queue=[];
+  const byTable={};
+  for(const {table,row} of batch){(byTable[table]=byTable[table]||[]).push(row);}
+  try{
+    for(const t of Object.keys(byTable)) await sbUpsert(t,byTable[t]);
+    await idbPut('settings',{key:'syncQueue',value:[]});
+  }catch(e){
+    _queue=batch.concat(_queue);                          // 실패분 복원
+    await idbPut('settings',{key:'syncQueue',value:_queue});
+    console.warn('flushQueue retry later:',e.message);
+  }
+}
+async function restoreQueue(){
+  try{const q=await idbGet('settings','syncQueue');_queue=(q&&q.value)||[];}catch(e){_queue=[];}
+}
+window.addEventListener('online',flushQueue);
 async function gemini(prompt,json,maxTokens){
   if(!GEMINI_KEY)throw new Error('NO_KEY');
   const gc={temperature:0.7,maxOutputTokens:maxTokens||600};
@@ -1385,6 +1432,7 @@ function renderStreak(){const el=document.getElementById('streakBody');
   try{const sk=await idbGet('settings','geminiKey');GEMINI_KEY=(sk&&sk.value)||'';}catch(e){}
   try{const ak=await idbGet('settings','activity');activity=ak&&ak.value?JSON.parse(ak.value):{};}catch(e){activity={};}
   await loadSyncConfig();
+  await restoreQueue();
   await loadAll();})();
 document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('show');}));
 </script>
