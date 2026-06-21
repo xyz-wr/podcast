@@ -921,7 +921,8 @@ async function addSelectionToVocab(){const term=selectedText();if(!term){return;
     }else{
       item.note=await translateWord(term);
     }
-  }catch(e){if(!item.note){try{item.note=await translateWord(term);}catch(_){}}}
+  }catch(e){}
+  if(!item.note){try{item.note=await translateWord(item.term||term);}catch(_){}}   // 뜻이 비면 항상 구글 번역 폴백
   await idbPut('vocab',item);renderTranscript();updateBadges();
   if(document.getElementById('screen-vocab').classList.contains('active'))renderVocab();}
 
