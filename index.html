@@ -1090,6 +1090,16 @@ async function syncNow(){
   try{await flushQueue();await pushGeminiKey();await syncPull();await pushAll();await loadAll();toast('동기화 완료');}
   catch(e){toast('동기화 실패: '+e.message);}
 }
+let _syncing=false;
+async function autoSync(full){              // 버튼 없이 자동 동기화 (앱 열 때/돌아올 때)
+  if(!sbReady()||_syncing)return;
+  _syncing=true;
+  try{await flushQueue();await pushGeminiKey();await syncPull();if(full)await pushAll();await loadAll();}
+  catch(e){console.warn('autoSync',e.message);}
+  finally{_syncing=false;}
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')autoSync(false);});
+window.addEventListener('focus',()=>autoSync(false));
 async function pushAll(){
   if(!sbReady())return;
   for(const table of SYNCED_STORES){
@@ -1502,7 +1512,7 @@ function renderStreak(){const el=document.getElementById('streakBody');
   await loadSyncConfig();
   await restoreQueue();
   await loadAll();
-  if(sbReady()){await syncPull();await flushQueue();await loadAll();}})();
+  await autoSync(true);})();   // 앱 열 때 자동: 받아오기 + 내 데이터 올리기 (버튼 불필요)
 document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('show');}));
 </script>
 </body>
