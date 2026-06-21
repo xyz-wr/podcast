@@ -9,11 +9,16 @@
 > **같은 대사의 EN 큐와 KO 큐는 시작 타임스탬프를 동일하게 맞춘다.**
 > (번호·시간이 줄마다 1:1로 대응 → 흔들림 없이 정렬됨)
 
-## 파일 네이밍
+## 파일 네이밍 (영상별 폴더)
+영상마다 `samples/<영상id>/` 폴더 하나에 모아둔다. 공용 파일(`README.md`,
+`align_srt.py`)만 `samples/` 루트에 둔다.
 ```
-<영상id>.en.srt   ← 영어(학습 기준)
-<영상id>.ko.srt   ← 한국어(뜻 확인용)
-<영상id>.json     ← 둘을 합친 정렬쌍(코드/검수용, 선택)
+samples/
+  <영상id>/
+    build_<영상id>.py   ← 빌드 스크립트 (아래 3개 파일을 생성)
+    <영상id>.en.srt     ← 영어(학습 기준)
+    <영상id>.ko.srt     ← 한국어(뜻 확인용)
+    <영상id>.json       ← 둘을 합친 정렬쌍(코드/검수용, 선택)
 ```
 
 ## 주의 (자동 YouTube 자막의 함정)
@@ -34,9 +39,9 @@ I work downtown at Divisions Maintenance Group ...
 - EN/KO 파일에서 **같은 번호 = 같은 시간 = 같은 대사**
 
 ## 예시 파일
-- `ariannita-cincinnati.en.srt`
-- `ariannita-cincinnati.ko.srt`
-- `ariannita-cincinnati.json`
+- `ariannita-cincinnati/ariannita-cincinnati.en.srt`
+- `ariannita-cincinnati/ariannita-cincinnati.ko.srt`
+- `ariannita-cincinnati/ariannita-cincinnati.json`
 
 ## 사용 방법
 학습 화면 **✎** → 영어칸에 `*.en.srt`, 한국어칸에 `*.ko.srt` 업로드.

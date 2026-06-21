@@ -3,10 +3,11 @@
 Korean cues/timestamps kept verbatim; English column hand-matched per line.
 ASR fixes: Ariannita la Gringa, filet mignon, entrees, women, seat you,
 4:00 p.m., sous chef, food runner, chopsticks, mashed/of, etc."""
-import re, json, io
+import re, json, io, os
 
 KO_SRC = r"C:\Users\pponi13468\Downloads\[Korean] How To Order Food In a Restaurant [DownSub.com].srt"
-OUT = r"C:\Users\pponi13468\Desktop\박미정\podcast\samples\restaurant-order"
+OUT = r"C:\Users\pponi13468\Desktop\박미정\podcast\samples\restaurant-order\restaurant-order"
+os.makedirs(os.path.dirname(OUT), exist_ok=True)
 TS = re.compile(r"(\d{2}):(\d{2}):(\d{2})[.,](\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})[.,](\d{3})")
 
 def parse(path):

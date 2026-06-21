@@ -2,10 +2,11 @@
 """Meaning-based EN alignment: keep Korean cues/timestamps verbatim, replace the
 English column with a hand-aligned clause matching each Korean line's meaning.
 Obvious ASR errors fixed (names, $ amounts, garbles)."""
-import re, json, io
+import re, json, io, os
 
 KO_SRC = r"C:\Users\pponi13468\Downloads\[Korean] Asking people What do you do for a living in USA [DownSub.com].srt"
-OUT = r"C:\Users\pponi13468\Desktop\박미정\podcast\samples\asking-living"
+OUT = r"C:\Users\pponi13468\Desktop\박미정\podcast\samples\asking-living\asking-living"
+os.makedirs(os.path.dirname(OUT), exist_ok=True)
 TS = re.compile(r"(\d{2}):(\d{2}):(\d{2})[.,](\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})[.,](\d{3})")
 
 def parse(path):

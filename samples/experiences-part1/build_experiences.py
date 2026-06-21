@@ -3,10 +3,11 @@
 pair each with a natural Korean translation. Timestamps: for each sentence, find
 its opening words in the original word stream (interpolated per-word times) and
 use that word's time as the start; end = next sentence start."""
-import re, json, io
+import re, json, io, os
 
 EN_SRC = r"C:\Users\pponi13468\Downloads\[English] 2397 - Experiences Part 1 How to Talk About Your Life [DownSub.com].srt"
-OUT = r"C:\Users\pponi13468\Desktop\박미정\podcast\samples\experiences-part1"
+OUT = r"C:\Users\pponi13468\Desktop\박미정\podcast\samples\experiences-part1\experiences-part1"
+os.makedirs(os.path.dirname(OUT), exist_ok=True)
 TS = re.compile(r"(\d{2}):(\d{2}):(\d{2})[.,](\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})[.,](\d{3})")
 
 def to_sec(h, m, s, ms): return int(h)*3600+int(m)*60+int(s)+int(ms)/1000.0
