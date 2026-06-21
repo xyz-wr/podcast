@@ -1178,6 +1178,7 @@ const SYNCED_STORES=['vocab','videos'];
 let _queue=[], _flushT=null;
 function queuePush(table,row){
   if(SYNC_APPLYING || !sbReady())return;
+  _queue=_queue.filter(q=>!(q.table===table && q.row.id===row.id));  // 같은 항목의 이전 항목 제거 → 최신만
   _queue.push({table,row});
   idbPut('settings',{key:'syncQueue',value:_queue});   // 영속(오프라인 대비)
   clearTimeout(_flushT); _flushT=setTimeout(flushQueue,800);
@@ -1187,6 +1188,8 @@ async function flushQueue(){
   const batch=_queue; _queue=[];
   const byTable={};
   for(const {table,row} of batch){(byTable[table]=byTable[table]||[]).push(row);}
+  for(const t in byTable){                              // id별 최신 1건만 (같은 키 중복 → Supabase 배치 거부 방지)
+    const m=new Map(); for(const r of byTable[t]) m.set(r.id,r); byTable[t]=[...m.values()];}
   try{
     for(const t of Object.keys(byTable)) await sbUpsert(t,byTable[t]);
     await idbPut('settings',{key:'syncQueue',value:[]});
