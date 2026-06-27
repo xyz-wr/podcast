@@ -152,6 +152,8 @@
   .capw.on{border-color:var(--amber);background:var(--amber-soft);}
   .capw .capck{width:20px;height:20px;border-radius:6px;border:1.5px solid #cdbfa6;flex:none;display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;}
   .capw.on .capck{background:var(--amber);border-color:var(--amber);}
+  .capx{flex:none;color:var(--ink-faint);font-size:14px;line-height:1;padding:5px 6px;border-radius:6px;}
+  .capx:active{background:var(--paper);color:var(--danger);}
   .ddot{width:8px;height:8px;border-radius:50%;background:var(--paper-line);display:inline-block;margin-right:5px;}
   .ddot.done{background:var(--teal);}
   .ddot.cur{background:var(--amber);box-shadow:0 0 0 3px var(--amber-soft);}
@@ -1110,7 +1112,7 @@ function improveSegTo(v){improveSeg=v;improveGrammarCat=null;
   renderImproveVocab();}
 function improveCatTo(c){improveGrammarCat=c;renderImproveVocab();}
 function improveCatBack(){improveGrammarCat=null;renderImproveVocab();}
-let capWeak=[], capCorrections=[], capWeakRaw=[];
+let capCorrections=[], capWeakRaw=[];
 function normTerm(s){return String(s||'').normalize('NFC').toLowerCase().replace(/\p{Pd}/gu,'-').replace(/\s*-\s*/g,'-').replace(/\s+/g,' ').trim();}
 function normSent(s){return normTerm(s).replace(/["'’”.?!,;:]+$/,'').trim();}
 function capTermInVocab(term){const t=normTerm(term);if(!t)return false;return vocab.some(v=>normTerm(v.term)===t);}
@@ -1132,20 +1134,34 @@ async function onCaptureFiles(files){
   try{const parts=[];for(const f of files)parts.push(await fileToVisionPart(f));
     const {corrections,weaknesses}=await analyzeCapture(parts);renderCaptureResult(corrections,weaknesses);
   }catch(e){res.innerHTML='';aiErr(e,res);}}
+function buildCapList(weaknesses){
+  const seen=new Set(),out=[];
+  for(const w of (weaknesses||[])){
+    const term=(w.term||'').trim(),nt=normTerm(term);
+    if(nt&&seen.has(nt))continue;if(nt)seen.add(nt);   // 같은 항목이 여러 이미지에 나와도 한 번만
+    out.push({type:w.type,term,note:w.note||'',example:(w.example||'').trim(),category:w.category||'',chosen:true});}
+  return out;}
 function renderCaptureResult(corrections,weaknesses){
+  capCorrections=corrections||[];capWeakRaw=buildCapList(weaknesses);
+  capWeakRaw.forEach(w=>{if(capIsDup(w))w.chosen=false;});   // 이미 있는 건 기본 미선택
+  paintCapture();}
+function paintCapture(){
   const res=document.getElementById('capResult');
-  capCorrections=corrections;capWeakRaw=weaknesses;
-  capWeak=weaknesses.map(w=>{const o={type:w.type,term:(w.term||'').trim(),note:w.note||'',example:(w.example||'').trim(),category:w.category||''};o.chosen=!capIsDup(o);return o;});
   const tagOf=t=>t==='grammar'?'문법':(t==='idiom'?'관용구':'단어');
   const tcls=t=>t==='grammar'?'grammar':(['idiom','slang'].includes(t)?t:'word');
-  const corrHtml=corrections.map(c=>`<div class="panel" style="margin:11px 0 0;"><div style="color:var(--ink-soft);font-size:13px;"><s>${esc(c.original||'')}</s></div><div style="font-weight:600;margin-top:6px;">${esc(c.corrected||'')}</div><div style="font-size:11.5px;color:#7a7468;margin-top:6px;line-height:1.5;">${esc(c.explainKo||'')}</div></div>`).join('');
-  const weakHtml=capWeak.length?capWeak.map((w,i)=>{const dup=capIsDup(w);
-    return `<div class="capw ${w.chosen?'on':''}" data-i="${i}" style="${dup?'opacity:.5;':''}"><span class="capck">${w.chosen?'✓':''}</span><span class="tag ${tcls(w.type)}">${tagOf(w.type)}</span><div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:13px;">${esc(w.term)}</div><div style="font-size:11px;color:var(--ink-faint);">${dup?'이미 있음':esc(w.note)}</div></div></div>`;}).join(''):'<div class="empty">고칠 점이 없네요 👍</div>';
-  res.innerHTML=`${corrHtml}<div style="font-size:12px;font-weight:600;color:var(--ink-soft);margin:13px 0 5px;">내가 부족한 부분 — 담을 항목 선택</div><div id="capWeakList">${weakHtml}</div>${capWeak.some(w=>!capIsDup(w))?'<button class="secondary" style="width:100%;margin-top:11px;" onclick="saveCaptureChosen()">선택 항목 담기</button>':''}`;
-  res.querySelectorAll('.capw').forEach(el=>el.onclick=()=>{const i=+el.dataset.i;if(capIsDup(capWeak[i]))return;
-    capWeak[i].chosen=!capWeak[i].chosen;el.classList.toggle('on',capWeak[i].chosen);el.querySelector('.capck').textContent=capWeak[i].chosen?'✓':'';});}
+  const corrHtml=capCorrections.map(c=>`<div class="panel" style="margin:11px 0 0;"><div style="color:var(--ink-soft);font-size:13px;"><s>${esc(c.original||'')}</s></div><div style="font-weight:600;margin-top:6px;">${esc(c.corrected||'')}</div><div style="font-size:11.5px;color:#7a7468;margin-top:6px;line-height:1.5;">${esc(c.explainKo||'')}</div></div>`).join('');
+  const rows=capWeakRaw.map((w,i)=>{const dup=capIsDup(w),on=w.chosen&&!dup;
+    return `<div class="capw ${on?'on':''}" data-i="${i}" style="${dup?'opacity:.55;':''}"><span class="capck">${on?'✓':''}</span><span class="tag ${tcls(w.type)}">${tagOf(w.type)}</span><div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:13px;">${esc(w.term)}</div><div style="font-size:11px;color:var(--ink-faint);">${dup?'이미 있음':esc(w.note)}</div></div><span class="capx" title="목록에서 제거">✕</span></div>`;}).join('');
+  const chosenN=capWeakRaw.filter(w=>w.chosen&&!capIsDup(w)).length;
+  res.innerHTML=capWeakRaw.length
+    ? `${corrHtml}<div style="font-size:12px;font-weight:600;color:var(--ink-soft);margin:13px 0 5px;">내가 부족한 부분 — 탭해서 선택 · ✕로 제외</div><div id="capWeakList">${rows}</div><div class="row" style="margin-top:11px;gap:8px;"><button class="ghost sm" onclick="dismissCaptureResult()">닫기</button><button class="secondary grow" onclick="saveCaptureChosen()" ${chosenN?'':'disabled'}>선택 ${chosenN}개 담기</button></div>`
+    : `${corrHtml}<div class="empty">담을 항목이 없어요</div><div class="row" style="margin-top:8px;"><button class="ghost sm grow" onclick="dismissCaptureResult()">닫기</button></div>`;
+  document.querySelectorAll('#capWeakList .capw').forEach(el=>{const i=+el.dataset.i;
+    el.querySelector('.capx').onclick=e=>{e.stopPropagation();capWeakRaw.splice(i,1);paintCapture();};
+    el.onclick=()=>{if(capIsDup(capWeakRaw[i]))return;capWeakRaw[i].chosen=!capWeakRaw[i].chosen;paintCapture();};});}
+function dismissCaptureResult(){document.getElementById('capResult').innerHTML='';capWeakRaw=[];capCorrections=[];}
 async function saveCaptureChosen(){
-  const chosen=capWeak.filter(w=>w.chosen&&!capIsDup(w));
+  const chosen=capWeakRaw.filter(w=>w.chosen&&!capIsDup(w));
   if(!chosen.length){toast('담을 항목을 선택하세요');return;}
   for(const w of chosen){
     const item={id:uid(),term:w.term,note:w.note||'',
@@ -1154,14 +1170,9 @@ async function saveCaptureChosen(){
       srs:{box:1,dueAt:Date.now(),history:[]},examples:[],createdAt:Date.now()};
     if(item.type==='grammar')item.grammarCat=canonCat(w.category);
     await idbPut('vocab',item);vocab.push(item);logActivity('word',item.id);}
-  toast(chosen.length+'개 담았어요');
-  updateBadges();renderImproveVocab();
-  // 분석 패널 유지: 담은 항목은 '이미 있음'으로, 나머지는 계속 담을 수 있게 다시 렌더
-  if(capWeakRaw.some(w=>!capIsDup({term:(w.term||'').trim(),example:(w.example||'').trim()}))){
-    renderCaptureResult(capCorrections,capWeakRaw);
-  }else{
-    document.getElementById('capResult').innerHTML='<div class="empty">이 캡처의 항목을 모두 담았어요 ✓</div>';
-    capWeak=[];capWeakRaw=[];capCorrections=[];improveSegTo('all');}}
+  toast(chosen.length+'개 담았어요');updateBadges();renderImproveVocab();
+  if(capWeakRaw.some(w=>!capIsDup(w))){paintCapture();}   // 남은 항목 계속 담을 수 있게 패널 유지
+  else{document.getElementById('capResult').innerHTML='<div class="empty">담은 항목을 모두 반영했어요 ✓</div>';capWeakRaw=[];capCorrections=[];improveSegTo('all');}}
 function refreshVocabViews(){
   if(document.getElementById('screen-library').classList.contains('active')&&learnSeg==='words')renderLearnVocab();
   if(document.getElementById('screen-improve').classList.contains('active'))renderImproveVocab();}
