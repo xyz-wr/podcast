@@ -636,6 +636,169 @@ git add index.html && git commit -F .git/COMMIT_MSG_TMP.txt && rm -f .git/COMMIT
 
 ---
 
+### Task 6: 개선 탭 — 전체/단어/문법 세그먼트 + 문법 카테고리
+
+**Files:**
+- Modify: `index.html` — `screen-improve` 세그먼트 HTML(~253-255), CSS(`.tag.grammar` 블록 근처), `improveSeg` 상태 줄(~1054), `analyzeCapture` 프롬프트(~1090), `renderCaptureResult`의 `capWeak` 매핑(~1102), `saveCaptureChosen`(~1115-1124), `renderImproveVocab`/`improveSegTo`(~1075-1083)
+
+**Interfaces:**
+- Consumes: Task 4 `analyzeCapture`/`renderCaptureResult`/`saveCaptureChosen`, Task 3 `renderImproveVocab`/`vcardEl`/`bindVocabGrid`.
+- Produces:
+  - 모듈 상태 `improveGrammarCat`(선택된 카테고리 또는 null), `improveSeg` 기본값 `'all'`.
+  - `grammarCatOf(v) -> string`(없으면 '기타'), `improveCatTo(c)`, `improveCatBack()`.
+  - `vocab` grammar 항목에 `grammarCat` 필드.
+
+> 주: 아래 줄 번호는 Task 1~5로 이미 이동했다. **코드 내용으로 위치를 찾아 수정**할 것.
+
+- [ ] **Step 1: CSS — 카테고리 카드 + 백칩 (`.tag.grammar{...}` 블록 근처에 추가)**
+
+```css
+  .catcard{background:#FFFCF5;border:1px solid var(--paper-line);border-radius:12px;padding:13px 12px;display:flex;flex-direction:column;gap:8px;cursor:pointer;}
+  .catcard:active{background:var(--paper);}
+  .catcard .ct{display:flex;align-items:center;gap:7px;font-weight:600;font-size:14px;}
+  .catcard .ci{width:26px;height:26px;border-radius:7px;background:var(--teal-soft);color:var(--teal-deep);display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;}
+  .catcard .cm{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--ink-faint);}
+  .catcard .cnt{font-weight:700;color:var(--teal-deep);}
+  .backchip{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;color:var(--teal-deep);background:var(--teal-soft);border-radius:10px;padding:6px 11px;cursor:pointer;}
+```
+
+- [ ] **Step 2: 개선 세그먼트에 `전체` 추가 (`#improveSeg` 내부 ~253-255)**
+
+`#improveSeg`의 두 span을 다음 세 줄로 교체:
+
+```html
+      <span class="on" data-v="all" onclick="improveSegTo('all')">전체</span>
+      <span data-v="word" onclick="improveSegTo('word')">단어</span>
+      <span data-v="grammar" onclick="improveSegTo('grammar')">문법</span>
+```
+
+- [ ] **Step 3: `improveSeg` 기본값 변경 (~1054)**
+
+`let learnSeg='videos', learnVFilter='all', improveSeg='word';` 를 다음으로 교체:
+
+```js
+let learnSeg='videos', learnVFilter='all', improveSeg='all', improveGrammarCat=null;
+```
+
+- [ ] **Step 4: 분석 프롬프트에 category 추가 (`analyzeCapture` ~1090)**
+
+`"weaknesses":[...]` 줄을 다음으로 교체:
+
+```js
+ "weaknesses":[{"type":"grammar|word|idiom","term":"항목 이름(문법은 규칙명, 표현은 표제어형)","note":"한국어 짧은 설명","example":"이 약점이 드러난 수정문","category":"문법이면 한국어 분류명(전치사/수일치/시제/관사/복수형/어순/관계사/동사형태 등), 단어·표현이면 빈 문자열"}]}
+```
+
+- [ ] **Step 5: `capWeak` 매핑에 category 보존 (`renderCaptureResult` ~1102)**
+
+`capWeak=weaknesses.map(...)` 줄을 다음으로 교체:
+
+```js
+  capWeak=weaknesses.map(w=>({type:w.type,term:(w.term||'').trim(),note:w.note||'',example:w.example||'',category:w.category||'',chosen:!capTermInVocab((w.term||'').trim())}));
+```
+
+- [ ] **Step 6: 저장 시 grammarCat 부여 + 세그 전환 단순화 (`saveCaptureChosen` ~1115-1124)**
+
+`for(const w of chosen){...}` 루프부터 `improveSegTo(...)` 까지를 다음으로 교체:
+
+```js
+  for(const w of chosen){
+    const item={id:uid(),term:w.term,note:w.note||'',
+      type:['grammar','word','idiom','slang'].includes(w.type)?w.type:'word',
+      source:'capture',sourceLabel:'캡처',context:w.example||'',contextKo:'',
+      srs:{box:1,dueAt:Date.now(),history:[]},examples:[],createdAt:Date.now()};
+    if(item.type==='grammar')item.grammarCat=(w.category||'').trim()||'기타';
+    await idbPut('vocab',item);vocab.push(item);logActivity('word',item.id);}
+  document.getElementById('capResult').innerHTML='';capWeak=[];
+  toast(chosen.length+'개 담았어요');
+  improveSegTo('all');
+  updateBadges();}
+```
+
+(이로써 Task 4의 미사용 `lastGrammar` 변수도 제거됨.)
+
+- [ ] **Step 7: `renderImproveVocab` 2단계 뷰 + 세그 핸들러 (~1075-1083)**
+
+`renderImproveVocab`/`improveSegTo` 두 함수를 다음으로 교체:
+
+```js
+function grammarCatOf(v){return (v.grammarCat&&String(v.grammarCat).trim())||'기타';}
+function renderImproveVocab(){
+  const grid=document.getElementById('improveVgrid'),empty=document.getElementById('improveVEmpty');
+  const caps=vocab.filter(v=>v.source==='capture').sort((a,b)=>b.createdAt-a.createdAt);
+  grid.innerHTML='';
+  if(improveSeg==='grammar'&&improveGrammarCat===null){          // 문법: 카테고리 카드
+    const gram=caps.filter(v=>v.type==='grammar');
+    empty.style.display=gram.length?'none':'block';
+    const groups={};gram.forEach(v=>{const c=grammarCatOf(v);(groups[c]=groups[c]||[]).push(v);});
+    Object.keys(groups).forEach(c=>{const el=document.createElement('div');el.className='catcard';
+      el.innerHTML=`<div class="ct"><span class="ci">文</span>${esc(c)}</div><div class="cm"><span><b class="cnt">${groups[c].length}</b>개 항목</span><span>›</span></div>`;
+      el.onclick=()=>improveCatTo(c);grid.appendChild(el);});
+    return;}
+  let list;                                                      // 전체 / 단어 / 문법-카테고리상세
+  if(improveSeg==='all')list=caps;
+  else if(improveSeg==='word')list=caps.filter(v=>v.type!=='grammar');
+  else list=caps.filter(v=>v.type==='grammar'&&grammarCatOf(v)===improveGrammarCat);
+  empty.style.display=list.length?'none':'block';
+  if(improveSeg==='grammar'&&improveGrammarCat!==null){
+    const b=document.createElement('div');b.style.gridColumn='1 / -1';
+    b.innerHTML=`<span class="backchip">‹ ${esc(improveGrammarCat)} · 분류 전체로</span>`;
+    b.firstChild.onclick=improveCatBack;grid.appendChild(b);}
+  list.forEach(v=>grid.appendChild(vcardEl(v,false)));bindVocabGrid(grid,'improve');}
+function improveSegTo(v){improveSeg=v;improveGrammarCat=null;
+  document.querySelectorAll('#improveSeg span').forEach(s=>s.classList.toggle('on',s.dataset.v===v));
+  renderImproveVocab();}
+function improveCatTo(c){improveGrammarCat=c;renderImproveVocab();}
+function improveCatBack(){improveGrammarCat=null;renderImproveVocab();}
+```
+
+- [ ] **Step 8: 검증 (브라우저, gemini 스텁)**
+
+`preview_eval`:
+
+```js
+(async()=>{const orig=window.gemini;
+ vocab=[
+  {id:'g1',term:'in + position',type:'grammar',source:'capture',sourceLabel:'캡처',grammarCat:'전치사',note:'in a position to',createdAt:5},
+  {id:'g2',term:'depend on',type:'grammar',source:'capture',sourceLabel:'캡처',grammarCat:'전치사',note:'~에 달려',createdAt:4},
+  {id:'g3',term:'주어-동사 수일치',type:'grammar',source:'capture',sourceLabel:'캡처',grammarCat:'수일치',note:'-s',createdAt:3},
+  {id:'w1',term:'hopefully',type:'word',source:'capture',sourceLabel:'캡처',note:'바라건대',createdAt:2}];
+ tabTo('improve');
+ improveSegTo('all');const all=document.querySelectorAll('#improveVgrid .vcard').length;
+ improveSegTo('word');const word=[...document.querySelectorAll('#improveVgrid .term')].map(t=>t.textContent.trim().split(' ✎')[0]);
+ improveSegTo('grammar');const cats=[...document.querySelectorAll('#improveVgrid .catcard .ct')].map(e=>e.textContent.replace('文','').trim());
+ const counts=[...document.querySelectorAll('#improveVgrid .catcard .cnt')].map(e=>e.textContent);
+ improveCatTo('전치사');const inCat=[...document.querySelectorAll('#improveVgrid .vcard .term')].map(t=>t.textContent.trim().split(' ✎')[0]);
+ const hasBack=!!document.querySelector('#improveVgrid .backchip');
+ improveCatBack();const backToCats=document.querySelectorAll('#improveVgrid .catcard').length;
+ window.gemini=orig;
+ return {all, word, cats, counts, inCat, hasBack, backToCats};})()
+```
+
+Expected: `all:4`, `word:["hopefully"]`, `cats` 에 `전치사`·`수일치` 포함, `counts` 에 `2`·`1`, `inCat:["in + position","depend on"]`(순서 무관), `hasBack:true`, `backToCats:2`. `preview_console_logs`(error) 비어 있음.
+
+- [ ] **Step 9: 검증 — 저장이 category를 grammarCat로 보존 (gemini 스텁)**
+
+```js
+(async()=>{const orig=window.gemini;
+ window.gemini=async()=>JSON.stringify({corrections:[],weaknesses:[{type:'grammar',term:'관사 a/the',note:'셀 수 있는 단수에 a',example:'a cup',category:'관사'}]});
+ vocab=[];tabTo('improve');
+ const r=await analyzeCapture([]);renderCaptureResult(r.corrections,r.weaknesses);await saveCaptureChosen();
+ window.gemini=orig;
+ const it=vocab[0];
+ return {savedCat:it&&it.grammarCat, type:it&&it.type, seg:improveSeg};})()
+```
+
+Expected: `savedCat:'관사'`, `type:'grammar'`, `seg:'all'`(저장 후 전체 뷰). 콘솔 에러 없음.
+
+- [ ] **Step 10: 커밋**
+
+```bash
+printf 'feat(improve): 전체 segment + grammar category grouping with drill-down' > .git/COMMIT_MSG_TMP.txt
+git add index.html && git commit -F .git/COMMIT_MSG_TMP.txt && rm -f .git/COMMIT_MSG_TMP.txt
+```
+
+---
+
 ## Self-Review
 
 **Spec coverage:**
@@ -646,6 +809,7 @@ git add index.html && git commit -F .git/COMMIT_MSG_TMP.txt && rm -f .git/COMMIT
 - 문법 태그 + 캡처 출처 표시 → T1. ✓
 - 드릴(단어·문법 공통, 1/3/5/10) → T5. ✓
 - 분석 결과(원문→수정문 + 약점 체크 + 중복 차단 + 빈 상태) → T4 Step1·3·4. ✓
+- 개선 탭 전체/단어/문법 세그먼트 + 문법 카테고리(AI 자동 분류, 저장된 것만) + 카테고리 드릴다운 → T6. ✓
 - 엣지: 키 없음(`aiErr`), JSON 깨짐(try/catch+`aiErr`), 약점 없음("고칠 점이 없네요"), 여러 장(한 요청) → T2/T4. ✓
 
 **Placeholder scan:** 모든 코드 단계에 실제 코드 포함. T4 Step2의 init 위치는 `grep`으로 찾는 구체 지시(부트 함수 내 한 줄). 커밋 메시지는 각 단계에 실문구 명시. placeholder 없음.
