@@ -226,8 +226,36 @@
       <button class="chip teal" onclick="openAddVideo()">＋ 영상</button>
       <button class="chip teal" onclick="createFolder()">＋ 폴더</button>
     </div>
-    <div id="resumeRow" style="display:none;"></div>
-    <div id="libList"></div>
+    <div class="seg2" id="learnSeg">
+      <span class="on" data-v="videos" onclick="learnSegTo('videos')">영상</span>
+      <span data-v="words" onclick="learnSegTo('words')">단어</span>
+    </div>
+    <div id="learnVideos">
+      <div id="resumeRow" style="display:none;"></div>
+      <div id="libList"></div>
+    </div>
+    <div id="learnWords" style="display:none;">
+      <div class="filterbar" id="learnVfilter"></div>
+      <div class="vgrid" id="learnVgrid"></div>
+      <div class="empty" id="learnVEmpty" style="display:none;">아직 영상에서 담은 단어가 없어요. 자막에서 단어를 탭해 담아보세요.</div>
+    </div>
+  </section>
+
+  <!-- ===== IMPROVE (개선 노트) ===== -->
+  <section id="screen-improve" class="screen">
+    <div class="topbar"><div class="grow"><div class="eyebrow">Improvement</div><h1 class="serif">개선 노트</h1></div></div>
+    <div style="padding:0 14px 4px;">
+      <button class="secondary" style="width:100%;" onclick="document.getElementById('capInput').click()">＋ 대화 캡처 올리기</button>
+      <input type="file" id="capInput" accept="image/*" multiple style="display:none;">
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:6px;line-height:1.5;">튜터 앱의 “개선할 점” 화면을 캡처해 올리면 내 약점을 뽑아줘요.</div>
+    </div>
+    <div id="capResult" style="padding:0 14px;"></div>
+    <div class="seg2" id="improveSeg" style="margin-top:12px;">
+      <span class="on" data-v="word" onclick="improveSegTo('word')">단어</span>
+      <span data-v="grammar" onclick="improveSegTo('grammar')">문법</span>
+    </div>
+    <div class="vgrid" id="improveVgrid"></div>
+    <div class="empty" id="improveVEmpty" style="display:none;">캡처를 올려 약점을 담아보세요.</div>
   </section>
 
   <!-- ===== STUDY ===== -->
@@ -267,14 +295,6 @@
     <div class="tlist" id="tlist">
       <div class="empty">아직 자막이 없어요.<br>오른쪽 위 ✎ 를 눌러 영어 자막(.srt 붙여넣기/업로드)을 넣어보세요.</div>
     </div>
-  </section>
-
-  <!-- ===== VOCAB ===== -->
-  <section id="screen-vocab" class="screen">
-    <div class="topbar"><div class="grow"><div class="eyebrow">Vocabulary</div><h1 class="serif">내 단어장</h1></div></div>
-    <div class="filterbar" id="vfilter"></div>
-    <div class="vgrid" id="vgrid"></div>
-    <div class="empty" id="vEmpty">아직 저장한 표현이 없어요. 학습 화면에서 단어를 탭해 담아보세요.</div>
   </section>
 
   <!-- ===== DETAIL / PRACTICE ===== -->
@@ -370,8 +390,7 @@
 <!-- tab bar -->
 <nav id="tabbar">
   <div class="tab active" data-s="learn" onclick="tabTo('learn')"><div class="ico">▶</div><div class="lab">학습</div></div>
-  <div class="tab" data-s="vocab" onclick="tabTo('vocab')"><div class="ico">▤</div><div class="lab">단어장</div><span class="badge t hide" id="badgeVocab"></span></div>
-  <div class="tab" data-s="quiz" onclick="tabTo('quiz')"><div class="ico">✦</div><div class="lab">복습</div><span class="badge r hide" id="badgeQuiz"></span></div>
+  <div class="tab" data-s="improve" onclick="tabTo('improve')"><div class="ico">✦</div><div class="lab">개선</div></div>
   <div class="tab" data-s="streak" onclick="tabTo('streak')"><div class="ico">🔥</div><div class="lab">기록</div><span class="badge a hide" id="badgeStreak"></span></div>
   <div class="tab" data-s="settings" onclick="tabTo('settings')"><div class="ico">⚙</div><div class="lab">더보기</div></div>
 </nav>
@@ -746,9 +765,8 @@ function clearBookmark(){if(!currentVideo||!currentVideo.bookmark)return;delete 
 function showScreen(name){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById('screen-'+name).classList.add('active');window.scrollTo(0,0);}
 function tabTo(s){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.s===s));clearSelection();
   pausePlayer();
-  if(s==='learn'){showScreen('library');renderLibrary();}
-  else if(s==='vocab'){showScreen('vocab');renderVocab();}
-  else if(s==='quiz'){showScreen('quiz');renderQuiz();}
+  if(s==='learn'){showScreen('library');learnSeg==='words'?renderLearnVocab():renderLibrary();}
+  else if(s==='improve'){showScreen('improve');renderImproveVocab();}
   else if(s==='streak'){showScreen('streak');renderStreak();}
   else if(s==='settings'){showScreen('settings');renderSettings();}}
 
@@ -1007,10 +1025,9 @@ async function addSelectionToVocab(){const term=selectedText();if(!term){return;
   }catch(e){}
   if(!item.note){try{item.note=await translateWord(item.term||term);}catch(_){}}   // 뜻이 비면 항상 구글 번역 폴백
   await idbPut('vocab',item);renderTranscript();updateBadges();
-  if(document.getElementById('screen-vocab').classList.contains('active'))renderVocab();}
+  refreshVocabViews();}
 
 /* ============ vocab screen ============ */
-let vFilter='all', vByVideo=false;
 function vcardEl(v,showVid){if(showVid===undefined)showVid=true;
   const c=document.createElement('div');c.className='vcard';
   const tcls=['word','idiom','slang','grammar'].includes(v.type)?v.type:'word';const tlab={word:'단어',idiom:'관용구',slang:'슬랭',grammar:'문법'}[tcls];
@@ -1025,39 +1042,43 @@ function vcardEl(v,showVid){if(showVid===undefined)showVid=true;
     ${vidLine}
     <div class="vmeta">${jump}<span class="del" data-id="${v.id}">삭제</span></div>`;
   return c;}
-function renderVocab(){const grid=document.getElementById('vgrid');const empty=document.getElementById('vEmpty');
-  const fb=document.getElementById('vfilter');
-  const tags=[['all','전체'],['word','단어'],['idiom','관용구'],['slang','슬랭']];
-  fb.innerHTML=tags.map(([k,l])=>`<span class="chip ${vFilter===k?'on':''}" onclick="setVFilter('${k}')">${l}</span>`).join('')
-    +`<span class="chip vsep ${vByVideo?'on':''}" onclick="toggleVByVideo()">🎬 영상별</span>`;
-  let list=vocab.slice().sort((a,b)=>b.createdAt-a.createdAt);
-  if(vFilter!=='all')list=list.filter(v=>v.type===vFilter);
-  empty.style.display=list.length?'none':'block';grid.innerHTML='';
-  if(vByVideo){
-    const titleOf=id=>{const vv=videos.find(x=>x.id===id);return vv?(vv.title||'제목 없음'):'(삭제된 영상)';};
-    const groups={};list.forEach(v=>{(groups[v.videoId]=groups[v.videoId]||[]).push(v);});
-    const order=videos.map(v=>v.id).filter(id=>groups[id]);
-    Object.keys(groups).forEach(id=>{if(!order.includes(id))order.push(id);});
-    for(const vid of order){
-      const h=document.createElement('div');h.className='vgroup-head';
-      h.innerHTML=`🎬 <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(titleOf(vid))}</span><span class="cnt">${groups[vid].length}개</span>`;
-      grid.appendChild(h);
-      groups[vid].forEach(v=>grid.appendChild(vcardEl(v,false))); // 그룹뷰: 헤더에 영상명 있으니 카드엔 생략
-    }
-  }else{
-    list.forEach(v=>grid.appendChild(vcardEl(v,true)));
-  }
+let learnSeg='videos', learnVFilter='all', improveSeg='word';
+function bindVocabGrid(grid,origin){
   grid.querySelectorAll('.vsrc').forEach(s=>s.onclick=()=>{if(s.dataset.vid&&videos.some(x=>x.id===s.dataset.vid))openVideo(s.dataset.vid);});
-  grid.querySelectorAll('.vterm').forEach(t=>t.onclick=()=>openVocabDetail(t.dataset.id));
+  grid.querySelectorAll('.vterm').forEach(t=>t.onclick=()=>openVocabDetail(t.dataset.id,origin));
   grid.querySelectorAll('.note').forEach(n=>n.onclick=()=>editNote(n.dataset.id));
   grid.querySelectorAll('.jump').forEach(j=>j.onclick=()=>jumpToVocab(j.dataset.id));
   grid.querySelectorAll('.del').forEach(d=>d.onclick=()=>delVocab(d.dataset.id));}
-function setVFilter(k){vFilter=k;renderVocab();}
-function toggleVByVideo(){vByVideo=!vByVideo;renderVocab();}
+function renderLearnVocab(){
+  const grid=document.getElementById('learnVgrid'),empty=document.getElementById('learnVEmpty'),fb=document.getElementById('learnVfilter');
+  const tags=[['all','전체'],['word','단어'],['idiom','관용구'],['slang','슬랭']];
+  fb.innerHTML=tags.map(([k,l])=>`<span class="chip ${learnVFilter===k?'on':''}" onclick="setLearnVFilter('${k}')">${l}</span>`).join('');
+  let list=vocab.filter(v=>v.source!=='capture').sort((a,b)=>b.createdAt-a.createdAt);
+  if(learnVFilter!=='all')list=list.filter(v=>v.type===learnVFilter);
+  empty.style.display=list.length?'none':'block';grid.innerHTML='';
+  list.forEach(v=>grid.appendChild(vcardEl(v,true)));bindVocabGrid(grid,'learn');}
+function setLearnVFilter(k){learnVFilter=k;renderLearnVocab();}
+function learnSegTo(v){learnSeg=v;
+  document.querySelectorAll('#learnSeg span').forEach(s=>s.classList.toggle('on',s.dataset.v===v));
+  document.getElementById('learnVideos').style.display=v==='videos'?'':'none';
+  document.getElementById('learnWords').style.display=v==='words'?'':'none';
+  v==='words'?renderLearnVocab():renderLibrary();}
+function renderImproveVocab(){
+  const grid=document.getElementById('improveVgrid'),empty=document.getElementById('improveVEmpty');
+  let list=vocab.filter(v=>v.source==='capture').sort((a,b)=>b.createdAt-a.createdAt);
+  list=list.filter(v=>improveSeg==='grammar'?v.type==='grammar':v.type!=='grammar');
+  empty.style.display=list.length?'none':'block';grid.innerHTML='';
+  list.forEach(v=>grid.appendChild(vcardEl(v,false)));bindVocabGrid(grid,'improve');}
+function improveSegTo(v){improveSeg=v;
+  document.querySelectorAll('#improveSeg span').forEach(s=>s.classList.toggle('on',s.dataset.v===v));
+  renderImproveVocab();}
+function refreshVocabViews(){
+  if(document.getElementById('screen-library').classList.contains('active')&&learnSeg==='words')renderLearnVocab();
+  if(document.getElementById('screen-improve').classList.contains('active'))renderImproveVocab();}
 function editNote(id){openVocabDetail(id);}
-async function saveMeaning(){const v=vocab.find(x=>x.id===vdId);if(!v)return;v.note=document.getElementById('vdMeaningInput').value.trim();await idbPut('vocab',v);renderVocab();}
-async function cycleTag(id){const v=vocab.find(x=>x.id===id);const order=['word','idiom','slang'];v.type=order[(order.indexOf(v.type)+1)%3];await idbPut('vocab',v);renderVocab();}
-async function delVocab(id){const v=vocab.find(x=>x.id===id);if(!await askConfirm('단어 삭제','“'+v.term+'”을(를) 단어장에서 삭제할까요?'))return;await idbDel('vocab',id);vocab=vocab.filter(x=>x.id!==id);renderVocab();updateBadges();if(currentVideo)renderTranscript();}
+async function saveMeaning(){const v=vocab.find(x=>x.id===vdId);if(!v)return;v.note=document.getElementById('vdMeaningInput').value.trim();await idbPut('vocab',v);refreshVocabViews();}
+async function cycleTag(id){const v=vocab.find(x=>x.id===id);const order=['word','idiom','slang'];v.type=order[(order.indexOf(v.type)+1)%3];await idbPut('vocab',v);refreshVocabViews();}
+async function delVocab(id){const v=vocab.find(x=>x.id===id);if(!await askConfirm('단어 삭제','“'+v.term+'”을(를) 단어장에서 삭제할까요?'))return;await idbDel('vocab',id);vocab=vocab.filter(x=>x.id!==id);refreshVocabViews();updateBadges();if(currentVideo)renderTranscript();}
 async function jumpToVocab(id){const v=vocab.find(x=>x.id===id);const vid=await idbGet('videos',v.videoId);if(!vid)return;
   await openVideo(vid.id);setTimeout(()=>setLoop(v.time,v.end||v.time+4),400);}
 
@@ -1104,11 +1125,7 @@ function updateSRS(v,correct){v.srs=v.srs||{box:0,dueAt:0,history:[]};
   v.srs.history.push({t:Date.now(),correct});idbPut('vocab',v);}
 
 /* ============ badges ============ */
-function updateBadges(){const bv=document.getElementById('badgeVocab'),bq=document.getElementById('badgeQuiz');
-  const nv=vocab.length,nq=dueCount();
-  bv.textContent=nv;bv.classList.toggle('hide',!nv);
-  bq.textContent=nq;bq.classList.toggle('hide',!nq);
-  const st=calcStreak(),bs=document.getElementById('badgeStreak');if(bs){bs.textContent=st;bs.classList.toggle('hide',!st);}}
+function updateBadges(){const st=calcStreak(),bs=document.getElementById('badgeStreak');if(bs){bs.textContent=st;bs.classList.toggle('hide',!st);}}
 
 /* ============ backup ============ */
 function openBackup(){tabTo('settings');}
@@ -1477,8 +1494,8 @@ async function aiAlignInterleaved(raw){
   return lines;
 }
 
-let vdId=null, vdCefr='A2', vdKoSentence='', recog=null, vdLastFeedback=null, voiceOn=false, voiceBase='', voiceFinal='';
-function openVocabDetail(id){const v=vocab.find(x=>x.id===id);if(!v)return;
+let vdId=null, vdCefr='A2', vdKoSentence='', recog=null, vdLastFeedback=null, voiceOn=false, voiceBase='', voiceFinal='', vdOrigin='learn';
+function openVocabDetail(id,origin){const v=vocab.find(x=>x.id===id);if(!v)return;vdOrigin=origin||'learn';
   pausePlayer();vdId=id;vdCefr=v.lastCefr||'A2';vdKoSentence='';vdLastFeedback=null;
   document.getElementById('vdTerm').textContent=v.term;
   document.getElementById('vdMeaningInput').value=v.note||'';
@@ -1489,7 +1506,9 @@ function openVocabDetail(id){const v=vocab.find(x=>x.id===id);if(!v)return;
   document.getElementById('vdFeedback').innerHTML='';
   document.getElementById('vdMic').textContent='🎙';
   renderExamples(v);showScreen('detail');}
-function backFromDetail(){voiceOn=false;if(recog){try{recog.stop();}catch(e){}recog=null;}document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.s==='vocab'));showScreen('vocab');renderVocab();}
+function backFromDetail(){voiceOn=false;if(recog){try{recog.stop();}catch(e){}recog=null;}
+  if(vdOrigin==='improve'){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.s==='improve'));showScreen('improve');renderImproveVocab();}
+  else{document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.s==='learn'));showScreen('library');renderLearnVocab();}}
 function renderCefrChips(){document.getElementById('vdCefr').innerHTML=['A1','A2','B1','B2','C1','C2'].map(l=>`<span class="chip ${l===vdCefr?'on':''}" data-cefr="${l}">${l}</span>`).join('');
   document.querySelectorAll('#vdCefr .chip').forEach(c=>c.onclick=()=>{vdCefr=c.dataset.cefr;renderCefrChips();});}
 async function vdGenerate(){const v=vocab.find(x=>x.id===vdId);const ko=document.getElementById('vdKo');
@@ -1525,11 +1544,11 @@ async function vdSaveExample(){const v=vocab.find(x=>x.id===vdId);const en=docum
   const exKo=nat&&nat.nativeKo?nat.nativeKo:(vdKoSentence||'');
   if(!exEn){return;}
   v.examples=v.examples||[];v.examples.unshift({en:exEn,ko:exKo,cefr:vdCefr,createdAt:Date.now()});
-  v.lastCefr=vdCefr;await idbPut('vocab',v);renderExamples(v);renderVocab();toast('예문 저장됨 (원어민 문장)');
+  v.lastCefr=vdCefr;await idbPut('vocab',v);renderExamples(v);refreshVocabViews();toast('예문 저장됨 (원어민 문장)');
   document.getElementById('vdEn').value='';document.getElementById('vdFeedback').innerHTML='';vdLastFeedback=null;}
 function renderExamples(v){const el=document.getElementById('vdExamples');const ex=v.examples||[];
   el.innerHTML=ex.length?('<div style="font-size:11px;color:var(--ink-soft);font-weight:600;margin:12px 0 2px;">내 예문 '+ex.length+'개</div>'+ex.map((e,i)=>`<div style="background:#FFFCF5;border:1px solid var(--paper-line);border-radius:8px;padding:8px 9px;margin-top:6px;font-size:12.5px;position:relative;"><div>${esc(e.en)}</div>${e.ko?`<div style="color:#7a7468;font-size:11px;margin-top:2px;">${esc(e.ko)} · ${e.cefr||''}</div>`:''}<span data-ex="${i}" style="position:absolute;top:7px;right:8px;color:var(--danger);font-size:11px;font-weight:600;cursor:pointer;">삭제</span></div>`).join('')):'';
-  el.querySelectorAll('[data-ex]').forEach(b=>b.onclick=async()=>{v.examples.splice(+b.dataset.ex,1);await idbPut('vocab',v);renderExamples(v);renderVocab();});}
+  el.querySelectorAll('[data-ex]').forEach(b=>b.onclick=async()=>{v.examples.splice(+b.dataset.ex,1);await idbPut('vocab',v);renderExamples(v);refreshVocabViews();});}
 function vdVoice(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){toast('이 브라우저는 음성인식을 지원하지 않아요 (크롬 권장)');return;}
   const en=document.getElementById('vdEn');
