@@ -305,7 +305,15 @@ function refreshVocabViews(){
 - `vdSaveExample`(~1503): `...renderExamples(v);renderVocab();toast(...)` 의 `renderVocab()` → `refreshVocabViews()`.
 - `renderExamples` 삭제 핸들러(~1507): `...renderExamples(v);renderVocab();});` 의 `renderVocab()` → `refreshVocabViews()`.
 
-(주: 구버전 `renderVocab`/`setVFilter`/`toggleVByVideo` 함수 정의 자체는 남겨둬도 무방 — 더 이상 호출되지 않음. `screen-vocab` 마크업도 그대로 두되 탭에서 진입 불가.)
+- [ ] **Step 6b: 교체로 죽은 구버전 코드 삭제**
+
+Step 6에서 모든 호출을 `refreshVocabViews()`로 옮긴 뒤, 더 이상 참조되지 않는 구버전을 제거한다:
+- `renderVocab` 함수 정의 전체(~1016-1042) 삭제.
+- `setVFilter`(~1043)·`toggleVByVideo`(~1044) 함수 정의 삭제.
+- 모듈 변수 줄 `let vFilter='all', vByVideo=false;`(~1001) 삭제.
+- `#screen-vocab` 섹션 마크업 전체(~261-266) 삭제.
+
+삭제 후 `grep -n "renderVocab\|setVFilter\|toggleVByVideo\|vByVideo\|vFilter\|screen-vocab" index.html` 로 잔여 참조가 0인지 확인(있으면 그 호출도 `refreshVocabViews()`로 정리). `renderExamples`/`addSelectionToVocab` 등에서 바꾼 `refreshVocabViews` 호출은 남아야 함.
 
 - [ ] **Step 7: `updateBadges`에서 제거된 배지 참조 정리 (~1095-1099)**
 
