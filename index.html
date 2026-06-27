@@ -1303,13 +1303,26 @@ async function syncPull(){
     await pullGeminiKey();
   }finally{SYNC_APPLYING=false;}
 }
-async function gemini(prompt,json,maxTokens){
+function fileToVisionPart(file){return new Promise((res,rej)=>{
+  const img=new Image();const url=URL.createObjectURL(file);
+  img.onload=()=>{const max=1000;let{width:w,height:h}=img;
+    if(w>max){h=Math.round(h*max/w);w=max;}
+    const c=document.createElement('canvas');c.width=w;c.height=h;
+    c.getContext('2d').drawImage(img,0,0,w,h);
+    URL.revokeObjectURL(url);
+    const d=c.toDataURL('image/jpeg',0.85);            // "data:image/jpeg;base64,XXXX"
+    res({mime:'image/jpeg',dataB64:d.slice(d.indexOf(',')+1)});};
+  img.onerror=e=>{URL.revokeObjectURL(url);rej(new Error('이미지를 읽지 못했어요'));};
+  img.src=url;});}
+async function gemini(prompt,json,maxTokens,images){
   if(!GEMINI_KEY)throw new Error('NO_KEY');
   const gc={temperature:0.7,maxOutputTokens:maxTokens||600};
   if(json)gc.responseMimeType='application/json';
+  const parts=[{text:prompt}];
+  if(images&&images.length)for(const im of images)parts.push({inlineData:{mimeType:im.mime,data:im.dataB64}});
   const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+GEMINI_MODEL+':generateContent?key='+encodeURIComponent(GEMINI_KEY),{
     method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:gc})});
+    body:JSON.stringify({contents:[{parts}],generationConfig:gc})});
   if(!r.ok){const t=await r.text();throw new Error(r.status+' '+t.slice(0,140));}
   const j=await r.json();
   return (j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts[0].text||'').trim();
