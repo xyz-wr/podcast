@@ -1143,16 +1143,23 @@ function capIsDup(w){   // 카테고리가 같을 때만 예문 중복으로 판
   if(capTermInVocab(w.term))return true;
   if(w.type==='grammar'&&w.example)return vocab.some(v=>v.type==='grammar'&&v.source==='capture'&&canonCat(w.category)===grammarCatOf(v)&&sentEquiv(w.example,v.context));
   return false;}
-async function analyzeCapture(images){
-  const n=images.length;
-  const p=`너는 한국어 학습자의 영어 교정 캡처를 분석하는 코치야.
-${n}장의 이미지가 주어졌어. 각 이미지는 영어 튜터 앱의 "개선할 점/수정 제안" 화면이야.
-${n}장을 처음부터 끝까지 한 장도 빠뜨리지 말고 모두 살펴서, 모든 이미지에 나오는 교정과 약점을 하나도 빼놓지 말고 전부 모아줘. JSON으로만 답해:
+async function analyzeOneCapture(image){
+  const p=`너는 한국어 학습자의 영어 교정 캡처 한 장을 분석하는 코치야.
+이 이미지는 영어 튜터 앱의 "개선할 점/수정 제안" 화면이야. 화면에 보이는 교정과 약점을 하나도 빠뜨리지 말고 모두 뽑아줘. JSON으로만 답해:
 {"corrections":[{"original":"학습자 원문","corrected":"수정문","explainKo":"무엇을 왜 고쳤는지 한국어 한 줄"}],
  "weaknesses":[{"type":"grammar|word|idiom","term":"항목 이름(문법은 규칙명, 표현은 표제어형)","note":"한국어 짧은 설명","example":"이 약점이 드러난 수정문","category":"문법이면 다음 목록에서 가장 알맞은 하나만 한국어로 그대로 골라(영어로 쓰지 말 것): 전치사, 수일치, 시제, 관사, 복수형, 어순, 관계사, 동사형태, 접속사, 대명사, 비교급, 가산명사, 태, 부정사·동명사, 조동사, 어휘선택, 기타. 단어·표현이면 빈 문자열"}]}
-여러 이미지에 같은 항목이 나오면 하나로 합치고, 캡처에 없는 내용은 지어내지 마.`;
-  const obj=JSON.parse(await gemini(p,true,Math.min(8000,1200+n*900),images));
+캡처에 없는 내용은 지어내지 마.`;
+  const obj=JSON.parse(await gemini(p,true,2400,[image]));
   return {corrections:Array.isArray(obj.corrections)?obj.corrections:[],weaknesses:Array.isArray(obj.weaknesses)?obj.weaknesses:[]};}
+async function analyzeCapture(images){   // 이미지마다 따로 분석해 합침 → 한 호출에 몰아넣을 때 뒤 이미지를 놓치는 문제 방지
+  const res=document.getElementById('capResult');
+  const all={corrections:[],weaknesses:[]};let ok=0,lastErr=null;
+  for(let i=0;i<images.length;i++){
+    if(res&&images.length>1)res.innerHTML=`<div class="empty">캡처 분석 중… (${i+1}/${images.length})</div>`;
+    try{const one=await analyzeOneCapture(images[i]);all.corrections.push(...one.corrections);all.weaknesses.push(...one.weaknesses);ok++;}
+    catch(e){lastErr=e;}}
+  if(!ok&&lastErr)throw lastErr;   // 전부 실패한 경우에만 에러 표시(일부 실패는 나머지로 진행)
+  return all;}
 async function onCaptureFiles(files){
   if(!files||!files.length)return;
   const res=document.getElementById('capResult');res.innerHTML=`<div class="empty">캡처 ${files.length}장 분석 중…</div>`;
