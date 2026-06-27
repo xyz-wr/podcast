@@ -1082,8 +1082,26 @@ function learnSegTo(v){learnSeg=v;
   document.getElementById('learnVideos').style.display=v==='videos'?'':'none';
   document.getElementById('learnWords').style.display=v==='words'?'':'none';
   v==='words'?renderLearnVocab():renderLibrary();}
-const CAT_CANON={'subject-verb agreement':'수일치','subject verb agreement':'수일치','주어-동사 일치':'수일치','주어-동사 수일치':'수일치','주어 동사 일치':'수일치','agreement':'수일치','preposition':'전치사','prepositions':'전치사','article':'관사','articles':'관사','tense':'시제','verb tense':'시제','tenses':'시제','plural':'복수형','plurals':'복수형','plural form':'복수형','plurals/countability':'복수형','word order':'어순','verb form':'동사형태','verb forms':'동사형태','relative clause':'관계사','conjunction':'접속사','pronoun':'대명사','comparative':'비교급'};
-function canonCat(c){const raw=String(c||'').trim();if(!raw)return '기타';return CAT_CANON[normTerm(raw)]||raw;}
+const CAT_CANON={
+  '수일치':'수일치','주어동사일치':'수일치','주어동사수일치':'수일치','주술일치':'수일치','주술호응':'수일치','subjectverbagreement':'수일치','svagreement':'수일치','agreement':'수일치',
+  '전치사':'전치사','preposition':'전치사','prepositions':'전치사',
+  '시제':'시제','tense':'시제','tenses':'시제','verbtense':'시제',
+  '관사':'관사','article':'관사','articles':'관사',
+  '복수형':'복수형','복수':'복수형','plural':'복수형','plurals':'복수형','pluralform':'복수형','pluralscountability':'복수형',
+  '어순':'어순','wordorder':'어순',
+  '관계사':'관계사','관계대명사':'관계사','relativeclause':'관계사','relativepronoun':'관계사',
+  '동사형태':'동사형태','동사형':'동사형태','verbform':'동사형태','verbforms':'동사형태',
+  '접속사':'접속사','conjunction':'접속사','conjunctions':'접속사',
+  '대명사':'대명사','pronoun':'대명사','pronouns':'대명사',
+  '비교급':'비교급','comparative':'비교급','comparatives':'비교급',
+  '가산명사':'가산명사','가산성':'가산명사','countability':'가산명사','countnoun':'가산명사',
+  '태':'태','수동태':'태','능동태':'태','voice':'태','passive':'태','passivevoice':'태',
+  '부정사동명사':'부정사·동명사','부정사':'부정사·동명사','동명사':'부정사·동명사','infinitive':'부정사·동명사','gerund':'부정사·동명사',
+  '조동사':'조동사','modal':'조동사','modals':'조동사','auxiliary':'조동사',
+  '어휘선택':'어휘선택','어휘':'어휘선택','단어선택':'어휘선택','wordchoice':'어휘선택','vocabulary':'어휘선택','collocation':'어휘선택',
+  '기타':'기타','other':'기타','misc':'기타'};
+function catKey(s){return normTerm(s).replace(/[^\p{L}\p{N}]+/gu,'');}   // 공백·문장부호 무시한 카테고리 매칭 키
+function canonCat(c){const raw=String(c||'').trim();if(!raw)return '기타';return CAT_CANON[catKey(raw)]||raw;}
 function grammarCatOf(v){return canonCat(v.grammarCat);}
 function renderImproveVocab(){
   const grid=document.getElementById('improveVgrid'),empty=document.getElementById('improveVEmpty');
@@ -1114,10 +1132,17 @@ function improveCatTo(c){improveGrammarCat=c;renderImproveVocab();}
 function improveCatBack(){improveGrammarCat=null;renderImproveVocab();}
 let capCorrections=[], capWeakRaw=[];
 function normTerm(s){return String(s||'').normalize('NFC').toLowerCase().replace(/\p{Pd}/gu,'-').replace(/\s*-\s*/g,'-').replace(/\s+/g,' ').trim();}
-function normSent(s){return normTerm(s).replace(/["'’”.?!,;:]+$/,'').trim();}
+function sentCore(s){return normTerm(s).replace(/[^\p{L}\p{N} ]+/gu,' ').replace(/\s+/g,' ').trim();}   // 문장부호 제거한 비교용 코어
+function sentEquiv(a,b){const x=sentCore(a),y=sentCore(b);if(!x||!y)return false;if(x===y)return true;   // 한 문장이 다른 문장을 통째로 포함하면 같은 예문으로 간주
+  const sh=x.length<=y.length?x:y,lo=x.length<=y.length?y:x;if(sh.split(' ').length<3)return false;return (' '+lo+' ').includes(' '+sh+' ');}
 function capTermInVocab(term){const t=normTerm(term);if(!t)return false;return vocab.some(v=>normTerm(v.term)===t);}
-function capSentInVocab(sent){const s=normSent(sent);if(!s)return false;return vocab.some(v=>v.source==='capture'&&normSent(v.context)===s);}
-function capIsDup(w){return capTermInVocab(w.term)||(!!w.example&&capSentInVocab(w.example));}
+function weakEquiv(a,b){   // 두 약점이 같은 항목인지: 같은 표제어 또는 (같은 문법 카테고리 & 같은 예문)
+  const ta=normTerm(a.term),tb=normTerm(b.term);if(ta&&ta===tb)return true;
+  if(a.type==='grammar'&&b.type==='grammar'&&canonCat(a.category)===canonCat(b.category)&&sentEquiv(a.example,b.example))return true;return false;}
+function capIsDup(w){   // 카테고리가 같을 때만 예문 중복으로 판정 → 한 문장의 서로 다른 약점은 각각 담을 수 있음
+  if(capTermInVocab(w.term))return true;
+  if(w.type==='grammar'&&w.example)return vocab.some(v=>v.type==='grammar'&&v.source==='capture'&&canonCat(w.category)===grammarCatOf(v)&&sentEquiv(w.example,v.context));
+  return false;}
 async function analyzeCapture(images){
   const n=images.length;
   const p=`너는 한국어 학습자의 영어 교정 캡처를 분석하는 코치야.
@@ -1135,11 +1160,11 @@ async function onCaptureFiles(files){
     const {corrections,weaknesses}=await analyzeCapture(parts);renderCaptureResult(corrections,weaknesses);
   }catch(e){res.innerHTML='';aiErr(e,res);}}
 function buildCapList(weaknesses){
-  const seen=new Set(),out=[];
-  for(const w of (weaknesses||[])){
-    const term=(w.term||'').trim(),nt=normTerm(term);
-    if(nt&&seen.has(nt))continue;if(nt)seen.add(nt);   // 같은 항목이 여러 이미지에 나와도 한 번만
-    out.push({type:w.type,term,note:w.note||'',example:(w.example||'').trim(),category:w.category||'',chosen:true});}
+  const out=[];
+  for(const raw of (weaknesses||[])){
+    const w={type:raw.type,term:(raw.term||'').trim(),note:raw.note||'',example:(raw.example||'').trim(),category:raw.category||'',chosen:true};
+    if(out.some(o=>weakEquiv(o,w)))continue;   // 여러 이미지에 같은 항목/같은 문장의 같은 약점이 나와도 한 번만
+    out.push(w);}
   return out;}
 function renderCaptureResult(corrections,weaknesses){
   capCorrections=corrections||[];capWeakRaw=buildCapList(weaknesses);
@@ -1171,7 +1196,8 @@ async function saveCaptureChosen(){
     if(item.type==='grammar')item.grammarCat=canonCat(w.category);
     await idbPut('vocab',item);vocab.push(item);logActivity('word',item.id);}
   toast(chosen.length+'개 담았어요');updateBadges();renderImproveVocab();
-  if(capWeakRaw.some(w=>!capIsDup(w))){paintCapture();}   // 남은 항목 계속 담을 수 있게 패널 유지
+  capWeakRaw=capWeakRaw.filter(w=>!chosen.includes(w));   // 담은 항목만 목록에서 제거, 나머지는 계속 담을 수 있게
+  if(capWeakRaw.some(w=>!capIsDup(w))){paintCapture();}   // 남은 선택 가능 항목 있으면 패널 유지
   else{document.getElementById('capResult').innerHTML='<div class="empty">담은 항목을 모두 반영했어요 ✓</div>';capWeakRaw=[];capCorrections=[];improveSegTo('all');}}
 function refreshVocabViews(){
   if(document.getElementById('screen-library').classList.contains('active')&&learnSeg==='words')renderLearnVocab();
