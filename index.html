@@ -138,6 +138,13 @@
   .tag.idiom{color:var(--teal-deep);background:var(--teal-soft);}
   .tag.slang{color:#7a3d86;background:#f0e6f2;}
   .tag.grammar{color:var(--teal-deep);background:#dfeee9;}
+  .catcard{background:#FFFCF5;border:1px solid var(--paper-line);border-radius:12px;padding:13px 12px;display:flex;flex-direction:column;gap:8px;cursor:pointer;}
+  .catcard:active{background:var(--paper);}
+  .catcard .ct{display:flex;align-items:center;gap:7px;font-weight:600;font-size:14px;}
+  .catcard .ci{width:26px;height:26px;border-radius:7px;background:var(--teal-soft);color:var(--teal-deep);display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;}
+  .catcard .cm{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--ink-faint);}
+  .catcard .cnt{font-weight:700;color:var(--teal-deep);}
+  .backchip{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;color:var(--teal-deep);background:var(--teal-soft);border-radius:10px;padding:6px 11px;cursor:pointer;}
   .seg2{display:flex;background:#efe9da;border-radius:10px;padding:3px;gap:3px;margin:0 14px 12px;}
   .seg2 span{flex:1;text-align:center;font-size:12.5px;font-weight:600;color:var(--ink-soft);padding:7px 0;border-radius:8px;cursor:pointer;}
   .seg2 span.on{background:#fff;color:var(--amber-deep);}
@@ -251,7 +258,8 @@
     </div>
     <div id="capResult" style="padding:0 14px;"></div>
     <div class="seg2" id="improveSeg" style="margin-top:12px;">
-      <span class="on" data-v="word" onclick="improveSegTo('word')">단어</span>
+      <span class="on" data-v="all" onclick="improveSegTo('all')">전체</span>
+      <span data-v="word" onclick="improveSegTo('word')">단어</span>
       <span data-v="grammar" onclick="improveSegTo('grammar')">문법</span>
     </div>
     <div class="vgrid" id="improveVgrid"></div>
@@ -1051,7 +1059,7 @@ function vcardEl(v,showVid){if(showVid===undefined)showVid=true;
     ${vidLine}
     <div class="vmeta">${jump}<span class="del" data-id="${v.id}">삭제</span></div>`;
   return c;}
-let learnSeg='videos', learnVFilter='all', improveSeg='word';
+let learnSeg='videos', learnVFilter='all', improveSeg='all', improveGrammarCat=null;
 function bindVocabGrid(grid,origin){
   grid.querySelectorAll('.vsrc').forEach(s=>s.onclick=()=>{if(s.dataset.vid&&videos.some(x=>x.id===s.dataset.vid))openVideo(s.dataset.vid);});
   grid.querySelectorAll('.vterm').forEach(t=>t.onclick=()=>openVocabDetail(t.dataset.id,origin));
@@ -1072,22 +1080,41 @@ function learnSegTo(v){learnSeg=v;
   document.getElementById('learnVideos').style.display=v==='videos'?'':'none';
   document.getElementById('learnWords').style.display=v==='words'?'':'none';
   v==='words'?renderLearnVocab():renderLibrary();}
+function grammarCatOf(v){return (v.grammarCat&&String(v.grammarCat).trim())||'기타';}
 function renderImproveVocab(){
   const grid=document.getElementById('improveVgrid'),empty=document.getElementById('improveVEmpty');
-  let list=vocab.filter(v=>v.source==='capture').sort((a,b)=>b.createdAt-a.createdAt);
-  list=list.filter(v=>improveSeg==='grammar'?v.type==='grammar':v.type!=='grammar');
-  empty.style.display=list.length?'none':'block';grid.innerHTML='';
+  const caps=vocab.filter(v=>v.source==='capture').sort((a,b)=>b.createdAt-a.createdAt);
+  grid.innerHTML='';
+  if(improveSeg==='grammar'&&improveGrammarCat===null){          // 문법: 카테고리 카드
+    const gram=caps.filter(v=>v.type==='grammar');
+    empty.style.display=gram.length?'none':'block';
+    const groups={};gram.forEach(v=>{const c=grammarCatOf(v);(groups[c]=groups[c]||[]).push(v);});
+    Object.keys(groups).forEach(c=>{const el=document.createElement('div');el.className='catcard';
+      el.innerHTML=`<div class="ct"><span class="ci">文</span>${esc(c)}</div><div class="cm"><span><b class="cnt">${groups[c].length}</b>개 항목</span><span>›</span></div>`;
+      el.onclick=()=>improveCatTo(c);grid.appendChild(el);});
+    return;}
+  let list;                                                      // 전체 / 단어 / 문법-카테고리상세
+  if(improveSeg==='all')list=caps;
+  else if(improveSeg==='word')list=caps.filter(v=>v.type!=='grammar');
+  else list=caps.filter(v=>v.type==='grammar'&&grammarCatOf(v)===improveGrammarCat);
+  empty.style.display=list.length?'none':'block';
+  if(improveSeg==='grammar'&&improveGrammarCat!==null){
+    const b=document.createElement('div');b.style.gridColumn='1 / -1';
+    b.innerHTML=`<span class="backchip">‹ ${esc(improveGrammarCat)} · 분류 전체로</span>`;
+    b.firstChild.onclick=improveCatBack;grid.appendChild(b);}
   list.forEach(v=>grid.appendChild(vcardEl(v,false)));bindVocabGrid(grid,'improve');}
-function improveSegTo(v){improveSeg=v;
+function improveSegTo(v){improveSeg=v;improveGrammarCat=null;
   document.querySelectorAll('#improveSeg span').forEach(s=>s.classList.toggle('on',s.dataset.v===v));
   renderImproveVocab();}
+function improveCatTo(c){improveGrammarCat=c;renderImproveVocab();}
+function improveCatBack(){improveGrammarCat=null;renderImproveVocab();}
 let capWeak=[];
 function capTermInVocab(term){if(!term)return false;const t=term.trim().toLowerCase();return vocab.some(v=>(v.term||'').trim().toLowerCase()===t);}
 async function analyzeCapture(images){
   const p=`너는 한국어 학습자의 영어 교정 캡처를 분석하는 코치야.
 이미지는 영어 튜터 앱의 "개선할 점/수정 제안" 화면이야. JSON으로만 답해:
 {"corrections":[{"original":"학습자 원문","corrected":"수정문","explainKo":"무엇을 왜 고쳤는지 한국어 한 줄"}],
- "weaknesses":[{"type":"grammar|word|idiom","term":"항목 이름(문법은 규칙명, 표현은 표제어형)","note":"한국어 짧은 설명","example":"이 약점이 드러난 수정문"}]}
+ "weaknesses":[{"type":"grammar|word|idiom","term":"항목 이름(문법은 규칙명, 표현은 표제어형)","note":"한국어 짧은 설명","example":"이 약점이 드러난 수정문","category":"문법이면 한국어 분류명(전치사/수일치/시제/관사/복수형/어순/관계사/동사형태 등), 단어·표현이면 빈 문자열"}]}
 같은 항목은 하나로 합치고, 캡처에 없는 내용은 지어내지 마.`;
   const obj=JSON.parse(await gemini(p,true,1500,images));
   return {corrections:Array.isArray(obj.corrections)?obj.corrections:[],weaknesses:Array.isArray(obj.weaknesses)?obj.weaknesses:[]};}
@@ -1099,7 +1126,7 @@ async function onCaptureFiles(files){
   }catch(e){res.innerHTML='';aiErr(e,res);}}
 function renderCaptureResult(corrections,weaknesses){
   const res=document.getElementById('capResult');
-  capWeak=weaknesses.map(w=>({type:w.type,term:(w.term||'').trim(),note:w.note||'',example:w.example||'',chosen:!capTermInVocab((w.term||'').trim())}));
+  capWeak=weaknesses.map(w=>({type:w.type,term:(w.term||'').trim(),note:w.note||'',example:w.example||'',category:w.category||'',chosen:!capTermInVocab((w.term||'').trim())}));
   const tagOf=t=>t==='grammar'?'문법':(t==='idiom'?'관용구':'단어');
   const tcls=t=>t==='grammar'?'grammar':(['idiom','slang'].includes(t)?t:'word');
   const corrHtml=corrections.map(c=>`<div class="panel" style="margin:11px 0 0;"><div style="color:var(--ink-soft);font-size:13px;"><s>${esc(c.original||'')}</s></div><div style="font-weight:600;margin-top:6px;">${esc(c.corrected||'')}</div><div style="font-size:11.5px;color:#7a7468;margin-top:6px;line-height:1.5;">${esc(c.explainKo||'')}</div></div>`).join('');
@@ -1111,17 +1138,16 @@ function renderCaptureResult(corrections,weaknesses){
 async function saveCaptureChosen(){
   const chosen=capWeak.filter(w=>w.chosen&&!capTermInVocab(w.term));
   if(!chosen.length){toast('담을 항목을 선택하세요');return;}
-  let lastGrammar=false;
   for(const w of chosen){
     const item={id:uid(),term:w.term,note:w.note||'',
       type:['grammar','word','idiom','slang'].includes(w.type)?w.type:'word',
       source:'capture',sourceLabel:'캡처',context:w.example||'',contextKo:'',
       srs:{box:1,dueAt:Date.now(),history:[]},examples:[],createdAt:Date.now()};
-    if(item.type==='grammar')lastGrammar=true;
+    if(item.type==='grammar')item.grammarCat=(w.category||'').trim()||'기타';
     await idbPut('vocab',item);vocab.push(item);logActivity('word',item.id);}
   document.getElementById('capResult').innerHTML='';capWeak=[];
   toast(chosen.length+'개 담았어요');
-  improveSegTo(lastGrammar&&chosen.every(w=>w.type==='grammar')?'grammar':'word');
+  improveSegTo('all');
   updateBadges();}
 function refreshVocabViews(){
   if(document.getElementById('screen-library').classList.contains('active')&&learnSeg==='words')renderLearnVocab();
