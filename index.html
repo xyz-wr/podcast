@@ -1072,6 +1072,48 @@ function renderImproveVocab(){
 function improveSegTo(v){improveSeg=v;
   document.querySelectorAll('#improveSeg span').forEach(s=>s.classList.toggle('on',s.dataset.v===v));
   renderImproveVocab();}
+let capWeak=[];
+function capTermInVocab(term){if(!term)return false;const t=term.trim().toLowerCase();return vocab.some(v=>(v.term||'').trim().toLowerCase()===t);}
+async function analyzeCapture(images){
+  const p=`너는 한국어 학습자의 영어 교정 캡처를 분석하는 코치야.
+이미지는 영어 튜터 앱의 "개선할 점/수정 제안" 화면이야. JSON으로만 답해:
+{"corrections":[{"original":"학습자 원문","corrected":"수정문","explainKo":"무엇을 왜 고쳤는지 한국어 한 줄"}],
+ "weaknesses":[{"type":"grammar|word|idiom","term":"항목 이름(문법은 규칙명, 표현은 표제어형)","note":"한국어 짧은 설명","example":"이 약점이 드러난 수정문"}]}
+같은 항목은 하나로 합치고, 캡처에 없는 내용은 지어내지 마.`;
+  const obj=JSON.parse(await gemini(p,true,1500,images));
+  return {corrections:Array.isArray(obj.corrections)?obj.corrections:[],weaknesses:Array.isArray(obj.weaknesses)?obj.weaknesses:[]};}
+async function onCaptureFiles(files){
+  if(!files||!files.length)return;
+  const res=document.getElementById('capResult');res.innerHTML='<div class="empty">캡처 분석 중…</div>';
+  try{const parts=[];for(const f of files)parts.push(await fileToVisionPart(f));
+    const {corrections,weaknesses}=await analyzeCapture(parts);renderCaptureResult(corrections,weaknesses);
+  }catch(e){res.innerHTML='';aiErr(e,res);}}
+function renderCaptureResult(corrections,weaknesses){
+  const res=document.getElementById('capResult');
+  capWeak=weaknesses.map(w=>({type:w.type,term:(w.term||'').trim(),note:w.note||'',example:w.example||'',chosen:!capTermInVocab((w.term||'').trim())}));
+  const tagOf=t=>t==='grammar'?'문법':(t==='idiom'?'관용구':'단어');
+  const tcls=t=>t==='grammar'?'grammar':(['idiom','slang'].includes(t)?t:'word');
+  const corrHtml=corrections.map(c=>`<div class="panel" style="margin:11px 0 0;"><div style="color:var(--ink-soft);font-size:13px;"><s>${esc(c.original||'')}</s></div><div style="font-weight:600;margin-top:6px;">${esc(c.corrected||'')}</div><div style="font-size:11.5px;color:#7a7468;margin-top:6px;line-height:1.5;">${esc(c.explainKo||'')}</div></div>`).join('');
+  const weakHtml=capWeak.length?capWeak.map((w,i)=>{const dup=capTermInVocab(w.term);
+    return `<div class="capw ${w.chosen?'on':''}" data-i="${i}" style="${dup?'opacity:.5;':''}"><span class="capck">${w.chosen?'✓':''}</span><span class="tag ${tcls(w.type)}">${tagOf(w.type)}</span><div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:13px;">${esc(w.term)}</div><div style="font-size:11px;color:var(--ink-faint);">${dup?'이미 있음':esc(w.note)}</div></div></div>`;}).join(''):'<div class="empty">고칠 점이 없네요 👍</div>';
+  res.innerHTML=`${corrHtml}<div style="font-size:12px;font-weight:600;color:var(--ink-soft);margin:13px 0 5px;">내가 부족한 부분 — 담을 항목 선택</div><div id="capWeakList">${weakHtml}</div>${capWeak.some(w=>!capTermInVocab(w.term))?'<button class="secondary" style="width:100%;margin-top:11px;" onclick="saveCaptureChosen()">선택 항목 담기</button>':''}`;
+  res.querySelectorAll('.capw').forEach(el=>el.onclick=()=>{const i=+el.dataset.i;if(capTermInVocab(capWeak[i].term))return;
+    capWeak[i].chosen=!capWeak[i].chosen;el.classList.toggle('on',capWeak[i].chosen);el.querySelector('.capck').textContent=capWeak[i].chosen?'✓':'';});}
+async function saveCaptureChosen(){
+  const chosen=capWeak.filter(w=>w.chosen&&!capTermInVocab(w.term));
+  if(!chosen.length){toast('담을 항목을 선택하세요');return;}
+  let lastGrammar=false;
+  for(const w of chosen){
+    const item={id:uid(),term:w.term,note:w.note||'',
+      type:['grammar','word','idiom','slang'].includes(w.type)?w.type:'word',
+      source:'capture',sourceLabel:'캡처',context:w.example||'',contextKo:'',
+      srs:{box:1,dueAt:Date.now(),history:[]},examples:[],createdAt:Date.now()};
+    if(item.type==='grammar')lastGrammar=true;
+    await idbPut('vocab',item);vocab.push(item);logActivity('word',item.id);}
+  document.getElementById('capResult').innerHTML='';capWeak=[];
+  toast(chosen.length+'개 담았어요');
+  improveSegTo(lastGrammar&&chosen.every(w=>w.type==='grammar')?'grammar':'word');
+  updateBadges();}
 function refreshVocabViews(){
   if(document.getElementById('screen-library').classList.contains('active')&&learnSeg==='words')renderLearnVocab();
   if(document.getElementById('screen-improve').classList.contains('active'))renderImproveVocab();}
@@ -1631,7 +1673,9 @@ function renderStreak(){const el=document.getElementById('streakBody');
   await loadSyncConfig();
   await restoreQueue();
   await loadAll();
-  await autoSync(true);})();   // 앱 열 때 자동: 받아오기 + 내 데이터 올리기 (버튼 불필요)
+  await autoSync(true);
+  const capIn=document.getElementById('capInput');
+  if(capIn)capIn.onchange=e=>{onCaptureFiles(e.target.files);e.target.value='';};})();   // 앱 열 때 자동: 받아오기 + 내 데이터 올리기 (버튼 불필요)
 document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('show');}));
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveResume();});
 window.addEventListener('pagehide',()=>{saveResume();});
