@@ -309,8 +309,16 @@
       <div id="vdContext" style="font-size:11px;color:var(--ink-faint);margin-top:5px;line-height:1.45;"></div>
       <label class="fld">CEFR 등급으로 연습</label>
       <div class="row" id="vdCefr" style="gap:6px;"></div>
-      <button class="secondary" style="width:100%;margin-top:10px;" onclick="vdGenerate()">이 등급의 한국어 문장 제시</button>
-      <div id="vdKo" style="font-size:15px;line-height:1.6;margin:10px 0;padding:11px;background:var(--amber-bg);border-radius:9px;min-height:10px;color:#5b5446;">등급을 고르고 “문장 제시”를 눌러보세요.</div>
+      <label class="fld">문장 수</label>
+      <div class="row" id="vdCount" style="gap:6px;">
+        <span class="chip on" data-n="1" onclick="setVdCount(1)">1문장</span>
+        <span class="chip" data-n="3" onclick="setVdCount(3)">3</span>
+        <span class="chip" data-n="5" onclick="setVdCount(5)">5</span>
+        <span class="chip" data-n="10" onclick="setVdCount(10)">10</span>
+      </div>
+      <button class="secondary" style="width:100%;margin-top:10px;" onclick="vdGenerateSet()">한국어 문장 받기</button>
+      <div id="vdDrill" style="display:none;align-items:center;margin:11px 0 0;"></div>
+      <div id="vdKo" style="font-size:15px;line-height:1.6;margin:10px 0;padding:11px;background:var(--amber-bg);border-radius:9px;min-height:10px;color:#5b5446;">등급과 문장 수를 고르고 "문장 받기"를 눌러보세요.</div>
       <label class="fld">위 문장을 영어로 작문 (이 표현 사용)</label>
       <div style="display:flex;gap:8px;align-items:stretch;">
         <textarea id="vdEn" style="min-height:58px;flex:1;" placeholder="영어로 작문하거나 🎙 로 말하세요"></textarea>
@@ -319,6 +327,7 @@
       <button class="secondary" style="width:100%;margin-top:8px;" onclick="vdFeedback()">피드백 받기</button>
       <div id="vdFeedback" style="font-size:13px;line-height:1.7;margin:10px 0;"></div>
       <button style="width:100%;" onclick="vdSaveExample()">＋ 이 영작을 예문으로 저장</button>
+      <button class="secondary" id="vdNextBtn" style="width:100%;margin-top:8px;display:none;" onclick="vdNext()">다음 문장 →</button>
       <div id="vdExamples"></div>
     </div>
   </section>
@@ -1537,13 +1546,16 @@ async function aiAlignInterleaved(raw){
 }
 
 let vdId=null, vdCefr='A2', vdKoSentence='', recog=null, vdLastFeedback=null, voiceOn=false, voiceBase='', voiceFinal='', vdOrigin='learn';
+let vdSet=[], vdIdx=0, vdCount=1;
 function openVocabDetail(id,origin){const v=vocab.find(x=>x.id===id);if(!v)return;vdOrigin=origin||'learn';
   pausePlayer();vdId=id;vdCefr=v.lastCefr||'A2';vdKoSentence='';vdLastFeedback=null;
   document.getElementById('vdTerm').textContent=v.term;
   document.getElementById('vdMeaningInput').value=v.note||'';
   document.getElementById('vdContext').textContent=v.context?('예문: '+v.context):'';
   renderCefrChips();
-  document.getElementById('vdKo').textContent='등급을 고르고 "문장 제시"를 눌러보세요.';
+  vdSet=[];vdIdx=0;vdCount=1;setVdCount(1);
+  document.getElementById('vdDrill').style.display='none';document.getElementById('vdNextBtn').style.display='none';
+  document.getElementById('vdKo').textContent='등급과 문장 수를 고르고 "문장 받기"를 눌러보세요.';
   document.getElementById('vdEn').value='';
   document.getElementById('vdFeedback').innerHTML='';
   document.getElementById('vdMic').textContent='🎙';
@@ -1553,15 +1565,36 @@ function backFromDetail(){voiceOn=false;if(recog){try{recog.stop();}catch(e){}re
   else{document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.s==='learn'));showScreen('library');renderLearnVocab();}}
 function renderCefrChips(){document.getElementById('vdCefr').innerHTML=['A1','A2','B1','B2','C1','C2'].map(l=>`<span class="chip ${l===vdCefr?'on':''}" data-cefr="${l}">${l}</span>`).join('');
   document.querySelectorAll('#vdCefr .chip').forEach(c=>c.onclick=()=>{vdCefr=c.dataset.cefr;renderCefrChips();});}
-async function vdGenerate(){const v=vocab.find(x=>x.id===vdId);const ko=document.getElementById('vdKo');
-  vdLastFeedback=null;ko.textContent='문장 생성 중…';
-  try{const p=`너는 한국어-영어 학습 코치야. 학습자가 영어 표현 "${v.term}"(뜻: ${v.note||'?'})를 연습하려고 해.\nCEFR ${vdCefr} 수준의 자연스러운 한국어 문장 1개만 만들어줘. 그 문장을 영어로 옮기면 "${v.term}"를 자연스럽게 쓰게 되도록.\n설명·따옴표 없이 한국어 문장 한 줄만 출력.`;
-    vdKoSentence=await gemini(p);ko.textContent=vdKoSentence||'(생성 실패)';
+function setVdCount(n){vdCount=n;document.querySelectorAll('#vdCount .chip').forEach(c=>c.classList.toggle('on',+c.dataset.n===n));}
+async function vdGenerateSet(){const v=vocab.find(x=>x.id===vdId);const ko=document.getElementById('vdKo');
+  vdLastFeedback=null;ko.textContent='문장 생성 중…';document.getElementById('vdFeedback').innerHTML='';
+  const kind=v.type==='grammar'?'문법':'표현';
+  try{
+    if(vdCount===1){
+      const p=`너는 한국어-영어 학습 코치야. 학습자가 "${v.term}"(뜻: ${v.note||'?'})를 연습해.${v.type==='grammar'?' 이건 학습자의 약점 문법이야.':''}\nCEFR ${vdCefr} 수준의 자연스러운 한국어 문장 1개만 만들어줘. 영어로 옮기면 이 ${kind}을 자연스럽게 쓰게 되도록.\n설명·따옴표 없이 한국어 문장 한 줄만 출력.`;
+      vdSet=[(await gemini(p)).trim()].filter(Boolean);
+    }else{
+      const p=`학습자가 "${v.term}"(${v.note||''})를 연습해.${v.type==='grammar'?' 이건 학습자의 약점 문법이야.':''}\nCEFR ${vdCefr} 수준의 자연스러운 한국어 문장 ${vdCount}개를 만들어줘. 각 문장을 영어로 옮기면 이 ${kind}을 꼭 쓰게 되도록.\nJSON으로만: {"sentences":["...","..."]}`;
+      const arr=JSON.parse(await gemini(p,true,1200)).sentences;
+      vdSet=(Array.isArray(arr)?arr:[]).map(s=>String(s).trim()).filter(Boolean);
+    }
+    if(!vdSet.length){ko.textContent='(생성 실패)';return;}
+    vdIdx=0;renderDrill();
   }catch(e){ko.textContent='';aiErr(e,ko);}}
+function renderDrill(){
+  vdKoSentence=vdSet[vdIdx]||'';vdLastFeedback=null;
+  document.getElementById('vdKo').textContent=vdKoSentence||'(문장 없음)';
+  document.getElementById('vdEn').value='';document.getElementById('vdFeedback').innerHTML='';
+  const d=document.getElementById('vdDrill'),nb=document.getElementById('vdNextBtn');
+  if(vdSet.length>1){d.style.display='flex';
+    d.innerHTML=`<span class="dprog">${vdIdx+1} / ${vdSet.length}</span>`+vdSet.map((_,i)=>`<span class="ddot ${i<vdIdx?'done':(i===vdIdx?'cur':'')}"></span>`).join('');
+    nb.style.display=vdIdx<vdSet.length-1?'':'none';
+  }else{d.style.display='none';nb.style.display='none';}}
+function vdNext(){if(vdIdx<vdSet.length-1){vdIdx++;renderDrill();}}
 async function vdFeedback(){const v=vocab.find(x=>x.id===vdId);const en=document.getElementById('vdEn').value.trim();
   if(!en){toast('영어 문장을 입력하세요');return;}
   const fb=document.getElementById('vdFeedback');fb.innerHTML='피드백 분석 중…';
-  try{const p=`학습자가 영어 표현 "${v.term}"를 사용해 영작했어.
+  try{const p=`학습자가 ${v.type==='grammar'?'약점 문법':'영어 표현'} "${v.term}"를 사용해 영작했어.${v.type==='grammar'?' 이 문법을 맞게 적용했는지 꼭 확인하고, 같은 실수가 또 나오면 짚어줘.':''}
 제시 한국어: ${vdKoSentence||'(자유 작문)'}
 학습자 영작: "${en}"
 JSON으로만 답해. 필드:
