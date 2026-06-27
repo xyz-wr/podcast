@@ -137,6 +137,18 @@
   .tag.word{color:var(--amber-deep);background:var(--amber-soft);}
   .tag.idiom{color:var(--teal-deep);background:var(--teal-soft);}
   .tag.slang{color:#7a3d86;background:#f0e6f2;}
+  .tag.grammar{color:var(--teal-deep);background:#dfeee9;}
+  .seg2{display:flex;background:#efe9da;border-radius:10px;padding:3px;gap:3px;margin:0 14px 12px;}
+  .seg2 span{flex:1;text-align:center;font-size:12.5px;font-weight:600;color:var(--ink-soft);padding:7px 0;border-radius:8px;cursor:pointer;}
+  .seg2 span.on{background:#fff;color:var(--amber-deep);}
+  .capw{display:flex;align-items:center;gap:9px;border:1px solid var(--paper-line);background:#fff;border-radius:11px;padding:9px 11px;margin-top:8px;cursor:pointer;}
+  .capw.on{border-color:var(--amber);background:var(--amber-soft);}
+  .capw .capck{width:20px;height:20px;border-radius:6px;border:1.5px solid #cdbfa6;flex:none;display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;}
+  .capw.on .capck{background:var(--amber);border-color:var(--amber);}
+  .ddot{width:8px;height:8px;border-radius:50%;background:var(--paper-line);display:inline-block;margin-right:5px;}
+  .ddot.done{background:var(--teal);}
+  .ddot.cur{background:var(--amber);box-shadow:0 0 0 3px var(--amber-soft);}
+  .dprog{font-size:12px;font-weight:600;color:var(--ink-soft);margin-right:9px;}
   .filterbar{display:flex;gap:7px;padding:0 14px 12px;flex-wrap:wrap;}
 
   /* shadow */
@@ -1001,11 +1013,11 @@ async function addSelectionToVocab(){const term=selectedText();if(!term){return;
 let vFilter='all', vByVideo=false;
 function vcardEl(v,showVid){if(showVid===undefined)showVid=true;
   const c=document.createElement('div');c.className='vcard';
-  const tcls=['word','idiom','slang'].includes(v.type)?v.type:'word';const tlab={word:'단어',idiom:'관용구',slang:'슬랭'}[tcls];
+  const tcls=['word','idiom','slang','grammar'].includes(v.type)?v.type:'word';const tlab={word:'단어',idiom:'관용구',slang:'슬랭',grammar:'문법'}[tcls];
   const jump=v.time!=null?`<span class="jump" data-id="${v.id}">${fmt(v.time)} 보기</span>`:`<span style="color:#bbb;font-size:11px;">시간 없음</span>`;
   const exN=(v.examples||[]).length;
   const vt=videos.find(x=>x.id===v.videoId);const vtitle=vt?(vt.title||'제목 없음'):'(삭제된 영상)';
-  const vidLine=showVid?`<div class="vsrc" data-vid="${esc(v.videoId||'')}" title="${esc(vtitle)}">🎬 ${esc(vtitle)}</div>`:'';
+  const vidLine=v.source==='capture'?`<div class="vsrc" style="color:var(--teal-deep);">📷 ${esc(v.sourceLabel||'캡처')}</div>`:(showVid?`<div class="vsrc" data-vid="${esc(v.videoId||'')}" title="${esc(vtitle)}">🎬 ${esc(vtitle)}</div>`:'');
   c.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;">
       <span class="term vterm" data-id="${v.id}" style="cursor:pointer;">${esc(v.term)} ${exN?`<span style="font-size:10px;color:var(--teal-deep);">✎${exN}</span>`:'<span style="font-size:10px;color:var(--ink-faint);">›</span>'}</span><span class="tag ${tcls}">${tlab}</span></div>
     <div class="note" data-id="${v.id}">${esc(v.note||'뜻 추가하려면 탭')}</div>
