@@ -1109,7 +1109,8 @@ function improveSegTo(v){improveSeg=v;improveGrammarCat=null;
 function improveCatTo(c){improveGrammarCat=c;renderImproveVocab();}
 function improveCatBack(){improveGrammarCat=null;renderImproveVocab();}
 let capWeak=[];
-function capTermInVocab(term){if(!term)return false;const t=term.trim().toLowerCase();return vocab.some(v=>(v.term||'').trim().toLowerCase()===t);}
+function normTerm(s){return String(s||'').normalize('NFC').toLowerCase().replace(/\p{Pd}/gu,'-').replace(/\s*-\s*/g,'-').replace(/\s+/g,' ').trim();}
+function capTermInVocab(term){const t=normTerm(term);if(!t)return false;return vocab.some(v=>normTerm(v.term)===t);}
 async function analyzeCapture(images){
   const n=images.length;
   const p=`너는 한국어 학습자의 영어 교정 캡처를 분석하는 코치야.
