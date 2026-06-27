@@ -1111,16 +1111,18 @@ function improveCatBack(){improveGrammarCat=null;renderImproveVocab();}
 let capWeak=[];
 function capTermInVocab(term){if(!term)return false;const t=term.trim().toLowerCase();return vocab.some(v=>(v.term||'').trim().toLowerCase()===t);}
 async function analyzeCapture(images){
+  const n=images.length;
   const p=`너는 한국어 학습자의 영어 교정 캡처를 분석하는 코치야.
-이미지는 영어 튜터 앱의 "개선할 점/수정 제안" 화면이야. JSON으로만 답해:
+${n}장의 이미지가 주어졌어. 각 이미지는 영어 튜터 앱의 "개선할 점/수정 제안" 화면이야.
+${n}장을 처음부터 끝까지 한 장도 빠뜨리지 말고 모두 살펴서, 모든 이미지에 나오는 교정과 약점을 하나도 빼놓지 말고 전부 모아줘. JSON으로만 답해:
 {"corrections":[{"original":"학습자 원문","corrected":"수정문","explainKo":"무엇을 왜 고쳤는지 한국어 한 줄"}],
  "weaknesses":[{"type":"grammar|word|idiom","term":"항목 이름(문법은 규칙명, 표현은 표제어형)","note":"한국어 짧은 설명","example":"이 약점이 드러난 수정문","category":"문법이면 한국어 분류명(전치사/수일치/시제/관사/복수형/어순/관계사/동사형태 등), 단어·표현이면 빈 문자열"}]}
-같은 항목은 하나로 합치고, 캡처에 없는 내용은 지어내지 마.`;
-  const obj=JSON.parse(await gemini(p,true,1500,images));
+여러 이미지에 같은 항목이 나오면 하나로 합치고, 캡처에 없는 내용은 지어내지 마.`;
+  const obj=JSON.parse(await gemini(p,true,Math.min(8000,1200+n*900),images));
   return {corrections:Array.isArray(obj.corrections)?obj.corrections:[],weaknesses:Array.isArray(obj.weaknesses)?obj.weaknesses:[]};}
 async function onCaptureFiles(files){
   if(!files||!files.length)return;
-  const res=document.getElementById('capResult');res.innerHTML='<div class="empty">캡처 분석 중…</div>';
+  const res=document.getElementById('capResult');res.innerHTML=`<div class="empty">캡처 ${files.length}장 분석 중…</div>`;
   try{const parts=[];for(const f of files)parts.push(await fileToVisionPart(f));
     const {corrections,weaknesses}=await analyzeCapture(parts);renderCaptureResult(corrections,weaknesses);
   }catch(e){res.innerHTML='';aiErr(e,res);}}
