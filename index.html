@@ -1080,7 +1080,9 @@ function learnSegTo(v){learnSeg=v;
   document.getElementById('learnVideos').style.display=v==='videos'?'':'none';
   document.getElementById('learnWords').style.display=v==='words'?'':'none';
   v==='words'?renderLearnVocab():renderLibrary();}
-function grammarCatOf(v){return (v.grammarCat&&String(v.grammarCat).trim())||'기타';}
+const CAT_CANON={'subject-verb agreement':'수일치','subject verb agreement':'수일치','주어-동사 일치':'수일치','주어-동사 수일치':'수일치','주어 동사 일치':'수일치','agreement':'수일치','preposition':'전치사','prepositions':'전치사','article':'관사','articles':'관사','tense':'시제','verb tense':'시제','tenses':'시제','plural':'복수형','plurals':'복수형','plural form':'복수형','plurals/countability':'복수형','word order':'어순','verb form':'동사형태','verb forms':'동사형태','relative clause':'관계사','conjunction':'접속사','pronoun':'대명사','comparative':'비교급'};
+function canonCat(c){const raw=String(c||'').trim();if(!raw)return '기타';return CAT_CANON[normTerm(raw)]||raw;}
+function grammarCatOf(v){return canonCat(v.grammarCat);}
 function renderImproveVocab(){
   const grid=document.getElementById('improveVgrid'),empty=document.getElementById('improveVEmpty');
   const caps=vocab.filter(v=>v.source==='capture').sort((a,b)=>b.createdAt-a.createdAt);
@@ -1108,16 +1110,19 @@ function improveSegTo(v){improveSeg=v;improveGrammarCat=null;
   renderImproveVocab();}
 function improveCatTo(c){improveGrammarCat=c;renderImproveVocab();}
 function improveCatBack(){improveGrammarCat=null;renderImproveVocab();}
-let capWeak=[];
+let capWeak=[], capCorrections=[], capWeakRaw=[];
 function normTerm(s){return String(s||'').normalize('NFC').toLowerCase().replace(/\p{Pd}/gu,'-').replace(/\s*-\s*/g,'-').replace(/\s+/g,' ').trim();}
+function normSent(s){return normTerm(s).replace(/["'’”.?!,;:]+$/,'').trim();}
 function capTermInVocab(term){const t=normTerm(term);if(!t)return false;return vocab.some(v=>normTerm(v.term)===t);}
+function capSentInVocab(sent){const s=normSent(sent);if(!s)return false;return vocab.some(v=>v.source==='capture'&&normSent(v.context)===s);}
+function capIsDup(w){return capTermInVocab(w.term)||(!!w.example&&capSentInVocab(w.example));}
 async function analyzeCapture(images){
   const n=images.length;
   const p=`너는 한국어 학습자의 영어 교정 캡처를 분석하는 코치야.
 ${n}장의 이미지가 주어졌어. 각 이미지는 영어 튜터 앱의 "개선할 점/수정 제안" 화면이야.
 ${n}장을 처음부터 끝까지 한 장도 빠뜨리지 말고 모두 살펴서, 모든 이미지에 나오는 교정과 약점을 하나도 빼놓지 말고 전부 모아줘. JSON으로만 답해:
 {"corrections":[{"original":"학습자 원문","corrected":"수정문","explainKo":"무엇을 왜 고쳤는지 한국어 한 줄"}],
- "weaknesses":[{"type":"grammar|word|idiom","term":"항목 이름(문법은 규칙명, 표현은 표제어형)","note":"한국어 짧은 설명","example":"이 약점이 드러난 수정문","category":"문법이면 한국어 분류명(전치사/수일치/시제/관사/복수형/어순/관계사/동사형태 등), 단어·표현이면 빈 문자열"}]}
+ "weaknesses":[{"type":"grammar|word|idiom","term":"항목 이름(문법은 규칙명, 표현은 표제어형)","note":"한국어 짧은 설명","example":"이 약점이 드러난 수정문","category":"문법이면 다음 목록에서 가장 알맞은 하나만 한국어로 그대로 골라(영어로 쓰지 말 것): 전치사, 수일치, 시제, 관사, 복수형, 어순, 관계사, 동사형태, 접속사, 대명사, 비교급, 가산명사, 태, 부정사·동명사, 조동사, 어휘선택, 기타. 단어·표현이면 빈 문자열"}]}
 여러 이미지에 같은 항목이 나오면 하나로 합치고, 캡처에 없는 내용은 지어내지 마.`;
   const obj=JSON.parse(await gemini(p,true,Math.min(8000,1200+n*900),images));
   return {corrections:Array.isArray(obj.corrections)?obj.corrections:[],weaknesses:Array.isArray(obj.weaknesses)?obj.weaknesses:[]};}
@@ -1129,29 +1134,34 @@ async function onCaptureFiles(files){
   }catch(e){res.innerHTML='';aiErr(e,res);}}
 function renderCaptureResult(corrections,weaknesses){
   const res=document.getElementById('capResult');
-  capWeak=weaknesses.map(w=>({type:w.type,term:(w.term||'').trim(),note:w.note||'',example:w.example||'',category:w.category||'',chosen:!capTermInVocab((w.term||'').trim())}));
+  capCorrections=corrections;capWeakRaw=weaknesses;
+  capWeak=weaknesses.map(w=>{const o={type:w.type,term:(w.term||'').trim(),note:w.note||'',example:(w.example||'').trim(),category:w.category||''};o.chosen=!capIsDup(o);return o;});
   const tagOf=t=>t==='grammar'?'문법':(t==='idiom'?'관용구':'단어');
   const tcls=t=>t==='grammar'?'grammar':(['idiom','slang'].includes(t)?t:'word');
   const corrHtml=corrections.map(c=>`<div class="panel" style="margin:11px 0 0;"><div style="color:var(--ink-soft);font-size:13px;"><s>${esc(c.original||'')}</s></div><div style="font-weight:600;margin-top:6px;">${esc(c.corrected||'')}</div><div style="font-size:11.5px;color:#7a7468;margin-top:6px;line-height:1.5;">${esc(c.explainKo||'')}</div></div>`).join('');
-  const weakHtml=capWeak.length?capWeak.map((w,i)=>{const dup=capTermInVocab(w.term);
+  const weakHtml=capWeak.length?capWeak.map((w,i)=>{const dup=capIsDup(w);
     return `<div class="capw ${w.chosen?'on':''}" data-i="${i}" style="${dup?'opacity:.5;':''}"><span class="capck">${w.chosen?'✓':''}</span><span class="tag ${tcls(w.type)}">${tagOf(w.type)}</span><div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:13px;">${esc(w.term)}</div><div style="font-size:11px;color:var(--ink-faint);">${dup?'이미 있음':esc(w.note)}</div></div></div>`;}).join(''):'<div class="empty">고칠 점이 없네요 👍</div>';
-  res.innerHTML=`${corrHtml}<div style="font-size:12px;font-weight:600;color:var(--ink-soft);margin:13px 0 5px;">내가 부족한 부분 — 담을 항목 선택</div><div id="capWeakList">${weakHtml}</div>${capWeak.some(w=>!capTermInVocab(w.term))?'<button class="secondary" style="width:100%;margin-top:11px;" onclick="saveCaptureChosen()">선택 항목 담기</button>':''}`;
-  res.querySelectorAll('.capw').forEach(el=>el.onclick=()=>{const i=+el.dataset.i;if(capTermInVocab(capWeak[i].term))return;
+  res.innerHTML=`${corrHtml}<div style="font-size:12px;font-weight:600;color:var(--ink-soft);margin:13px 0 5px;">내가 부족한 부분 — 담을 항목 선택</div><div id="capWeakList">${weakHtml}</div>${capWeak.some(w=>!capIsDup(w))?'<button class="secondary" style="width:100%;margin-top:11px;" onclick="saveCaptureChosen()">선택 항목 담기</button>':''}`;
+  res.querySelectorAll('.capw').forEach(el=>el.onclick=()=>{const i=+el.dataset.i;if(capIsDup(capWeak[i]))return;
     capWeak[i].chosen=!capWeak[i].chosen;el.classList.toggle('on',capWeak[i].chosen);el.querySelector('.capck').textContent=capWeak[i].chosen?'✓':'';});}
 async function saveCaptureChosen(){
-  const chosen=capWeak.filter(w=>w.chosen&&!capTermInVocab(w.term));
+  const chosen=capWeak.filter(w=>w.chosen&&!capIsDup(w));
   if(!chosen.length){toast('담을 항목을 선택하세요');return;}
   for(const w of chosen){
     const item={id:uid(),term:w.term,note:w.note||'',
       type:['grammar','word','idiom','slang'].includes(w.type)?w.type:'word',
       source:'capture',sourceLabel:'캡처',context:w.example||'',contextKo:'',
       srs:{box:1,dueAt:Date.now(),history:[]},examples:[],createdAt:Date.now()};
-    if(item.type==='grammar')item.grammarCat=(w.category||'').trim()||'기타';
+    if(item.type==='grammar')item.grammarCat=canonCat(w.category);
     await idbPut('vocab',item);vocab.push(item);logActivity('word',item.id);}
-  document.getElementById('capResult').innerHTML='';capWeak=[];
   toast(chosen.length+'개 담았어요');
-  improveSegTo('all');
-  updateBadges();}
+  updateBadges();renderImproveVocab();
+  // 분석 패널 유지: 담은 항목은 '이미 있음'으로, 나머지는 계속 담을 수 있게 다시 렌더
+  if(capWeakRaw.some(w=>!capIsDup({term:(w.term||'').trim(),example:(w.example||'').trim()}))){
+    renderCaptureResult(capCorrections,capWeakRaw);
+  }else{
+    document.getElementById('capResult').innerHTML='<div class="empty">이 캡처의 항목을 모두 담았어요 ✓</div>';
+    capWeak=[];capWeakRaw=[];capCorrections=[];improveSegTo('all');}}
 function refreshVocabViews(){
   if(document.getElementById('screen-library').classList.contains('active')&&learnSeg==='words')renderLearnVocab();
   if(document.getElementById('screen-improve').classList.contains('active'))renderImproveVocab();}
@@ -1579,7 +1589,7 @@ function openVocabDetail(id,origin){const v=vocab.find(x=>x.id===id);if(!v)retur
   pausePlayer();vdId=id;vdCefr=v.lastCefr||'A2';vdKoSentence='';vdLastFeedback=null;
   document.getElementById('vdTerm').textContent=v.term;
   document.getElementById('vdMeaningInput').value=v.note||'';
-  document.getElementById('vdContext').textContent=v.context?('예문: '+v.context):'';
+  document.getElementById('vdContext').innerHTML=v.context?`<div style="background:var(--teal-soft);border-radius:8px;padding:8px 10px;margin-top:6px;color:var(--teal-deep);font-size:12.5px;line-height:1.55;"><b>${v.source==='capture'?'개선할 점 문장':'예문'}</b><br>${esc(v.context)}</div>`:'';
   renderCefrChips();
   vdSet=[];vdIdx=0;vdCount=1;setVdCount(1);
   document.getElementById('vdDrill').style.display='none';document.getElementById('vdNextBtn').style.display='none';
