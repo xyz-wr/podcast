@@ -1,0 +1,156 @@
+{
+  "title": "매일 영어 일기",
+  "subtitle": "한국어를 보고 영어로 써 본 뒤, 모범 답안과 비교하세요",
+  "diaries": [
+    {
+      "id": "gym-day", "order": 1, "day": "Mon", "titleEn": "Gym day", "topicKo": "헬스장", "emoji": "🏋️", "folderId": "gym-and-workout",
+      "promptKo": "퇴근하고 헬스장에 갔다. 10회씩 3세트를 했고 등을 집중적으로 자극했다. 10분 만에 땀이 났다. 마지막 세트는 친구가 옆에서 받쳐 줬다.",
+      "modelEn": "I hit the gym after work. I did 3 sets of 10 reps and targeted my back. I broke a sweat in ten minutes. My friend spotted me on the last set.",
+      "keys": [
+        {"label": "hit the gym", "keys": ["hit the gym"]},
+        {"label": "do 3 sets of 10 reps", "keys": ["set"]},
+        {"label": "target", "keys": ["target"]},
+        {"label": "break a sweat", "keys": ["sweat"]},
+        {"label": "spot", "keys": ["spot"]}
+      ]
+    },
+    {
+      "id": "grocery-run", "order": 2, "day": "Tue", "titleEn": "Grocery run", "topicKo": "장보기", "emoji": "🛒", "folderId": "grocery-shopping-phrases",
+      "promptKo": "우유랑 달걀이 떨어져서 마트에 갔다. 전부 유통기한을 확인했다. 간식을 많이 사두고 물은 대량으로 샀다. 계산원이 물건을 계산하고 봉지에 담아 줬다.",
+      "modelEn": "We were out of milk and eggs, so I went to the store. I checked the expiration date on everything. I stocked up on snacks and bought water in bulk. The cashier rang up my items and bagged my groceries.",
+      "keys": [
+        {"label": "be out of", "keys": ["out of"]},
+        {"label": "check the expiration date", "keys": ["expiration", "expiry"]},
+        {"label": "stock up on", "keys": ["stock"]},
+        {"label": "in bulk", "keys": ["bulk"]},
+        {"label": "ring up", "keys": ["rang", "ring up"]},
+        {"label": "bag one's groceries", "keys": ["bag"]}
+      ]
+    },
+    {
+      "id": "not-feeling-well", "order": 3, "day": "Wed", "titleEn": "Not feeling well", "topicKo": "병원·약국", "emoji": "🏥", "folderId": "doctor-pharmacy-phrases",
+      "promptKo": "오늘 아침 회사에 아프다고 전화했다. 의사가 독감이라고 진단하고 약국에 처방전을 보냈다. 집에 오는 길에 약을 찾아왔다. 약을 먹었더니 증상이 조금 나아졌다.",
+      "modelEn": "I called in sick to work this morning. The doctor diagnosed me with the flu and called in a prescription. I picked up my prescription on the way home. I took my medicine, and it relieved my symptoms a little.",
+      "keys": [
+        {"label": "call in sick", "keys": ["sick"]},
+        {"label": "diagnose (sb) with", "keys": ["diagnos"]},
+        {"label": "pick up a prescription", "keys": ["prescription"]},
+        {"label": "take one's medicine", "keys": ["medicine", "medication"]},
+        {"label": "relieve one's symptoms", "keys": ["relie", "symptom"]}
+      ]
+    },
+    {
+      "id": "hair-day", "order": 4, "day": "Thu", "titleEn": "Hair day", "topicKo": "미용실", "emoji": "💇", "folderId": "hair-salon-phrases",
+      "promptKo": "2시에 미용실 예약이 있었다. 뿌리가 자라서 뿌리 염색을 손봤다. 길이는 유지하고 끝만 다듬어 달라고 했다. 층도 냈고, 색은 조금 더 어둡게 했다.",
+      "modelEn": "I had a hair appointment at two. My roots had grown out, so I touched up my roots. I asked her to trim the ends but keep the length. She also added layers, and I went a little darker.",
+      "keys": [
+        {"label": "have a hair appointment", "keys": ["appointment"]},
+        {"label": "grow out / roots", "keys": ["root", "grown out", "grow out"]},
+        {"label": "touch up", "keys": ["touch"]},
+        {"label": "trim the ends", "keys": ["trim"]},
+        {"label": "add layers", "keys": ["layer"]},
+        {"label": "go darker", "keys": ["darker", "darken"]}
+      ]
+    },
+    {
+      "id": "movie-night", "order": 5, "day": "Fri", "titleEn": "Movie night", "topicKo": "영화관", "emoji": "🎬", "folderId": "movie-theater-phrases",
+      "promptKo": "동생이랑 영화관에 갔다. 저녁 상영을 봤고 예고편도 챙겨 봤다. 결말이 정말 예상 밖이었다. 엔딩 크레딧까지 끝까지 봤다.",
+      "modelEn": "I went to the movies with my sister. We went to an evening showing and caught the previews. The ending caught me off guard. We watched the credits to the very end.",
+      "keys": [
+        {"label": "go to the movies", "keys": ["movie"]},
+        {"label": "evening showing", "keys": ["showing", "evening show"]},
+        {"label": "catch the previews", "keys": ["preview"]},
+        {"label": "catch (sb) off guard", "keys": ["off guard"]},
+        {"label": "watch the credits", "keys": ["credit"]}
+      ]
+    },
+    {
+      "id": "with-my-dog", "order": 6, "day": "Sat", "titleEn": "With my dog", "topicKo": "반려견", "emoji": "🐕", "folderId": "dog-care-routine",
+      "promptKo": "7시에 강아지를 내보냈더니 바로 볼일을 봤다. 먹이와 물그릇을 채워 줬다. 오후에는 30분 산책을 시켰다. 밤에 갑자기 날뛰어서 진정시키려고 간식을 줬다.",
+      "modelEn": "I let the dog out at seven and he went potty right away. I filled the food and water bowls. In the afternoon I took him for a walk for thirty minutes. At night he got the zoomies, so I gave him treats to calm him down.",
+      "keys": [
+        {"label": "let the dog out", "keys": ["let the dog out", "let him out", "let the dog"]},
+        {"label": "go potty", "keys": ["potty"]},
+        {"label": "fill the food and water bowls", "keys": ["bowl"]},
+        {"label": "take (sb) for a walk", "keys": ["walk"]},
+        {"label": "get the zoomies", "keys": ["zoomies"]},
+        {"label": "give treats", "keys": ["treat"]}
+      ]
+    },
+    {
+      "id": "dinner-out", "order": 7, "day": "Sun", "titleEn": "Dinner out", "topicKo": "식당", "emoji": "🍽️", "folderId": "ordering-at-a-restaurant",
+      "promptKo": "간단히 먹고 싶어서 새로 생긴 곳에 갔다. 예약 없이도 받아 줘서 3명 자리를 잡았다. 서버가 주문을 받았고, 나는 소스를 따로 달라고 했다. 마지막엔 각자 계산했다.",
+      "modelEn": "We wanted to grab a bite to eat, so we tried a new place. They took walk-ins, so we got a table for three. The server took our order, and I got the sauce on the side. We split the check at the end.",
+      "keys": [
+        {"label": "grab a bite to eat", "keys": ["grab a bite", "bite to eat"]},
+        {"label": "take walk-ins", "keys": ["walk-in", "walk in"]},
+        {"label": "table for (three)", "keys": ["table for"]},
+        {"label": "take one's order", "keys": ["order"]},
+        {"label": "on the side", "keys": ["on the side"]},
+        {"label": "split the check", "keys": ["split"]}
+      ]
+    },
+    {
+      "id": "shopping", "order": 8, "day": "Mon", "titleEn": "Shopping", "topicKo": "쇼핑", "emoji": "🛍️", "folderId": "shopping-store-phrases",
+      "promptKo": "파란 코트가 눈에 띄어서 입어 봤다. 너무 커서 사이즈를 작게 했다. 그 색은 내 사이즈가 품절이었다. 결국 흥분해서 스웨터 두 벌을 샀다.",
+      "modelEn": "A blue coat caught my eye, so I tried it on. It was too big, so I sized down. My size was out of stock in that color. I got carried away and bought two sweaters instead.",
+      "keys": [
+        {"label": "catch one's eye", "keys": ["caught my eye", "catch my eye"]},
+        {"label": "try (it) on", "keys": ["tried it on", "try it on", "try on"]},
+        {"label": "size down", "keys": ["sized down", "size down"]},
+        {"label": "out of stock", "keys": ["out of stock"]},
+        {"label": "get carried away", "keys": ["carried away", "carry away"]}
+      ]
+    },
+    {
+      "id": "study-log", "order": 9, "day": "Tue", "titleEn": "Study log", "topicKo": "공부", "emoji": "📚", "folderId": "studying-and-learning",
+      "promptKo": "한 시간 동안 노트를 복습했다. 오늘은 영어로만 필기했다. 문장마다 세 번씩 소리 내어 말했다. 번아웃이 오면 안 되니까 그냥 꾸준히 할 것이다.",
+      "modelEn": "I went over my notes for an hour. I took notes in English only today. I said every sentence out loud three times. I don't want to burn out, so I'll just stay consistent.",
+      "keys": [
+        {"label": "go over", "keys": ["go over", "went over"]},
+        {"label": "take notes", "keys": ["note"]},
+        {"label": "say (sth) out loud", "keys": ["out loud"]},
+        {"label": "burn out", "keys": ["burn out", "burnout", "burned out"]},
+        {"label": "stay consistent", "keys": ["consistent"]}
+      ]
+    },
+    {
+      "id": "reading", "order": 10, "day": "Wed", "titleEn": "Reading", "topicKo": "독서", "emoji": "📖", "folderId": "reading-books",
+      "promptKo": "점심 후 서점을 둘러보며 소설 몇 권을 휙휙 넘겨봤다. 1장은 빠져들기 어려웠는데 그다음부터는 손에서 놓을 수 없었다. 120쪽에 표시를 해 두고 잤다.",
+      "modelEn": "I browsed a bookstore after lunch and flipped through a few novels. The first chapter was hard to get into, but then I couldn't put it down. I marked my spot at page 120 and went to bed.",
+      "keys": [
+        {"label": "browse a bookstore", "keys": ["bookstore", "brows"]},
+        {"label": "flip through", "keys": ["flip"]},
+        {"label": "hard to get into", "keys": ["get into", "hard to get"]},
+        {"label": "can't put it down", "keys": ["put it down"]},
+        {"label": "mark one's spot", "keys": ["marked my spot", "mark my spot", "my spot"]}
+      ]
+    },
+    {
+      "id": "morning-run", "order": 11, "day": "Thu", "titleEn": "Morning run", "topicKo": "달리기", "emoji": "🏃", "folderId": "running-and-marathon",
+      "promptKo": "오늘 아침 5km를 내 페이스로 달렸다. 한 번 멈춰서 숨을 골랐다. 오늘은 몸이 가벼워서 개인 신기록을 세웠다. 러너스 하이가 뭔지 이제 알 것 같다.",
+      "modelEn": "I ran 5km this morning and ran at my own pace. I stopped once to catch my breath. I felt light on my feet today and hit a new PR. I think I finally know what a runner's high is.",
+      "keys": [
+        {"label": "run at one's own pace", "keys": ["own pace"]},
+        {"label": "catch one's breath", "keys": ["breath"]},
+        {"label": "feel light on one's feet", "keys": ["light on my feet", "light on"]},
+        {"label": "hit a new PR", "keys": ["new pr", "personal record", " pr "]},
+        {"label": "runner's high", "keys": ["runner's high", "runners high", "runner"]}
+      ]
+    },
+    {
+      "id": "day-1-osaka", "order": 12, "day": "Fri", "titleEn": "Day 1 in Osaka", "topicKo": "여행 첫날", "emoji": "✈️", "folderId": "at-the-airport",
+      "promptKo": "일찍 짐을 부치고 보안 검색대를 통과했다. 탑승구를 찾아 10시에 비행기에 탔다. 입국 심사를 받았고 신고할 물건은 없었다. 호텔에 체크인하고 더 큰 방으로 업그레이드했다.",
+      "modelEn": "I checked my bags and went through security early. I found my gate and boarded the plane at ten. After I went through immigration, I had nothing to declare. We checked in at the hotel and upgraded to a bigger room.",
+      "keys": [
+        {"label": "check one's bags", "keys": ["check my bag", "checked my bag"]},
+        {"label": "go through security", "keys": ["security"]},
+        {"label": "board the plane", "keys": ["board"]},
+        {"label": "go through immigration", "keys": ["immigration"]},
+        {"label": "have nothing to declare", "keys": ["declare"]},
+        {"label": "check in", "keys": ["check in", "checked in"]},
+        {"label": "upgrade to", "keys": ["upgrade"]}
+      ]
+    }
+  ]
+}
