@@ -939,6 +939,21 @@ return { render:function(){ if(!view)view={name:'list'}; draw(); }, reset:functi
 #screen-wquiz .qz-wbadge{flex:none;font-size:11px;font-weight:700;padding:3px 7px;border-radius:99px;background:var(--qz-rds);color:var(--qz-rd);}
 #screen-wquiz .qz-empty{text-align:center;color:var(--qz-ft);font-size:13.5px;padding:38px 0;}
 #screen-wquiz .qz-footer{margin-top:22px;text-align:center;}
+#screen-wquiz .qz-step{display:flex;align-items:center;gap:6px;margin:14px 2px 10px;font-size:11.5px;color:var(--qz-ft);font-weight:700;}
+#screen-wquiz .qz-step i{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:99px;background:var(--qz-ln);color:var(--qz-ft);font-style:normal;font-size:10.5px;}
+#screen-wquiz .qz-step i.on{background:var(--qz-tl);color:#fff;}
+#screen-wquiz .qz-slot{min-height:78px;display:flex;flex-wrap:wrap;align-content:flex-start;gap:7px;background:var(--qz-cd);border:1px dashed var(--qz-ln2);border-radius:16px;padding:13px;margin-bottom:12px;}
+#screen-wquiz .qz-ph{color:var(--qz-ft);font-size:13px;align-self:center;}
+#screen-wquiz .qz-tiles{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px;}
+#screen-wquiz .qz-tile{background:var(--qz-cd);border:1px solid var(--qz-ln2);border-radius:11px;padding:10px 14px;font-size:15px;font-weight:700;color:var(--qz-ink);box-shadow:0 1px 1px rgba(40,60,50,.05);}
+#screen-wquiz .qz-tile:active{transform:translateY(1px);}
+#screen-wquiz .qz-tile.in{background:var(--qz-tls);border-color:#BFE3D7;color:var(--qz-tld);}
+#screen-wquiz .qz-tile.in.good{background:var(--qz-tls);border-color:var(--qz-tl);}
+#screen-wquiz .qz-tile.in.bad{background:var(--qz-rds);border-color:var(--qz-rd);color:var(--qz-rd);}
+#screen-wquiz .qz-play{display:flex;align-items:center;justify-content:center;gap:12px;margin:4px 0 16px;}
+#screen-wquiz .qz-playbtn{width:60px;height:60px;border-radius:99px;border:none;background:var(--qz-tl);color:#fff;font-size:20px;line-height:1;box-shadow:0 6px 16px rgba(20,128,106,.28);}
+#screen-wquiz .qz-playbtn:active{background:var(--qz-tld);}
+#screen-wquiz .qz-rate{width:42px;height:42px;border-radius:99px;border:1px solid var(--qz-ln2);background:var(--qz-cd);color:var(--qz-sf);font-size:12.5px;font-weight:700;}
 #screen-wquiz .qz-btn[disabled]{opacity:.45;}
 #screen-wquiz .qz-footer button{background:none;border:none;color:var(--qz-ft);font-size:12.5px;text-decoration:underline;}
 </style>
@@ -1028,6 +1043,7 @@ function speak(text, rate){
   if(!('speechSynthesis' in window)) return;
   speechSynthesis.cancel();
   const u=new SpeechSynthesisUtterance(text);
+  if(!enVoice) pickVoice();
   u.lang = enVoice ? enVoice.lang : 'en-US';
   u.rate = rate || 1; u.pitch = 1;
   if(enVoice){ try{ u.voice=enVoice; }catch(e){ enVoice=null; } }
@@ -1211,6 +1227,8 @@ let mode = 'main';          // 'main' | 'review' (복습 세션은 저장하지 
 let rev = null;             // {pool, passed, queue, round, cursor, results}
 let qview = {name:'quiz'};
 let cur = null;             // 채점 직후의 결과 {id, it, g, text, ok, corrected}
+let lis = null;             // 리스닝 순서 맞추기 단계 {words, order, picked, done, ok}
+let lisRate = 1;            // 듣기 속도 배율 (문제 간 유지)
 
 const S = () => (mode === 'review' ? rev : qs);
 const passedSet = () => (mode === 'review' ? rev.passed : qs.completed);
@@ -1266,7 +1284,7 @@ function nextQuestion(){
     if(mode === 'review') rev.passed[cur.id] = 1;
     else { qs.completed[cur.id] = {wrong: qs.wrong[cur.id] || 0}; delete qs.wrong[cur.id]; }
   }
-  cur = null;
+  cur = null; lis = null;
   s.cursor++;
   qview = s.cursor >= s.queue.length ? {name:'summary'} : {name:'quiz'};
   if(mode === 'main') qSave();
@@ -1305,6 +1323,67 @@ function resetAll(){
   draw();
 }
 
+/* ---------- 리스닝 순서 맞추기 ---------- */
+/* TESTABLE-START */
+// 타일에는 문장부호를 떼고 보여준다 (정답 비교도 같은 기준)
+function qzWords(en){
+  return String(en).split(/\s+/)
+    .map(function(w){ return w.replace(/^[^A-Za-z0-9']+/, '').replace(/[^A-Za-z0-9']+$/, ''); })
+    .filter(Boolean);
+}
+/* TESTABLE-END */
+
+function goListen(){
+  const words = qzWords(cur.it.en);
+  lis = {words:words, order:qShuffle(words.map(function(_, i){ return i; })),
+         picked:[], done:false, ok:false};
+  qview = {name:'listen'};
+  draw();
+  sayLine();
+}
+
+function sayLine(){
+  // 모범 답안 ▶ 버튼과 완전히 같은 경로로 재생한다.
+  // 음성 목록은 비동기로 로드돼서, 자동 재생이 목록보다 빠르면
+  // 영어 음성 대신 기기 기본 음성(한국어 등)이 잡힌다. 로드를 기다린다.
+  whenVoicesReady(function(){ speak(cur.it.en, lisRate); });
+}
+
+function whenVoicesReady(cb){
+  if(!('speechSynthesis' in window)) return cb();
+  if(speechSynthesis.getVoices().length){ if(!enVoice) pickVoice(); return cb(); }
+  let fired = false;
+  const go = function(){ if(fired) return; fired = true; pickVoice(); cb(); };
+  speechSynthesis.addEventListener('voiceschanged', go, {once:true});
+  setTimeout(go, 1500);
+}
+
+function pickTile(i){
+  if(lis.done || lis.picked.indexOf(i) >= 0) return;
+  lis.picked.push(i);
+  draw();
+}
+
+function unpickTile(pos){
+  if(lis.done) return;
+  lis.picked.splice(pos, 1);
+  draw();
+}
+
+function checkOrder(){
+  if(lis.done || lis.picked.length !== lis.words.length) return;
+  lis.ok = lis.picked.map(function(i){ return lis.words[i]; }).join(' ') === lis.words.join(' ');
+  lis.done = true;
+  draw();
+}
+
+// 순서를 틀려도 통과 여부는 1단계 영작 채점 결과(cur.ok)로만 결정한다
+function revealOrder(){
+  lis.ok = false;
+  lis.done = true;
+  draw();
+}
+
 /* ---------- 화면 ---------- */
 const TENSE_LABEL = {present:'현재형', past:'과거형', future:'미래형', progressive:'진행형'};
 
@@ -1334,6 +1413,7 @@ function quizHTML(){
     '<div class="qz-meta"><span class="qz-round">' + badge + '</span>' +
       dots(s.cursor, s.queue.length, s.results) +
       '<span class="qz-cnt">' + (s.cursor + 1) + ' / ' + s.queue.length + '</span></div>' +
+    '<div class="qz-step"><i class="on">1</i>영작<i>2</i>답 확인<i>3</i>듣고 순서</div>' +
     '<div class="qz-card">' +
       '<div class="qz-lab">이 문장을 영어로</div>' +
       '<div class="qz-ko">' + esc(it.ko) + '</div>' +
@@ -1354,6 +1434,7 @@ function diffHTML(text, extra){
 function resultHTML(){
   const it = cur.it, g = cur.g, ok = cur.ok;
   return headHTML(mode === 'review' ? '틀렸던 문장 복습' : '채점 결과') +
+    '<div class="qz-step"><i>1</i>영작<i class="on">2</i>답 확인<i>3</i>듣고 순서</div>' +
     '<div class="qz-verdict ' + (ok ? 'ok' : 'no') + '">' +
       '<b>' + (ok ? (cur.corrected ? '✓ 정답 처리했어요' : '✓ 정답이에요') : '✗ 다시 확인해 보세요') + '</b>' +
       (ok ? '' : '<span>일치율 ' + Math.round(g.ratio * 100) + '%' +
@@ -1375,7 +1456,7 @@ function resultHTML(){
     '</div>' +
     '<div class="qz-row">' +
       (ok ? '' : '<button class="qz-btn ghost" id="qzCorrect">사실 맞았어요</button>') +
-      '<button class="qz-btn fill" id="qzNext">다음</button>' +
+      '<button class="qz-btn fill" id="qzListen">듣고 순서 맞추기 &rsaquo;</button>' +
     '</div>';
 }
 
@@ -1430,12 +1511,52 @@ function completedHTML(){
     '<div class="qz-footer"><button id="qzReset">퀴즈 기록 초기화</button></div>';
 }
 
+function listenHTML(){
+  const l = lis, it = cur.it;
+  const slot = l.picked.length
+    ? l.picked.map(function(wi, pos){
+        let cls = 'qz-tile in';
+        if(l.done) cls += (l.words[pos] === l.words[wi] ? ' good' : ' bad');
+        return '<button class="' + cls + '" data-un="' + pos + '">' + esc(l.words[wi]) + '</button>';
+      }).join('')
+    : '<span class="qz-ph">아래 단어를 순서대로 탭하세요</span>';
+  const pool = l.order.filter(function(i){ return l.picked.indexOf(i) < 0; })
+    .map(function(i){ return '<button class="qz-tile" data-pick="' + i + '">' + esc(l.words[i]) + '</button>'; })
+    .join('');
+  const full = l.picked.length === l.words.length;
+
+  return headHTML('잘 듣고 문장을 완성해 보세요') +
+    '<div class="qz-step"><i>1</i>영작<i>2</i>답 확인<i class="on">3</i>듣고 순서</div>' +
+    (l.done
+      ? '<div class="qz-verdict ' + (l.ok ? 'ok' : 'no') + '"><b>' +
+          (l.ok ? '✓ 순서를 맞혔어요' : '✗ 정답 순서는 이렇습니다') + '</b></div>'
+      : '') +
+    '<div class="qz-slot">' + slot + '</div>' +
+    (l.done
+      ? '<div class="qz-card ans">' +
+          '<div class="qz-lab teal">정답 문장</div>' +
+          '<div class="qz-en"><span>' + highlightEn(it.en, it.expression) + '</span>' +
+            '<button class="qz-spk" data-say="' + esc(it.en) + '" aria-label="발음 듣기">&#9654;</button></div>' +
+          '<div class="qz-ko2">' + esc(it.ko) + '</div>' +
+        '</div>'
+      : '<div class="qz-tiles">' + pool + '</div>') +
+    '<div class="qz-play">' +
+      '<button class="qz-playbtn" id="qzPlay" aria-label="다시 듣기">&#9654;</button>' +
+      '<button class="qz-rate" id="qzRate">' + lisRate + 'x</button>' +
+    '</div>' +
+    (l.done
+      ? '<button class="qz-btn fill" id="qzNext">다음 문장 &rsaquo;</button>'
+      : '<button class="qz-btn fill" id="qzCheck"' + (full ? '' : ' disabled') + '>확인</button>' +
+        '<button class="qz-btn ghost" id="qzGiveup">모르겠어요 · 정답 보기</button>');
+}
+
 function draw(){
   const root = document.getElementById('qzRoot');
   if(!root) return;
   if(qview.name === 'quiz'){ ensureRound(); if(!S().queue.length) qview = {name:'done'}; }
   if(qview.name === 'quiz') root.innerHTML = quizHTML();
   else if(qview.name === 'result') root.innerHTML = resultHTML();
+  else if(qview.name === 'listen') root.innerHTML = listenHTML();
   else if(qview.name === 'summary') root.innerHTML = summaryHTML();
   else if(qview.name === 'done') root.innerHTML = doneHTML();
   else root.innerHTML = completedHTML();
@@ -1462,6 +1583,21 @@ function bindQuiz(){
     ta.onkeydown = function(e){ if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submitAnswer(ta.value); };
   }
   const nx = root.querySelector('#qzNext'); if(nx) nx.onclick = nextQuestion;
+  const ls = root.querySelector('#qzListen'); if(ls) ls.onclick = goListen;
+  const ck = root.querySelector('#qzCheck'); if(ck && !ck.disabled) ck.onclick = checkOrder;
+  const gu = root.querySelector('#qzGiveup'); if(gu) gu.onclick = revealOrder;
+  const pl = root.querySelector('#qzPlay'); if(pl) pl.onclick = sayLine;
+  const rt = root.querySelector('#qzRate');
+  if(rt) rt.onclick = function(){
+    lisRate = lisRate === 1 ? 0.75 : (lisRate === 0.75 ? 0.5 : 1);
+    draw(); sayLine();
+  };
+  root.querySelectorAll('[data-pick]').forEach(function(b){
+    b.onclick = function(){ pickTile(+b.dataset.pick); };
+  });
+  root.querySelectorAll('[data-un]').forEach(function(b){
+    b.onclick = function(){ unpickTile(+b.dataset.un); };
+  });
   const co = root.querySelector('#qzCorrect'); if(co) co.onclick = correctMe;
   const nr = root.querySelector('#qzNextRound'); if(nr) nr.onclick = nextRound;
   const rv = root.querySelector('#qzReview'); if(rv) rv.onclick = startReview;

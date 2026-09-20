@@ -10,11 +10,11 @@ export function loadCore(){
   const re = /\/\* TESTABLE-START \*\/([\s\S]*?)\/\* TESTABLE-END \*\//g;
   let src = '', m, blocks = 0;
   while((m = re.exec(html))){ src += m[1] + '\n'; blocks++; }
-  if(blocks < 3) throw new Error(`index.html에서 TESTABLE 블록을 ${blocks}개만 찾았습니다 (3개 이상 필요)`);
+  if(blocks < 4) throw new Error(`index.html에서 TESTABLE 블록을 ${blocks}개만 찾았습니다 (4개 이상 필요)`);
   const exported = [
     'STOP','exprWords','variants',
     'qNorm','qTokens','qContent','qRatio','qHasExpression','qMissing','qExtra','qGrade',
-    'QTENSES','qBuildPool','qLookup','qRefill','qShuffle','voiceScore','rankVoices'
+    'QTENSES','qBuildPool','qLookup','qRefill','qShuffle','qzWords','voiceScore','rankVoices'
   ];
   return new Function(src + '\nreturn {' + exported.join(',') + '};')();
 }
