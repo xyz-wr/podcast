@@ -2222,7 +2222,9 @@ function clearBookmark(){if(!currentVideo||!currentVideo.bookmark)return;delete 
 
 /* ============ navigation ============ */
 function showScreen(name){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById('screen-'+name).classList.add('active');window.scrollTo(0,0);}
-function tabTo(s){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.s===s));clearSelection();
+const TAB_LS='elab_tab';
+function tabTo(s){try{localStorage.setItem(TAB_LS,s);}catch(e){}
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.s===s));clearSelection();
   pausePlayer();
   if(s==='learn'){showScreen('library');learnSeg==='words'?renderLearnVocab():renderLibrary();}
   else if(s==='conv'){showScreen('conv');ConvApp.render();}
@@ -3247,7 +3249,13 @@ function renderStreak(){const el=document.getElementById('streakBody');
   await loadAll();
   await autoSync(true);
   const capIn=document.getElementById('capInput');
-  if(capIn)capIn.onchange=e=>{onCaptureFiles(e.target.files);e.target.value='';};})();   // 앱 열 때 자동: 받아오기 + 내 데이터 올리기 (버튼 불필요)
+  if(capIn)capIn.onchange=e=>{onCaptureFiles(e.target.files);e.target.value='';};})();
+(function restoreTab(){
+  var t='wquiz';
+  try{var v=localStorage.getItem('elab_tab');if(v)t=v;}catch(e){}
+  if(!document.querySelector('#tabbar .tab[data-s="'+t+'"]'))t='wquiz';
+  tabTo(t);
+})();   // 앱 열 때 자동: 받아오기 + 내 데이터 올리기 (버튼 불필요)
 document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('show');}));
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveResume();});
 window.addEventListener('pagehide',()=>{saveResume();});
