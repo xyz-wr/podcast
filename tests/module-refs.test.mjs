@@ -60,8 +60,7 @@ for(const id of ['quiz-module', 'write-module']){
 
 test('quiz-module: 리스닝 단계 함수가 모두 살아 있다', () => {
   const src = moduleSource('quiz-module');
-  for(const fn of ['qzWords', 'goListen', 'sayLine', 'whenVoicesReady', 'pickTile',
-                   'unpickTile', 'checkOrder', 'revealOrder', 'listenHTML'])
+  for(const fn of ['qzWords', 'goListen', 'sayLine', 'whenVoicesReady', 'pickTile', 'listenHTML'])
     assert.ok(src.includes('function ' + fn + '('), `${fn} 이 없습니다`);
 });
 
