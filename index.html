@@ -773,10 +773,9 @@ function bindCard(){
     rootId:'cvQuizRoot', folderId:f.id, cardIndex:cview.idx,
     title:c.expression, sub:c.meaningKo,
     onExit:function(okN,total){
-      // 기록은 회화 탭에서만 남긴다 (퀴즈 탭 진도와 분리)
-      if(!isDone(f.id,cview.idx)) toggleDone(f.id,cview.idx);
+      // 완료 체크는 목록에서 직접 누르도록 둔다 (자동으로 표시하지 않음)
       nav({name:'folder',fid:f.id});
-      toast(total+'문장 중 '+okN+'문장 정답 · 완료로 표시했어요');
+      toast(total+'문장 중 '+okN+'문장 정답');
     }
   });
 }
