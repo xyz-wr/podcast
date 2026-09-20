@@ -155,3 +155,52 @@ test('qShuffle: 원본을 바꾸지 않고 같은 원소를 돌려준다', () =>
   assert.deepEqual(src, ['a', 'b', 'c', 'd', 'e']);
   assert.deepEqual([...out].sort(), [...src].sort());
 });
+
+test('qzWords: 문장부호를 떼고 단어만 남긴다', () => {
+  assert.deepEqual(C.qzWords("We'll hit the road soon, okay?"),
+    ["We'll", 'hit', 'the', 'road', 'soon', 'okay']);
+});
+
+test('qzWords: 단어 안의 아포스트로피는 유지한다', () => {
+  assert.deepEqual(C.qzWords("It's a runner's high."), ["It's", 'a', "runner's", 'high']);
+});
+
+test('qzWords: 모든 B1 문장에서 빈 타일이 생기지 않는다', () => {
+  const core = C, pool = core.qBuildPool(FOLDERS);
+  for(const id of pool){
+    const en = core.qLookup(FOLDERS, id).en;
+    const ws = core.qzWords(en);
+    assert.ok(ws.length >= 2, `타일 부족: ${en}`);
+    assert.ok(ws.every(w => w.trim()), `빈 타일: ${en}`);
+  }
+});
+
+const V = (name, lang, local = true) => ({name, lang, localService: local});
+
+test('rankVoices: 영어 음성만 남긴다', () => {
+  const out = C.rankVoices([V('Microsoft Heami', 'ko-KR'), V('Google US English', 'en-US', false)]);
+  assert.deepEqual(out.map(v => v.name), ['Google US English']);
+});
+
+test('rankVoices: 신경망 음성을 구형 SAPI 음성보다 앞에 둔다', () => {
+  const out = C.rankVoices([
+    V('Microsoft David - English (United States)', 'en-US'),
+    V('Microsoft Aria Online (Natural) - English (United States)', 'en-US', false),
+    V('Microsoft Zira - English (United States)', 'en-US')
+  ]);
+  assert.match(out[0].name, /Aria/);
+});
+
+test('rankVoices: compact 음성을 가장 뒤로 보낸다', () => {
+  const out = C.rankVoices([V('Samantha (Compact)', 'en-US'), V('Samantha', 'en-US')]);
+  assert.deepEqual(out.map(v => v.name), ['Samantha', 'Samantha (Compact)']);
+});
+
+test('rankVoices: 안드로이드 기본 조합에서 Google 음성을 고른다', () => {
+  const out = C.rankVoices([V('English United Kingdom', 'en-GB'), V('Google US English', 'en-US', false)]);
+  assert.equal(out[0].name, 'Google US English');
+});
+
+test('voiceScore: en-US 를 다른 영어권보다 높게 본다', () => {
+  assert.ok(C.voiceScore(V('Daniel', 'en-US')) > C.voiceScore(V('Daniel', 'en-GB')));
+});

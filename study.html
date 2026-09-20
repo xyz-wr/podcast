@@ -246,18 +246,61 @@ function highlightEn(en, expr){
 }
 
 let enVoice=null;
+const VOICE_LS='elab_voice';
+
+/* TESTABLE-START */
+// 기기마다 음성 품질 편차가 크다. 신경망(Natural/Neural/Online) 음성을 최우선으로,
+// 구형 저품질 음성(compact, eSpeak, 구 SAPI)을 뒤로 보낸다.
+function voiceScore(v){
+  const n=(v.name||'').toLowerCase(), lang=(v.lang||'').replace('_','-').toLowerCase();
+  let s=0;
+  if(/natural|neural/.test(n)) s+=100;
+  if(/online/.test(n)) s+=60;
+  if(/google/.test(n)) s+=55;
+  if(/siri/.test(n)) s+=50;
+  if(/premium|enhanced/.test(n)) s+=45;
+  if(/samantha|ava|allison|serena|zoe|evan|nathan|joelle/.test(n)) s+=35;
+  if(/compact|eloquence|espeak|pico/.test(n)) s-=60;
+  if(/\b(david|zira|mark|hazel)\b/.test(n)) s-=25;
+  if(v.localService===false) s+=8;
+  if(/^en-us/.test(lang)) s+=12;
+  else if(/^en-(gb|au|ca|ie|nz)/.test(lang)) s+=6;
+  return s;
+}
+function rankVoices(voices){
+  return voices.filter(v=>/^en/i.test(v.lang||''))
+    .map(function(v,i){ return {v:v, s:voiceScore(v), i:i}; })
+    .sort(function(a,b){ return b.s-a.s || a.i-b.i; })
+    .map(function(x){ return x.v; });
+}
+/* TESTABLE-END */
+
+function enVoiceList(){
+  return ('speechSynthesis' in window) ? rankVoices(speechSynthesis.getVoices()) : [];
+}
 function pickVoice(){
-  const vs = speechSynthesis.getVoices();
-  enVoice = vs.find(v=>/en[-_]US/i.test(v.lang)) || vs.find(v=>/^en/i.test(v.lang)) || null;
+  const ranked = enVoiceList();
+  if(!ranked.length){ enVoice=null; return; }
+  let saved=null; try{ saved=localStorage.getItem(VOICE_LS); }catch(e){}
+  enVoice = (saved && ranked.find(v=>v.name===saved)) || ranked[0];
+}
+function setEnVoice(name){
+  const v = enVoiceList().find(x=>x.name===name);
+  if(!v) return;
+  enVoice = v;
+  try{ localStorage.setItem(VOICE_LS, name); }catch(e){}
 }
 if('speechSynthesis' in window){ pickVoice(); speechSynthesis.onvoiceschanged=pickVoice; }
-function speak(text){
+function speak(text, rate){
   if(!('speechSynthesis' in window)) return;
   speechSynthesis.cancel();
   const u=new SpeechSynthesisUtterance(text);
-  u.lang='en-US'; u.rate=.92; if(enVoice) u.voice=enVoice;
+  u.lang = enVoice ? enVoice.lang : 'en-US';
+  u.rate = rate || 1; u.pitch = 1;
+  if(enVoice) u.voice=enVoice;
   speechSynthesis.speak(u);
 }
+window.enVoiceList=enVoiceList; window.setEnVoice=setEnVoice;
 
 function ring(pct, size, sw, color){
   const r=(size-sw)/2, c=2*Math.PI*r, off=c*(1-pct/100);
@@ -509,7 +552,9 @@ function bindCard(){
     const f=fById(view.fid), c=f.cards[view.idx];
     const lines=[c.example.en]; LEVELS.forEach(lv=>TENSES.forEach(tn=>lines.push(c.practice[lv][tn].en)));
     let i=0; speechSynthesis.cancel();
-    (function next(){ if(i>=lines.length) return; const u=new SpeechSynthesisUtterance(lines[i]); u.lang='en-US'; u.rate=.92; if(enVoice)u.voice=enVoice; u.onend=()=>{i++;next();}; speechSynthesis.speak(u); })();
+    (function next(){ if(i>=lines.length) return; const u=new SpeechSynthesisUtterance(lines[i]);
+      u.lang=enVoice?enVoice.lang:'en-US'; u.rate=1; u.pitch=1; if(enVoice)u.voice=enVoice;
+      u.onend=()=>{i++;next();}; speechSynthesis.speak(u); })();
   };
   document.querySelectorAll('[data-nav]').forEach(b=>{ if(!b.disabled) b.onclick=()=>pushView({name:'card',fid:view.fid,idx:+b.dataset.nav, from:view.from}); });
 }
@@ -692,6 +737,25 @@ return{render:render};
 #scr-quiz .qz-wbadge{flex:none;font-size:11px;font-weight:700;padding:3px 7px;border-radius:99px;background:var(--qz-rds);color:var(--qz-rd);}
 #scr-quiz .qz-empty{text-align:center;color:var(--qz-ft);font-size:13.5px;padding:38px 0;}
 #scr-quiz .qz-footer{margin-top:22px;text-align:center;}
+#scr-quiz .qz-step{display:flex;align-items:center;gap:6px;margin:14px 2px 10px;font-size:11.5px;color:var(--qz-ft);font-weight:700;}
+#scr-quiz .qz-step i{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:99px;background:var(--qz-ln);color:var(--qz-ft);font-style:normal;font-size:10.5px;}
+#scr-quiz .qz-step i.on{background:var(--qz-tl);color:#fff;}
+#scr-quiz .qz-slot{min-height:78px;display:flex;flex-wrap:wrap;align-content:flex-start;gap:7px;background:var(--qz-cd);border:1px dashed var(--qz-ln2);border-radius:16px;padding:13px;margin-bottom:12px;}
+#scr-quiz .qz-ph{color:var(--qz-ft);font-size:13px;align-self:center;}
+#scr-quiz .qz-tiles{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px;}
+#scr-quiz .qz-tile{background:var(--qz-cd);border:1px solid var(--qz-ln2);border-radius:11px;padding:10px 14px;font-size:15px;font-weight:700;color:var(--qz-ink);box-shadow:0 1px 1px rgba(40,60,50,.05);}
+#scr-quiz .qz-tile:active{transform:translateY(1px);}
+#scr-quiz .qz-tile.in{background:var(--qz-tls);border-color:#BFE3D7;color:var(--qz-tld);}
+#scr-quiz .qz-tile.in.good{background:var(--qz-tls);border-color:var(--qz-tl);}
+#scr-quiz .qz-tile.in.bad{background:var(--qz-rds);border-color:var(--qz-rd);color:var(--qz-rd);}
+#scr-quiz .qz-play{display:flex;align-items:center;justify-content:center;gap:12px;margin:4px 0 16px;}
+#scr-quiz .qz-playbtn{width:60px;height:60px;border-radius:99px;border:none;background:var(--qz-tl);color:#fff;font-size:20px;line-height:1;box-shadow:0 6px 16px rgba(20,128,106,.28);}
+#scr-quiz .qz-playbtn:active{background:var(--qz-tld);}
+#scr-quiz .qz-rate{width:42px;height:42px;border-radius:99px;border:1px solid var(--qz-ln2);background:var(--qz-cd);color:var(--qz-sf);font-size:12.5px;font-weight:700;}
+#scr-quiz .qz-btn[disabled]{opacity:.45;}
+#scr-quiz .qz-voice{display:flex;align-items:center;gap:8px;margin:0 0 14px;}
+#scr-quiz .qz-voice label{flex:none;font-size:11.5px;font-weight:700;color:var(--qz-ft);}
+#scr-quiz .qz-voice select{flex:1;min-width:0;font-family:inherit;font-size:12.5px;color:var(--qz-sf);background:var(--qz-cd);border:1px solid var(--qz-ln2);border-radius:10px;padding:7px 9px;}
 #scr-quiz .qz-footer button{background:none;border:none;color:var(--qz-ft);font-size:12.5px;text-decoration:underline;}
 </style>
 
@@ -845,6 +909,8 @@ let mode = 'main';          // 'main' | 'review' (복습 세션은 저장하지 
 let rev = null;             // {pool, passed, queue, round, cursor, results}
 let qview = {name:'quiz'};
 let cur = null;             // 채점 직후의 결과 {id, it, g, text, ok, corrected}
+let lis = null;             // 리스닝 순서 맞추기 단계 {words, order, picked, done, ok}
+let lisRate = 1;            // 듣기 속도 배율 (문제 간 유지)
 
 const S = () => (mode === 'review' ? rev : qs);
 const passedSet = () => (mode === 'review' ? rev.passed : qs.completed);
@@ -900,7 +966,7 @@ function nextQuestion(){
     if(mode === 'review') rev.passed[cur.id] = 1;
     else { qs.completed[cur.id] = {wrong: qs.wrong[cur.id] || 0}; delete qs.wrong[cur.id]; }
   }
-  cur = null;
+  cur = null; lis = null;
   s.cursor++;
   qview = s.cursor >= s.queue.length ? {name:'summary'} : {name:'quiz'};
   if(mode === 'main') qSave();
@@ -939,6 +1005,53 @@ function resetAll(){
   draw();
 }
 
+/* ---------- 리스닝 순서 맞추기 ---------- */
+/* TESTABLE-START */
+// 타일에는 문장부호를 떼고 보여준다 (정답 비교도 같은 기준)
+function qzWords(en){
+  return String(en).split(/\s+/)
+    .map(function(w){ return w.replace(/^[^A-Za-z0-9']+/, '').replace(/[^A-Za-z0-9']+$/, ''); })
+    .filter(Boolean);
+}
+/* TESTABLE-END */
+
+function goListen(){
+  const words = qzWords(cur.it.en);
+  lis = {words:words, order:qShuffle(words.map(function(_, i){ return i; })),
+         picked:[], done:false, ok:false};
+  qview = {name:'listen'};
+  draw();
+  sayLine();
+}
+
+function sayLine(){ speak(cur.it.en, lisRate); }
+
+function pickTile(i){
+  if(lis.done || lis.picked.indexOf(i) >= 0) return;
+  lis.picked.push(i);
+  draw();
+}
+
+function unpickTile(pos){
+  if(lis.done) return;
+  lis.picked.splice(pos, 1);
+  draw();
+}
+
+function checkOrder(){
+  if(lis.done || lis.picked.length !== lis.words.length) return;
+  lis.ok = lis.picked.map(function(i){ return lis.words[i]; }).join(' ') === lis.words.join(' ');
+  lis.done = true;
+  draw();
+}
+
+// 순서를 틀려도 통과 여부는 1단계 영작 채점 결과(cur.ok)로만 결정한다
+function revealOrder(){
+  lis.ok = false;
+  lis.done = true;
+  draw();
+}
+
 /* ---------- 화면 ---------- */
 const TENSE_LABEL = {present:'현재형', past:'과거형', future:'미래형', progressive:'진행형'};
 
@@ -968,6 +1081,7 @@ function quizHTML(){
     '<div class="qz-meta"><span class="qz-round">' + badge + '</span>' +
       dots(s.cursor, s.queue.length, s.results) +
       '<span class="qz-cnt">' + (s.cursor + 1) + ' / ' + s.queue.length + '</span></div>' +
+    '<div class="qz-step"><i class="on">1</i>영작<i>2</i>답 확인<i>3</i>듣고 순서</div>' +
     '<div class="qz-card">' +
       '<div class="qz-lab">이 문장을 영어로</div>' +
       '<div class="qz-ko">' + esc(it.ko) + '</div>' +
@@ -988,6 +1102,7 @@ function diffHTML(text, extra){
 function resultHTML(){
   const it = cur.it, g = cur.g, ok = cur.ok;
   return headHTML(mode === 'review' ? '틀렸던 문장 복습' : '채점 결과') +
+    '<div class="qz-step"><i>1</i>영작<i class="on">2</i>답 확인<i>3</i>듣고 순서</div>' +
     '<div class="qz-verdict ' + (ok ? 'ok' : 'no') + '">' +
       '<b>' + (ok ? (cur.corrected ? '✓ 정답 처리했어요' : '✓ 정답이에요') : '✗ 다시 확인해 보세요') + '</b>' +
       (ok ? '' : '<span>일치율 ' + Math.round(g.ratio * 100) + '%' +
@@ -1009,7 +1124,7 @@ function resultHTML(){
     '</div>' +
     '<div class="qz-row">' +
       (ok ? '' : '<button class="qz-btn ghost" id="qzCorrect">사실 맞았어요</button>') +
-      '<button class="qz-btn fill" id="qzNext">다음</button>' +
+      '<button class="qz-btn fill" id="qzListen">듣고 순서 맞추기 &rsaquo;</button>' +
     '</div>';
 }
 
@@ -1064,12 +1179,65 @@ function completedHTML(){
     '<div class="qz-footer"><button id="qzReset">퀴즈 기록 초기화</button></div>';
 }
 
+function listenHTML(){
+  const l = lis, it = cur.it;
+  const slot = l.picked.length
+    ? l.picked.map(function(wi, pos){
+        let cls = 'qz-tile in';
+        if(l.done) cls += (l.words[pos] === l.words[wi] ? ' good' : ' bad');
+        return '<button class="' + cls + '" data-un="' + pos + '">' + esc(l.words[wi]) + '</button>';
+      }).join('')
+    : '<span class="qz-ph">아래 단어를 순서대로 탭하세요</span>';
+  const pool = l.order.filter(function(i){ return l.picked.indexOf(i) < 0; })
+    .map(function(i){ return '<button class="qz-tile" data-pick="' + i + '">' + esc(l.words[i]) + '</button>'; })
+    .join('');
+  const full = l.picked.length === l.words.length;
+
+  return headHTML('잘 듣고 문장을 완성해 보세요') +
+    '<div class="qz-step"><i>1</i>영작<i>2</i>답 확인<i class="on">3</i>듣고 순서</div>' +
+    (l.done
+      ? '<div class="qz-verdict ' + (l.ok ? 'ok' : 'no') + '"><b>' +
+          (l.ok ? '✓ 순서를 맞혔어요' : '✗ 정답 순서는 이렇습니다') + '</b></div>'
+      : '') +
+    '<div class="qz-slot">' + slot + '</div>' +
+    (l.done
+      ? '<div class="qz-card ans">' +
+          '<div class="qz-lab teal">정답 문장</div>' +
+          '<div class="qz-en"><span>' + highlightEn(it.en, it.expression) + '</span>' +
+            '<button class="qz-spk" data-say="' + esc(it.en) + '" aria-label="발음 듣기">&#9654;</button></div>' +
+          '<div class="qz-ko2">' + esc(it.ko) + '</div>' +
+        '</div>'
+      : '<div class="qz-tiles">' + pool + '</div>') +
+    '<div class="qz-play">' +
+      '<button class="qz-playbtn" id="qzPlay" aria-label="다시 듣기">&#9654;</button>' +
+      '<button class="qz-rate" id="qzRate">' + lisRate + 'x</button>' +
+    '</div>' +
+    voicePickerHTML() +
+    (l.done
+      ? '<button class="qz-btn fill" id="qzNext">다음 문장 &rsaquo;</button>'
+      : '<button class="qz-btn fill" id="qzCheck"' + (full ? '' : ' disabled') + '>확인</button>' +
+        '<button class="qz-btn ghost" id="qzGiveup">모르겠어요 · 정답 보기</button>');
+}
+
+// 기기마다 쓸 수 있는 음성이 달라서 직접 고를 수 있게 한다 (품질 좋은 순으로 정렬)
+function voicePickerHTML(){
+  const list = window.enVoiceList ? window.enVoiceList() : [];
+  if(list.length < 2) return '';
+  const cur = (typeof enVoice !== 'undefined' && enVoice) ? enVoice.name : '';
+  return '<div class="qz-voice"><label for="qzVoice">목소리</label>' +
+    '<select id="qzVoice">' + list.map(function(v){
+      return '<option value="' + esc(v.name) + '"' + (v.name === cur ? ' selected' : '') + '>' +
+        esc(v.name) + ' · ' + esc(v.lang) + '</option>';
+    }).join('') + '</select></div>';
+}
+
 function draw(){
   const root = document.getElementById('qzRoot');
   if(!root) return;
   if(qview.name === 'quiz'){ ensureRound(); if(!S().queue.length) qview = {name:'done'}; }
   if(qview.name === 'quiz') root.innerHTML = quizHTML();
   else if(qview.name === 'result') root.innerHTML = resultHTML();
+  else if(qview.name === 'listen') root.innerHTML = listenHTML();
   else if(qview.name === 'summary') root.innerHTML = summaryHTML();
   else if(qview.name === 'done') root.innerHTML = doneHTML();
   else root.innerHTML = completedHTML();
@@ -1096,6 +1264,23 @@ function bindQuiz(){
     ta.onkeydown = function(e){ if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submitAnswer(ta.value); };
   }
   const nx = root.querySelector('#qzNext'); if(nx) nx.onclick = nextQuestion;
+  const ls = root.querySelector('#qzListen'); if(ls) ls.onclick = goListen;
+  const ck = root.querySelector('#qzCheck'); if(ck && !ck.disabled) ck.onclick = checkOrder;
+  const gu = root.querySelector('#qzGiveup'); if(gu) gu.onclick = revealOrder;
+  const pl = root.querySelector('#qzPlay'); if(pl) pl.onclick = sayLine;
+  const vc = root.querySelector('#qzVoice');
+  if(vc) vc.onchange = function(){ window.setEnVoice(vc.value); sayLine(); };
+  const rt = root.querySelector('#qzRate');
+  if(rt) rt.onclick = function(){
+    lisRate = lisRate === 1 ? 0.75 : (lisRate === 0.75 ? 0.5 : 1);
+    draw(); sayLine();
+  };
+  root.querySelectorAll('[data-pick]').forEach(function(b){
+    b.onclick = function(){ pickTile(+b.dataset.pick); };
+  });
+  root.querySelectorAll('[data-un]').forEach(function(b){
+    b.onclick = function(){ unpickTile(+b.dataset.un); };
+  });
   const co = root.querySelector('#qzCorrect'); if(co) co.onclick = correctMe;
   const nr = root.querySelector('#qzNextRound'); if(nr) nr.onclick = nextRound;
   const rv = root.querySelector('#qzReview'); if(rv) rv.onclick = startReview;
