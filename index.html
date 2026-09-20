@@ -418,7 +418,7 @@
   --cv-blue:#355EB6; --cv-blue-soft:#EAF0FB; --cv-pink:#B7396A; --cv-pink-soft:#FBE9F0;
   --cv-shadow:0 1px 2px rgba(0,40,89,.04),0 8px 22px rgba(0,40,89,.06);
 }
-#screen-conv .conv{padding:0 0 10px;}
+#screen-conv .conv{padding:0 14px 10px;}
 #screen-conv .cv-head{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;padding:12px 2px;margin-bottom:6px;background:var(--paper);}
 #screen-conv .cv-back{flex:none;width:36px;height:36px;border-radius:10px;border:1px solid var(--cv-line2);background:var(--cv-card);color:var(--cv-soft);font-size:18px;}
 #screen-conv .cv-htitle{flex:1;min-width:0;font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -449,18 +449,25 @@
 
 #screen-conv .sectlabel{font-size:12px;font-weight:700;color:var(--cv-faint);letter-spacing:.04em;text-transform:uppercase;margin:18px 2px 10px;}
 
-#screen-conv .fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:11px;}
-#screen-conv .fcard{position:relative;background:var(--cv-card);border:1px solid var(--cv-line);border-radius:15px;padding:13px;box-shadow:var(--cv-shadow);display:flex;flex-direction:column;gap:8px;min-height:114px;cursor:pointer;}
-#screen-conv .fcard.done{border-color:var(--cv-teal);}
-#screen-conv .fcard .ficon{width:33px;height:33px;border-radius:10px;background:var(--cv-amber-soft);color:var(--cv-amber-deep);display:flex;align-items:center;justify-content:center;font-size:16px;font-style:normal;}
-#screen-conv .fcard.done .ficon{background:var(--cv-teal-soft);color:var(--cv-teal-deep);}
-#screen-conv .fcard .ftitle{font-weight:700;font-size:14px;line-height:1.3;color:var(--cv-ink);}
-#screen-conv .fcard .fmeta{font-size:11px;color:var(--cv-faint);margin-top:-2px;}
-#screen-conv .fcard .fbar{height:6px;background:var(--cv-line);border-radius:6px;overflow:hidden;margin-top:auto;}
-#screen-conv .fcard .fbar > i{display:block;height:100%;background:var(--cv-teal);border-radius:6px;}
-#screen-conv .fcard .fprog{font-size:11px;color:var(--cv-soft);font-weight:500;display:flex;justify-content:space-between;}
-#screen-conv .fcard .fdonebadge{position:absolute;top:10px;right:10px;color:var(--cv-teal);font-size:17px;font-style:normal;display:none;}
-#screen-conv .fcard.done .fdonebadge{display:block;}
+#screen-conv .fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px 12px;}
+#screen-conv .cv-sec{margin-top:24px;}
+#screen-conv .cv-sechead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 2px 12px;}
+#screen-conv .cv-sechead b{display:flex;align-items:center;gap:7px;font-size:17px;font-weight:800;color:var(--cv-ink);}
+#screen-conv .cv-sechead .ce{font-size:17px;}
+#screen-conv .cv-more{background:none;border:none;padding:0;color:var(--cv-teal);font-size:13.5px;font-weight:700;}
+#screen-conv .cv-row{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x proximity;margin:0 -14px;padding:2px 14px 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+#screen-conv .cv-row::-webkit-scrollbar{display:none;}
+#screen-conv .cv-row .ftile{flex:0 0 150px;scroll-snap-align:start;}
+#screen-conv .ftile{display:flex;flex-direction:column;align-items:stretch;background:none;border:none;padding:0;text-align:left;cursor:pointer;}
+#screen-conv .ftile .fimg{position:relative;display:flex;align-items:center;justify-content:center;aspect-ratio:1/1;border-radius:18px;overflow:hidden;box-shadow:0 1px 2px rgba(0,40,89,.05),0 6px 16px rgba(0,40,89,.07);transition:transform .08s;}
+#screen-conv .ftile .fe{font-size:46px;line-height:1;filter:drop-shadow(0 3px 6px rgba(0,40,89,.16));}
+#screen-conv .ftile .fdone{position:absolute;top:9px;right:9px;width:24px;height:24px;border-radius:99px;background:var(--cv-teal);color:#fff;font-size:13px;display:flex;align-items:center;justify-content:center;}
+#screen-conv .ftile .ftitle{margin-top:9px;font-size:14px;font-weight:700;line-height:1.35;color:var(--cv-ink);word-break:keep-all;}
+#screen-conv .ftile .fbar{display:block;height:4px;background:var(--cv-line);border-radius:4px;overflow:hidden;margin-top:7px;}
+#screen-conv .ftile .fbar > i{display:block;height:100%;background:var(--cv-teal);border-radius:4px;}
+#screen-conv .ftile .fprog{font-size:11.5px;color:var(--cv-faint);font-weight:600;margin-top:4px;}
+#screen-conv .ftile.done .fprog{color:var(--cv-teal-deep);}
+#screen-conv .ftile:active .fimg{transform:scale(.97);}
 
 #screen-conv .fhead{background:var(--cv-card);border:1px solid var(--cv-line);border-radius:16px;padding:15px 16px;box-shadow:var(--cv-shadow);margin:6px 0;}
 #screen-conv .fhead h2{font-size:19px;font-weight:600;margin:0 0 3px;color:var(--cv-ink);}
@@ -586,6 +593,56 @@ function speak(t){if(!('speechSynthesis' in window))return;speechSynthesis.cance
 
 function ring(pct,size,sw,color){var r=(size-sw)/2,c=2*Math.PI*r,off=c*(1-pct/100);return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'"><circle cx="'+size/2+'" cy="'+size/2+'" r="'+r+'" fill="none" stroke="var(--cv-line)" stroke-width="'+sw+'"/><circle cx="'+size/2+'" cy="'+size/2+'" r="'+r+'" fill="none" stroke="'+color+'" stroke-width="'+sw+'" stroke-linecap="round" stroke-dasharray="'+c.toFixed(1)+'" stroke-dashoffset="'+off.toFixed(1)+'" transform="rotate(-90 '+size/2+' '+size/2+')"/><text x="50%" y="52%" text-anchor="middle" dominant-baseline="middle" class="ringtxt" style="font-size:'+(size*0.27).toFixed(0)+'px">'+Math.round(pct)+'%</text></svg>';}
 
+
+/* 46개 주제를 11개 카테고리로 묶는다. 카드 이미지가 없으므로
+   카테고리별 그라데이션 + 주제별 이모지로 대신한다. */
+var FEMOJI={
+ 'driving-on-the-road':'🚗','gym-and-workout':'🏋️','moving-and-housewarming':'📦',
+ 'cafe-and-ordering':'☕','business-meetings-conferences':'💼','banking-account-phrases':'🏦',
+ 'grocery-shopping-phrases':'🛒','doctor-pharmacy-phrases':'🏥','hair-salon-phrases':'✂️',
+ 'soothing-a-baby':'👶','bar-and-drinks':'🍻','watching-sports-game':'🏟️',
+ 'scrolling-social-media':'📱','relaxing-at-home':'🛋️','concert-and-show':'🎤',
+ 'evening-routine':'🌙','dog-care-routine':'🐕','korean-holiday-ancestral-rites':'🎎',
+ 'casual-agreement-replies':'👌','decorating-the-home':'🪴','at-the-airport':'✈️',
+ 'wedding-engagement':'💍','studying-and-learning':'📚','small-talk-questions-answers':'💬',
+ 'reading-books':'📖','wrapping-up-work-tasks':'📝','booking-and-packing':'🧳',
+ 'birthday-celebrations':'🎂','team-collaboration-talk':'🤝','cooking-and-meals':'🍳',
+ 'weekend-getaway-travel':'🏖️','small-talk-greetings':'👋','using-public-transit':'🚇',
+ 'sightseeing-and-travel':'🗺️','morning-routine':'☀️','car-rental':'🚙',
+ 'running-and-marathon':'🏃','ordering-at-a-restaurant':'🍽️','morning-grooming-routine':'🪥',
+ 'shopping-store-phrases':'🛍️','at-the-hotel':'🏨','tidying-up':'🧹',
+ 'christmas-celebration':'🎄','dating-and-relationships':'💖','weekend-routine':'🧺',
+ 'movie-theater-phrases':'🎬'
+};
+var CATS=[
+ {id:'routine',name:'일상 루틴',emoji:'☀️',g:['#FFF4DA','#FFE2AE'],
+  f:['morning-routine','morning-grooming-routine','evening-routine','weekend-routine','relaxing-at-home','tidying-up']},
+ {id:'home',name:'집과 살림',emoji:'🏠',g:['#EAF4EE','#CDE6D9'],
+  f:['moving-and-housewarming','decorating-the-home','cooking-and-meals','grocery-shopping-phrases']},
+ {id:'eat',name:'먹고 마시기',emoji:'☕',g:['#FAE8DB','#F2CFB3'],
+  f:['cafe-and-ordering','ordering-at-a-restaurant','bar-and-drinks']},
+ {id:'travel',name:'여행',emoji:'✈️',g:['#E5EFFC','#C6DCF7'],
+  f:['at-the-airport','at-the-hotel','sightseeing-and-travel','booking-and-packing','car-rental','weekend-getaway-travel','using-public-transit','driving-on-the-road']},
+ {id:'health',name:'운동과 건강',emoji:'🏃',g:['#E7F7F0','#BEEDD9'],
+  f:['gym-and-workout','running-and-marathon','doctor-pharmacy-phrases','watching-sports-game']},
+ {id:'work',name:'일과 비즈니스',emoji:'💼',g:['#EDEEF7','#D3D6EE'],
+  f:['business-meetings-conferences','wrapping-up-work-tasks','team-collaboration-talk','banking-account-phrases']},
+ {id:'social',name:'관계와 대화',emoji:'💬',g:['#FDE9EE','#F7CBD9'],
+  f:['small-talk-questions-answers','small-talk-greetings','casual-agreement-replies','dating-and-relationships']},
+ {id:'event',name:'기념일과 행사',emoji:'🎉',g:['#F4EAFB','#DFC9F4'],
+  f:['wedding-engagement','birthday-celebrations','korean-holiday-ancestral-rites','christmas-celebration']},
+ {id:'leisure',name:'여가와 취미',emoji:'🎬',g:['#FFEFE4','#FFD5BB'],
+  f:['scrolling-social-media','concert-and-show','reading-books','movie-theater-phrases','studying-and-learning']},
+ {id:'care',name:'돌봄',emoji:'🐾',g:['#EAF6F9','#C9E6EF'],
+  f:['soothing-a-baby','dog-care-routine']},
+ {id:'shop',name:'쇼핑과 관리',emoji:'🛍️',g:['#F1F3EA','#DCE2C9'],
+  f:['shopping-store-phrases','hair-salon-phrases']}
+];
+function catById(id){return CATS.filter(function(c){return c.id===id;})[0];}
+function catOf(fid){for(var i=0;i<CATS.length;i++){if(CATS[i].f.indexOf(fid)>=0)return CATS[i];}return CATS[0];}
+function catFolders(c){return c.f.map(fById).filter(Boolean);}
+function catDone(c){var fs=catFolders(c),d=0,t=0;fs.forEach(function(f){d+=folderDone(f);t+=f.cards.length;});return {d:d,t:t};}
+
 var cview={name:'home'}, searchQ='';
 function fById(id){return FOLDERS.filter(function(f){return f.id===id;})[0];}
 function rootEl(){return document.getElementById('convRoot');}
@@ -596,6 +653,7 @@ function draw(){
   if(cview.name==='home')r.innerHTML=homeHTML();
   else if(cview.name==='marks')r.innerHTML=marksHTML();
   else if(cview.name==='folder')r.innerHTML=folderHTML(cview.fid);
+  else if(cview.name==='cat')r.innerHTML=catHTML(cview.cid);
   else if(cview.name==='card')r.innerHTML=cardHTML(cview.fid,cview.idx);
   bind();
 }
@@ -605,25 +663,52 @@ function searchFolders(){if(!searchQ)return FOLDERS;var q=searchQ.toLowerCase();
 function homeHTML(){
   var done=totalDone(),pct=TOTAL_CARDS?done/TOTAL_CARDS*100:0;
   var doneFolders=FOLDERS.filter(function(f){return folderDone(f)===f.cards.length;}).length;
-  var cards=searchFolders();
-  var grid=cards.length?cards.map(folderCardHTML).join(''):'<div class="cv-empty">검색 결과가 없어요.</div>';
-  return '<div class="cv-hero"><h1 class="serif">오늘의 회화 연습</h1><p>표현을 고르고, 한국어를 영어로 말해 보세요.</p></div>'+
+  var body;
+  if(searchQ){
+    var found=searchFolders();
+    body='<div class="sectlabel">검색 결과 '+found.length+'개</div>'+
+      (found.length?'<div class="fgrid">'+found.map(folderTileHTML).join('')+'</div>'
+                   :'<div class="cv-empty">검색 결과가 없어요.</div>');
+  } else {
+    body=CATS.map(function(c){
+      var fs=catFolders(c);
+      if(!fs.length) return '';
+      return '<div class="cv-sec">'+
+        '<div class="cv-sechead"><b><span class="ce">'+c.emoji+'</span>'+esc(c.name)+'</b>'+
+          '<button class="cv-more" data-catopen="'+c.id+'">모두 보기</button></div>'+
+        '<div class="cv-row">'+fs.map(folderTileHTML).join('')+'</div></div>';
+    }).join('');
+  }
+  return '<div class="cv-hero"><h1 class="serif">오늘의 회화 연습</h1><p>주제를 고르고, 한국어를 영어로 말해 보세요.</p></div>'+
   '<div class="psum"><div>'+ring(pct,70,8,'var(--cv-teal)')+'</div><div class="ptxt">'+
   '<div class="pbig">'+done+'<small> / '+TOTAL_CARDS+' 표현 완료</small></div>'+
   '<div class="plabel">전체 학습 진도</div>'+
   '<div class="pmeta"><sm>완료한 주제 <b>'+doneFolders+'</b> / '+FOLDERS.length+'</sm><sm>남은 표현 <b>'+(TOTAL_CARDS-done)+'</b></sm></div></div></div>'+
   '<div class="homechips"><button class="cv-chip star" id="convBm">★ 북마크 '+markCount()+'</button><span class="cv-chip dim">✓ 완료 '+done+'</span></div>'+
   '<div class="searchwrap"><i>⌕</i><input id="convSearch" type="search" placeholder="주제나 표현 검색 (예: 샤워, shower)" value="'+esc(searchQ)+'"></div>'+
-  '<div class="sectlabel">학습 주제 '+(searchQ?'· '+cards.length+'개':'')+'</div>'+
-  '<div class="fgrid">'+grid+'</div>'+
+  body+
   '<div class="cv-foot"><button id="convReset">학습 기록 초기화</button></div>';
 }
-function folderCardHTML(f){
-  var d=folderDone(f),pct=f.cards.length?d/f.cards.length*100:0,full=d===f.cards.length,gi=FOLDERS.indexOf(f);
-  return '<div class="fcard '+(full?'done':'')+'" data-fopen="'+f.id+'"><div class="fdonebadge">✓</div>'+
-  '<div class="ficon">'+FICONS[gi%FICONS.length]+'</div><div class="ftitle">'+esc(f.titleKo)+'</div>'+
-  '<div class="fmeta">표현 '+f.cards.length+'개</div><div class="fbar"><i style="width:'+pct+'%"></i></div>'+
-  '<div class="fprog"><span>'+(full?'완료!':d+' / '+f.cards.length)+'</span><span>'+Math.round(pct)+'%</span></div></div>';
+
+function folderTileHTML(f){
+  var d=folderDone(f),pct=f.cards.length?d/f.cards.length*100:0,full=d===f.cards.length;
+  var c=catOf(f.id);
+  return '<button class="ftile'+(full?' done':'')+'" data-fopen="'+f.id+'">'+
+    '<span class="fimg" style="background:linear-gradient(145deg,'+c.g[0]+','+c.g[1]+')">'+
+      '<span class="fe">'+(FEMOJI[f.id]||'💬')+'</span>'+
+      (full?'<span class="fdone">✓</span>':'')+
+    '</span>'+
+    '<span class="ftitle">'+esc(f.titleKo)+'</span>'+
+    '<span class="fbar"><i style="width:'+pct+'%"></i></span>'+
+    '<span class="fprog">'+(full?'완료!':d+' / '+f.cards.length)+'</span>'+
+  '</button>';
+}
+
+function catHTML(cid){
+  var c=catById(cid);if(!c)return '';
+  var p=catDone(c);
+  return headHTML('home',c.emoji+' '+c.name,'주제 '+c.f.length+'개 · 표현 '+p.d+' / '+p.t+' 완료')+
+    '<div class="fgrid">'+catFolders(c).map(folderTileHTML).join('')+'</div>';
 }
 function headHTML(back,title,sub){return '<div class="cv-head"><button class="cv-back" data-back="'+back+'">‹</button><div class="cv-htitle">'+esc(title)+'<span>'+esc(sub)+'</span></div></div>';}
 
@@ -650,38 +735,28 @@ function folderHTML(fid){
 }
 
 function cardHTML(fid,idx){
-  var f=fById(fid),c=f.cards[idx],on=isDone(fid,idx),mk=isMark(fid,idx);
-  var exHl=highlightEn(c.example.en,c.expression);
-  var levels=LEVELS.map(function(lv,li){
-    var collapsed=li!==0?'collapsed':'';
-    var tenses=TENSES.map(function(tn){var cell=c.practice[lv][tn];var enHl=highlightEn(cell.en,c.expression);var hidden=st.reveal?'':'hidden';
-      return '<div class="tense"><div class="t-head"><span class="t-name">'+TKO[tn]+'</span><span class="t-en-tag">'+tn+'</span></div>'+
-      '<div class="t-hint">'+TENSE_HINT[tn]+'</div><div class="t-ko">'+esc(cell.ko)+'</div>'+
-      '<div class="t-en '+hidden+'" data-reveal><div class="en-text">'+enHl+'</div><button class="spk" data-say="'+esc(cell.en)+'">▶</button></div>'+
-      '<div class="reveal-tap">탭하여 영어 정답 보기</div></div>';}).join('');
-    return '<div class="lvl lvl-'+lv+' '+collapsed+'"><div class="lvl-head" data-lvl><span class="lvl-badge">'+lv+'</span>'+
-    '<span class="lvl-name">'+lv+' <small>'+LEVEL_DESC[lv]+'</small></span><span class="lvl-chev">⌄</span></div>'+
-    '<div class="lvl-body">'+tenses+'</div></div>';}).join('');
-  return headHTML('folder',f.titleKo,'표현 '+(idx+1)+' / '+f.cards.length).replace('data-back="folder"','data-back="folder" data-fid="'+fid+'"')+
-  '<div class="cardhero"><button class="bmbtn '+(mk?'on':'')+'" id="convMark">'+(mk?'★':'☆')+'</button>'+
-  '<div class="che-exp serif">'+esc(c.expression)+'</div><div class="che-mean">'+esc(c.meaningKo)+'</div>'+
-  '<div class="che-ex"><div class="lbl">예문</div><div class="ko">'+esc(c.example.ko)+'</div>'+
-  '<div class="en"><span style="flex:1">'+exHl+'</span><button class="spk" data-say="'+esc(c.example.en)+'">▶</button></div></div></div>'+
-  '<button class="completebtn '+(on?'on':'')+'" id="convComplete"><i>'+(on?'✓':'○')+'</i>'+(on?'학습 완료됨 — 탭하여 해제':'이 표현 학습 완료')+'</button>'+
-  '<div class="toolsrow"><button id="convReveal" class="'+(st.reveal?'active':'')+'"><i>'+(st.reveal?'◉':'◎')+'</i>'+(st.reveal?'영어 보임':'영어 숨김')+'</button>'+
-  '<button id="convSayAll"><i>♪</i>전체 듣기</button></div>'+levels+
-  '<div class="cardnav"><button data-nav="'+(idx-1)+'" '+(idx===0?'disabled':'')+'><i>‹</i> 이전 표현</button>'+
-  '<button data-nav="'+(idx+1)+'" '+(idx===f.cards.length-1?'disabled':'')+'>다음 표현 <i>›</i></button></div>';
+  // 실제 내용은 QuizApp.runExpression 이 이 컨테이너 안에 그린다
+  return '<div class="qz qzui" id="cvQuizRoot"></div>';
 }
 
 function bind(){
   var r=rootEl();if(!r)return;
   r.querySelectorAll('[data-back]').forEach(function(b){b.onclick=function(){var t=b.dataset.back;if(t==='home')nav({name:'home'});else if(t==='folder')nav({name:'folder',fid:b.dataset.fid});};});
   if(cview.name==='home'){
-    var s=r.querySelector('#convSearch');if(s)s.oninput=function(){searchQ=s.value;var cards=searchFolders();r.querySelector('.fgrid').innerHTML=cards.length?cards.map(folderCardHTML).join(''):'<div class="cv-empty">검색 결과가 없어요.</div>';r.querySelector('.sectlabel').textContent='학습 주제 '+(searchQ?'· '+cards.length+'개':'');bindFolderCards();};
+    var s=r.querySelector('#convSearch');
+    if(s)s.oninput=function(){
+      var at=s.selectionStart;searchQ=s.value;draw();
+      var s2=rootEl().querySelector('#convSearch');
+      if(s2){s2.focus();try{s2.setSelectionRange(at,at);}catch(e){}}
+    };
+    r.querySelectorAll('[data-catopen]').forEach(function(b){
+      b.onclick=function(){nav({name:'cat',cid:b.dataset.catopen});};
+    });
     bindFolderCards();
     var bm=r.querySelector('#convBm');if(bm)bm.onclick=function(){nav({name:'marks'});};
     var rs=r.querySelector('#convReset');if(rs)rs.onclick=function(){if(confirm('모든 회화 학습 완료·북마크 기록을 지울까요?')){st.done={};st.marks={};saveState();draw();toast('학습 기록을 초기화했어요');}};
+  } else if(cview.name==='cat'){
+    bindFolderCards();
   } else if(cview.name==='folder'||cview.name==='marks'){
     r.querySelectorAll('[data-open]').forEach(function(el){el.onclick=function(){nav({name:'card',fid:el.dataset.fid,idx:+el.dataset.idx});};});
     r.querySelectorAll('[data-done]').forEach(function(b){b.onclick=function(e){e.stopPropagation();toggleDone(b.dataset.fid,+b.dataset.idx);draw();};});
@@ -690,16 +765,20 @@ function bind(){
 }
 function bindFolderCards(){rootEl().querySelectorAll('[data-fopen]').forEach(function(el){el.onclick=function(){nav({name:'folder',fid:el.dataset.fopen});};});}
 function bindCard(){
-  var r=rootEl();
-  r.querySelectorAll('[data-say]').forEach(function(b){b.onclick=function(e){e.stopPropagation();speak(b.dataset.say);};});
-  r.querySelectorAll('[data-lvl]').forEach(function(h){h.onclick=function(){h.parentElement.classList.toggle('collapsed');};});
-  r.querySelectorAll('.t-en[data-reveal]').forEach(function(el){el.onclick=function(e){if(e.target.closest('[data-say]'))return;el.classList.remove('hidden');};});
-  r.querySelectorAll('.reveal-tap').forEach(function(el){el.onclick=function(){var t=el.previousElementSibling;if(t)t.classList.remove('hidden');};});
-  r.querySelector('#convComplete').onclick=function(){var was=isDone(cview.fid,cview.idx);toggleDone(cview.fid,cview.idx);draw();toast(was?'완료를 해제했어요':'학습 완료로 표시했어요 ✓');};
-  r.querySelector('#convMark').onclick=function(){var was=isMark(cview.fid,cview.idx);toggleMark(cview.fid,cview.idx);draw();toast(was?'북마크를 해제했어요':'북마크에 저장했어요 ★');};
-  r.querySelector('#convReveal').onclick=function(){st.reveal=!st.reveal;saveState();draw();};
-  r.querySelector('#convSayAll').onclick=function(){var f=fById(cview.fid),c=f.cards[cview.idx];var lines=[c.example.en];LEVELS.forEach(function(lv){TENSES.forEach(function(tn){lines.push(c.practice[lv][tn].en);});});var i=0;speechSynthesis.cancel();(function nx(){if(i>=lines.length)return;var u=new SpeechSynthesisUtterance(lines[i]);u.lang=enVoice?enVoice.lang:'en-US';u.rate=1;u.pitch=1;if(enVoice)u.voice=enVoice;u.onend=function(){i++;nx();};speechSynthesis.speak(u);})();};
-  r.querySelectorAll('[data-nav]').forEach(function(b){if(!b.disabled)b.onclick=function(){nav({name:'card',fid:cview.fid,idx:+b.dataset.nav});};});
+  var f=fById(cview.fid), c=f.cards[cview.idx];
+  if(!window.QuizApp||!window.QuizApp.runExpression){
+    rootEl().innerHTML='<div class="cv-empty">퀴즈를 불러오지 못했어요.</div>';return;
+  }
+  window.QuizApp.runExpression({
+    rootId:'cvQuizRoot', folderId:f.id, cardIndex:cview.idx,
+    title:c.expression, sub:c.meaningKo,
+    onExit:function(okN,total){
+      // 기록은 회화 탭에서만 남긴다 (퀴즈 탭 진도와 분리)
+      if(!isDone(f.id,cview.idx)) toggleDone(f.id,cview.idx);
+      nav({name:'folder',fid:f.id});
+      toast(total+'문장 중 '+okN+'문장 정답 · 완료로 표시했어요');
+    }
+  });
 }
 
 var toastT;
@@ -862,7 +941,7 @@ return { render:function(){ if(!view)view={name:'list'}; draw(); }, reset:functi
 
 <!-- tab bar -->
 <style id="quiz-style">
-#screen-wquiz{
+.qzui{
   padding:0 14px 10px;
   background:#FFFFFF;min-height:100vh;
   --qz-cd:#FFFFFF;--qz-ink:#002859;--qz-sf:#414F62;--qz-ft:#6E839D;
@@ -873,114 +952,114 @@ return { render:function(){ if(!view)view={name:'list'}; draw(); }, reset:functi
 }
 
 /* ── 머리말 ── */
-#screen-wquiz .qz-head{padding:14px 2px 8px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
-#screen-wquiz .qz-back{flex:none;width:34px;height:34px;border-radius:11px;border:1px solid var(--qz-ln2);background:var(--qz-cd);color:var(--qz-sf);font-size:18px;line-height:1;}
-#screen-wquiz .qz-h1{flex:1;min-width:0;font-family:'Fraunces',Georgia,serif;font-size:21px;font-weight:600;color:var(--qz-ink);letter-spacing:-.01em;}
-#screen-wquiz .qz-h1 span{display:block;font-family:inherit;font-size:12.5px;font-weight:400;color:var(--qz-ft);letter-spacing:0;margin-top:2px;}
-#screen-wquiz .qz-hbar{flex:0 0 100%;height:5px;border-radius:99px;background:var(--qz-ln);overflow:hidden;}
-#screen-wquiz .qz-hbar i{display:block;height:100%;background:var(--qz-tl);border-radius:99px;transition:width .3s;}
-#screen-wquiz .qz-hchip{flex:0 0 100%;text-align:left;background:none;border:none;padding:0;color:var(--qz-tld);font-size:12px;font-weight:700;}
+.qzui .qz-head{padding:14px 2px 8px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
+.qzui .qz-back{flex:none;width:34px;height:34px;border-radius:11px;border:1px solid var(--qz-ln2);background:var(--qz-cd);color:var(--qz-sf);font-size:18px;line-height:1;}
+.qzui .qz-h1{flex:1;min-width:0;font-family:'Fraunces',Georgia,serif;font-size:21px;font-weight:600;color:var(--qz-ink);letter-spacing:-.01em;}
+.qzui .qz-h1 span{display:block;font-family:inherit;font-size:12.5px;font-weight:400;color:var(--qz-ft);letter-spacing:0;margin-top:2px;}
+.qzui .qz-hbar{flex:0 0 100%;height:5px;border-radius:99px;background:var(--qz-ln);overflow:hidden;}
+.qzui .qz-hbar i{display:block;height:100%;background:var(--qz-tl);border-radius:99px;transition:width .3s;}
+.qzui .qz-hchip{flex:0 0 100%;text-align:left;background:none;border:none;padding:0;color:var(--qz-tld);font-size:12px;font-weight:700;}
 
 /* ── 단계 표시 ── */
-#screen-wquiz .qz-step{display:flex;align-items:center;justify-content:center;gap:6px;margin:16px 2px 4px;font-size:11.5px;color:var(--qz-ft);font-weight:700;}
-#screen-wquiz .qz-step i{display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px;border-radius:99px;background:var(--qz-sur);color:var(--qz-ft);font-style:normal;font-size:10.5px;}
-#screen-wquiz .qz-step i.on{background:var(--qz-tl);color:#fff;}
+.qzui .qz-step{display:flex;align-items:center;justify-content:center;gap:6px;margin:16px 2px 4px;font-size:11.5px;color:var(--qz-ft);font-weight:700;}
+.qzui .qz-step i{display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px;border-radius:99px;background:var(--qz-sur);color:var(--qz-ft);font-style:normal;font-size:10.5px;}
+.qzui .qz-step i.on{background:var(--qz-tl);color:#fff;}
 
 /* ── 진행 도트 ── */
-#screen-wquiz .qz-meta{display:flex;align-items:center;gap:9px;margin:12px 2px 14px;}
-#screen-wquiz .qz-round{background:var(--qz-tls);color:var(--qz-tld);font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:99px;}
-#screen-wquiz .qz-dots{flex:1;display:flex;gap:5px;}
-#screen-wquiz .qz-dots i{width:9px;height:9px;border-radius:99px;background:var(--qz-ln2);}
-#screen-wquiz .qz-dots i.now{background:var(--qz-tl);box-shadow:0 0 0 3px var(--qz-tls);}
-#screen-wquiz .qz-dots i.ok{background:var(--qz-tl);}
-#screen-wquiz .qz-dots i.no{background:var(--qz-rd);}
-#screen-wquiz .qz-cnt{font-size:12px;font-weight:700;color:var(--qz-ft);}
+.qzui .qz-meta{display:flex;align-items:center;gap:9px;margin:12px 2px 14px;}
+.qzui .qz-round{background:var(--qz-tls);color:var(--qz-tld);font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:99px;}
+.qzui .qz-dots{flex:1;display:flex;gap:5px;}
+.qzui .qz-dots i{width:9px;height:9px;border-radius:99px;background:var(--qz-ln2);}
+.qzui .qz-dots i.now{background:var(--qz-tl);box-shadow:0 0 0 3px var(--qz-tls);}
+.qzui .qz-dots i.ok{background:var(--qz-tl);}
+.qzui .qz-dots i.no{background:var(--qz-rd);}
+.qzui .qz-cnt{font-size:12px;font-weight:700;color:var(--qz-ft);}
 
 /* ── 안내문 · 판정 ── */
-#screen-wquiz .qz-lis-title{text-align:center;font-size:16px;font-weight:500;color:#6D7581;margin:18px 0 22px;word-break:keep-all;}
-#screen-wquiz .qz-lis-title b{font-weight:700;}
-#screen-wquiz .qz-lis-title b.ok{color:var(--qz-tl);}
-#screen-wquiz .qz-lis-verdict{text-align:center;font-size:17px;font-weight:700;margin:18px 0 20px;}
-#screen-wquiz .qz-lis-verdict small{display:block;font-size:12.5px;font-weight:500;opacity:.8;margin-top:4px;}
-#screen-wquiz .qz-lis-verdict.ok{color:var(--qz-tl);}
-#screen-wquiz .qz-lis-verdict.no{color:var(--qz-rd);}
+.qzui .qz-lis-title{text-align:center;font-size:16px;font-weight:500;color:#6D7581;margin:18px 0 22px;word-break:keep-all;}
+.qzui .qz-lis-title b{font-weight:700;}
+.qzui .qz-lis-title b.ok{color:var(--qz-tl);}
+.qzui .qz-lis-verdict{text-align:center;font-size:17px;font-weight:700;margin:18px 0 20px;}
+.qzui .qz-lis-verdict small{display:block;font-size:12.5px;font-weight:500;opacity:.8;margin-top:4px;}
+.qzui .qz-lis-verdict.ok{color:var(--qz-tl);}
+.qzui .qz-lis-verdict.no{color:var(--qz-rd);}
 
 /* ── 카드 ── */
-#screen-wquiz .qz-card{background:var(--qz-cd);border:1px solid var(--qz-ln);border-radius:18px;padding:18px;box-shadow:var(--qz-sh);margin-bottom:12px;}
-#screen-wquiz .qz-card.ko{text-align:center;padding:24px 20px;}
-#screen-wquiz .qz-card.ans{border-color:#C7E7D9;background:#FAFEFC;}
-#screen-wquiz .qz-lab{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--qz-ft);margin-bottom:8px;}
-#screen-wquiz .qz-lab.teal{color:var(--qz-tld);}
-#screen-wquiz .qz-ko{font-size:20px;font-weight:600;line-height:1.55;color:var(--qz-ink);word-break:keep-all;}
-#screen-wquiz .qz-mine{font-size:15px;line-height:1.6;color:var(--qz-ink);word-break:break-word;}
-#screen-wquiz .qz-dim{color:#B9C0CE;}
-#screen-wquiz .qz-miss{margin-top:10px;padding-top:9px;border-top:1px dashed var(--qz-ln2);font-size:12.5px;color:var(--qz-rd);}
-#screen-wquiz .qz-en{display:flex;align-items:flex-start;gap:10px;font-size:16.5px;line-height:1.6;color:var(--qz-ink);}
-#screen-wquiz .qz-en span{flex:1;}
-#screen-wquiz .qz-en mark{background:#D6F0E4;color:var(--qz-tld);padding:0 2px;border-radius:3px;font-weight:700;}
-#screen-wquiz .qz-ko2{margin-top:9px;font-size:13px;color:var(--qz-sf);word-break:keep-all;}
-#screen-wquiz .qz-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:11px;}
-#screen-wquiz .qz-tags span{font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:99px;background:var(--qz-tls);color:var(--qz-tld);}
-#screen-wquiz .qz-tags span.t{background:var(--qz-sur);color:var(--qz-sf);font-weight:500;}
-#screen-wquiz .qz-mean{margin-top:7px;font-size:12.5px;color:var(--qz-ft);}
-#screen-wquiz .qz-spk{flex:none;width:34px;height:34px;border-radius:11px;border:1px solid #C7E7D9;background:var(--qz-tls);color:var(--qz-tld);font-size:11px;line-height:1;}
+.qzui .qz-card{background:var(--qz-cd);border:1px solid var(--qz-ln);border-radius:18px;padding:18px;box-shadow:var(--qz-sh);margin-bottom:12px;}
+.qzui .qz-card.ko{text-align:center;padding:24px 20px;}
+.qzui .qz-card.ans{border-color:#C7E7D9;background:#FAFEFC;}
+.qzui .qz-lab{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--qz-ft);margin-bottom:8px;}
+.qzui .qz-lab.teal{color:var(--qz-tld);}
+.qzui .qz-ko{font-size:20px;font-weight:600;line-height:1.55;color:var(--qz-ink);word-break:keep-all;}
+.qzui .qz-mine{font-size:15px;line-height:1.6;color:var(--qz-ink);word-break:break-word;}
+.qzui .qz-dim{color:#B9C0CE;}
+.qzui .qz-miss{margin-top:10px;padding-top:9px;border-top:1px dashed var(--qz-ln2);font-size:12.5px;color:var(--qz-rd);}
+.qzui .qz-en{display:flex;align-items:flex-start;gap:10px;font-size:16.5px;line-height:1.6;color:var(--qz-ink);}
+.qzui .qz-en span{flex:1;}
+.qzui .qz-en mark{background:#D6F0E4;color:var(--qz-tld);padding:0 2px;border-radius:3px;font-weight:700;}
+.qzui .qz-ko2{margin-top:9px;font-size:13px;color:var(--qz-sf);word-break:keep-all;}
+.qzui .qz-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:11px;}
+.qzui .qz-tags span{font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:99px;background:var(--qz-tls);color:var(--qz-tld);}
+.qzui .qz-tags span.t{background:var(--qz-sur);color:var(--qz-sf);font-weight:500;}
+.qzui .qz-mean{margin-top:7px;font-size:12.5px;color:var(--qz-ft);}
+.qzui .qz-spk{flex:none;width:34px;height:34px;border-radius:11px;border:1px solid #C7E7D9;background:var(--qz-tls);color:var(--qz-tld);font-size:11px;line-height:1;}
 
 /* ── 입력 ── */
-#screen-wquiz .qz-ta{width:100%;border:1.5px solid var(--qz-ln2);border-radius:16px;padding:15px 16px;font-family:inherit;font-size:16px;line-height:1.55;color:var(--qz-ink);background:var(--qz-cd);resize:vertical;margin-bottom:12px;}
-#screen-wquiz .qz-ta:focus{outline:none;border-color:var(--qz-tl);box-shadow:0 0 0 3px var(--qz-tls);}
+.qzui .qz-ta{width:100%;border:1.5px solid var(--qz-ln2);border-radius:16px;padding:15px 16px;font-family:inherit;font-size:16px;line-height:1.55;color:var(--qz-ink);background:var(--qz-cd);resize:vertical;margin-bottom:12px;}
+.qzui .qz-ta:focus{outline:none;border-color:var(--qz-tl);box-shadow:0 0 0 3px var(--qz-tls);}
 
 /* ── 버튼 ── */
-#screen-wquiz .qz-btn{width:100%;border-radius:var(--pill);padding:16px;font-size:15.5px;font-weight:700;border:1px solid transparent;margin-bottom:10px;}
-#screen-wquiz .qz-btn.fill{background:var(--qz-tl);color:#fff;box-shadow:0 6px 16px rgba(22,160,111,.22);}
-#screen-wquiz .qz-btn.fill:active{background:var(--qz-tld);}
-#screen-wquiz .qz-btn.ghost{background:var(--qz-cd);color:var(--qz-sf);border-color:var(--qz-ln2);box-shadow:none;}
-#screen-wquiz .qz-btn[disabled]{opacity:.45;box-shadow:none;}
-#screen-wquiz .qz-row{display:flex;gap:10px;}
-#screen-wquiz .qz-row .qz-btn{flex:1;}
+.qzui .qz-btn{width:100%;border-radius:var(--pill);padding:16px;font-size:15.5px;font-weight:700;border:1px solid transparent;margin-bottom:10px;}
+.qzui .qz-btn.fill{background:var(--qz-tl);color:#fff;box-shadow:0 6px 16px rgba(22,160,111,.22);}
+.qzui .qz-btn.fill:active{background:var(--qz-tld);}
+.qzui .qz-btn.ghost{background:var(--qz-cd);color:var(--qz-sf);border-color:var(--qz-ln2);box-shadow:none;}
+.qzui .qz-btn[disabled]{opacity:.45;box-shadow:none;}
+.qzui .qz-row{display:flex;gap:10px;}
+.qzui .qz-row .qz-btn{flex:1;}
 
 /* ── 듣고 순서 ── */
-#screen-wquiz .qz-lis{position:relative;overflow:hidden;margin:0 -14px;padding:0 14px 4px;}
-#screen-wquiz .qz-lis::before{content:'';position:absolute;left:50%;bottom:-215px;width:200%;height:340px;transform:translateX(-50%);background:#EDF3FB;border-radius:50%;pointer-events:none;}
-#screen-wquiz .qz-lis > *{position:relative;}
-#screen-wquiz .qz-slot{min-height:92px;display:flex;flex-wrap:wrap;justify-content:center;align-content:flex-start;gap:9px;margin-bottom:20px;}
-#screen-wquiz .qz-ph{align-self:center;color:#A6ADBA;font-size:13.5px;}
-#screen-wquiz .qz-tiles{display:flex;flex-wrap:wrap;justify-content:center;gap:9px;margin-bottom:22px;}
-#screen-wquiz .qz-tile{display:inline-block;background:var(--qz-sur);border:1px solid var(--qz-ln2);border-radius:14px;padding:12px 18px;font-size:16.5px;font-weight:800;color:var(--qz-sf);line-height:1.1;}
-#screen-wquiz button.qz-tile:active{transform:translateY(1px);}
-#screen-wquiz .qz-tile.in{background:var(--qz-tls);border-color:#C7E7D9;color:var(--qz-tld);}
-#screen-wquiz .qz-tile.bad{background:var(--qz-rds);border-color:var(--qz-rd);color:var(--qz-rd);animation:qzShake .34s;}
+.qzui .qz-lis{position:relative;overflow:hidden;margin:0 -14px;padding:0 14px 4px;}
+.qzui .qz-lis::before{content:'';position:absolute;left:50%;bottom:-215px;width:200%;height:340px;transform:translateX(-50%);background:#EDF3FB;border-radius:50%;pointer-events:none;}
+.qzui .qz-lis > *{position:relative;}
+.qzui .qz-slot{min-height:92px;display:flex;flex-wrap:wrap;justify-content:center;align-content:flex-start;gap:9px;margin-bottom:20px;}
+.qzui .qz-ph{align-self:center;color:#A6ADBA;font-size:13.5px;}
+.qzui .qz-tiles{display:flex;flex-wrap:wrap;justify-content:center;gap:9px;margin-bottom:22px;}
+.qzui .qz-tile{display:inline-block;background:var(--qz-sur);border:1px solid var(--qz-ln2);border-radius:14px;padding:12px 18px;font-size:16.5px;font-weight:800;color:var(--qz-sf);line-height:1.1;}
+.qzui button.qz-tile:active{transform:translateY(1px);}
+.qzui .qz-tile.in{background:var(--qz-tls);border-color:#C7E7D9;color:var(--qz-tld);}
+.qzui .qz-tile.bad{background:var(--qz-rds);border-color:var(--qz-rd);color:var(--qz-rd);animation:qzShake .34s;}
 @keyframes qzShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-5px)}45%{transform:translateX(5px)}70%{transform:translateX(-3px)}}
-#screen-wquiz .qz-stage{display:flex;align-items:center;justify-content:center;gap:14px;padding:4px 0 20px;}
-#screen-wquiz .qz-playbtn{width:92px;height:92px;border-radius:99px;border:none;background:var(--qz-tl);color:#fff;font-size:29px;line-height:1;padding-left:5px;box-shadow:0 10px 22px rgba(22,160,111,.30);}
-#screen-wquiz .qz-playbtn:active{background:var(--qz-tld);}
-#screen-wquiz .qz-rate{width:52px;height:52px;border-radius:99px;border:1px solid var(--qz-ln2);background:#fff;color:#6D7581;font-size:14px;font-weight:700;box-shadow:0 2px 6px rgba(40,50,70,.07);}
+.qzui .qz-stage{display:flex;align-items:center;justify-content:center;gap:14px;padding:4px 0 20px;}
+.qzui .qz-playbtn{width:92px;height:92px;border-radius:99px;border:none;background:var(--qz-tl);color:#fff;font-size:29px;line-height:1;padding-left:5px;box-shadow:0 10px 22px rgba(22,160,111,.30);}
+.qzui .qz-playbtn:active{background:var(--qz-tld);}
+.qzui .qz-rate{width:52px;height:52px;border-radius:99px;border:1px solid var(--qz-ln2);background:#fff;color:#6D7581;font-size:14px;font-weight:700;box-shadow:0 2px 6px rgba(40,50,70,.07);}
 
 /* ── 라운드 요약 · 완료함 ── */
-#screen-wquiz .qz-sum{background:var(--qz-cd);border:1px solid var(--qz-ln);border-radius:18px;padding:20px;text-align:center;box-shadow:var(--qz-sh);margin-bottom:6px;}
-#screen-wquiz .qz-sum .n{font-size:32px;font-weight:700;color:var(--qz-tld);}
-#screen-wquiz .qz-sum .n small{font-size:14px;color:var(--qz-ft);font-weight:500;}
-#screen-wquiz .qz-sum .l{font-size:12.5px;color:var(--qz-sf);margin-top:3px;}
-#screen-wquiz .qz-lab2{font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--qz-ft);margin:18px 2px 10px;}
-#screen-wquiz .qz-mrow{background:var(--qz-cd);border:1px solid var(--qz-ln);border-left:3px solid var(--qz-rd);border-radius:14px;padding:12px 14px;margin-bottom:8px;}
-#screen-wquiz .qz-mrow .k{font-size:13.5px;color:var(--qz-ink);word-break:keep-all;}
-#screen-wquiz .qz-mrow .e{font-size:12.5px;color:var(--qz-ft);margin-top:3px;}
-#screen-wquiz .qz-allok{background:var(--qz-tls);color:var(--qz-tld);border-radius:15px;padding:16px;text-align:center;font-size:13.5px;font-weight:700;margin:12px 0 10px;}
-#screen-wquiz .qz-done{background:var(--qz-cd);border:1px solid var(--qz-ln);border-radius:18px;padding:28px 18px;text-align:center;box-shadow:var(--qz-sh);margin-bottom:12px;}
-#screen-wquiz .qz-done .e{font-size:38px;}
-#screen-wquiz .qz-done b{display:block;margin-top:8px;font-size:16px;color:var(--qz-ink);}
-#screen-wquiz .qz-done p{margin:6px 0 0;font-size:13px;color:var(--qz-ft);}
-#screen-wquiz .qz-crow{display:flex;align-items:center;gap:9px;background:var(--qz-cd);border:1px solid var(--qz-ln);border-radius:14px;padding:12px 13px;margin-bottom:8px;}
-#screen-wquiz .qz-crow .b{flex:1;min-width:0;}
-#screen-wquiz .qz-crow .k{font-size:13px;color:var(--qz-sf);word-break:keep-all;}
-#screen-wquiz .qz-crow .e{font-size:13.5px;color:var(--qz-ink);margin-top:2px;}
-#screen-wquiz .qz-wbadge{flex:none;font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;background:var(--qz-rds);color:var(--qz-rd);}
-#screen-wquiz .qz-empty{text-align:center;color:var(--qz-ft);font-size:13.5px;padding:40px 0;}
-#screen-wquiz .qz-footer{margin-top:24px;text-align:center;}
-#screen-wquiz .qz-footer button{background:none;border:none;color:var(--qz-ft);font-size:12.5px;text-decoration:underline;}
+.qzui .qz-sum{background:var(--qz-cd);border:1px solid var(--qz-ln);border-radius:18px;padding:20px;text-align:center;box-shadow:var(--qz-sh);margin-bottom:6px;}
+.qzui .qz-sum .n{font-size:32px;font-weight:700;color:var(--qz-tld);}
+.qzui .qz-sum .n small{font-size:14px;color:var(--qz-ft);font-weight:500;}
+.qzui .qz-sum .l{font-size:12.5px;color:var(--qz-sf);margin-top:3px;}
+.qzui .qz-lab2{font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--qz-ft);margin:18px 2px 10px;}
+.qzui .qz-mrow{background:var(--qz-cd);border:1px solid var(--qz-ln);border-left:3px solid var(--qz-rd);border-radius:14px;padding:12px 14px;margin-bottom:8px;}
+.qzui .qz-mrow .k{font-size:13.5px;color:var(--qz-ink);word-break:keep-all;}
+.qzui .qz-mrow .e{font-size:12.5px;color:var(--qz-ft);margin-top:3px;}
+.qzui .qz-allok{background:var(--qz-tls);color:var(--qz-tld);border-radius:15px;padding:16px;text-align:center;font-size:13.5px;font-weight:700;margin:12px 0 10px;}
+.qzui .qz-done{background:var(--qz-cd);border:1px solid var(--qz-ln);border-radius:18px;padding:28px 18px;text-align:center;box-shadow:var(--qz-sh);margin-bottom:12px;}
+.qzui .qz-done .e{font-size:38px;}
+.qzui .qz-done b{display:block;margin-top:8px;font-size:16px;color:var(--qz-ink);}
+.qzui .qz-done p{margin:6px 0 0;font-size:13px;color:var(--qz-ft);}
+.qzui .qz-crow{display:flex;align-items:center;gap:9px;background:var(--qz-cd);border:1px solid var(--qz-ln);border-radius:14px;padding:12px 13px;margin-bottom:8px;}
+.qzui .qz-crow .b{flex:1;min-width:0;}
+.qzui .qz-crow .k{font-size:13px;color:var(--qz-sf);word-break:keep-all;}
+.qzui .qz-crow .e{font-size:13.5px;color:var(--qz-ink);margin-top:2px;}
+.qzui .qz-wbadge{flex:none;font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;background:var(--qz-rds);color:var(--qz-rd);}
+.qzui .qz-empty{text-align:center;color:var(--qz-ft);font-size:13.5px;padding:40px 0;}
+.qzui .qz-footer{margin-top:24px;text-align:center;}
+.qzui .qz-footer button{background:none;border:none;color:var(--qz-ft);font-size:12.5px;text-decoration:underline;}
 </style>
 
 <section id="screen-wquiz" class="screen">
-  <div class="qz" id="qzRoot"></div>
+  <div class="qz qzui" id="qzRoot"></div>
 </section>
 
 <script id="quiz-module">
@@ -1247,12 +1326,14 @@ let qs = qLoadState();
 let mode = 'main';          // 'main' | 'review' (복습 세션은 저장하지 않는다)
 let rev = null;             // {pool, passed, queue, round, cursor, results}
 let qview = {name:'quiz'};
+let ROOT = 'qzRoot';       // 렌더 대상 (회화 탭에서 재사용)
+let expr = null;           // 표현 1개짜리 세션 {queue, cursor, results, round, passed, title, onExit}
 let cur = null;             // 채점 직후의 결과 {id, it, g, text, ok, corrected}
 let lis = null;             // 리스닝 순서 맞추기 단계 {words, order, picked, done, ok}
 let lisRate = 1;            // 듣기 속도 배율 (문제 간 유지)
 
-const S = () => (mode === 'review' ? rev : qs);
-const passedSet = () => (mode === 'review' ? rev.passed : qs.completed);
+const S = () => (mode === 'expr' ? expr : mode === 'review' ? rev : qs);
+const passedSet = () => (mode === 'expr' ? expr.passed : mode === 'review' ? rev.passed : qs.completed);
 const activePool = () => (mode === 'review' ? rev.pool : POOL);
 const doneCount = () => Object.keys(qs.completed).length;
 const wrongIds = () => Object.keys(qs.completed).filter(id => qs.completed[id].wrong > 0);
@@ -1266,6 +1347,7 @@ function startRound(){
 }
 
 function ensureRound(){
+  if(mode === 'expr') return;
   const s = S();
   if(!s.queue.length || s.cursor >= s.queue.length) startRound();
 }
@@ -1280,6 +1362,7 @@ function submitAnswer(text){
 }
 
 function bumpWrong(id, delta){
+  if(mode === 'expr') return;
   if(mode === 'review'){
     const rec = qs.completed[id];
     if(rec) rec.wrong = Math.max(0, (rec.wrong || 0) + delta);
@@ -1302,13 +1385,16 @@ function nextQuestion(){
   const s = S();
   s.results.push({id:cur.id, ok:cur.ok, corrected:cur.corrected});
   if(cur.ok){
-    if(mode === 'review') rev.passed[cur.id] = 1;
+    if(mode === 'expr') expr.passed[cur.id] = 1;
+    else if(mode === 'review') rev.passed[cur.id] = 1;
     else { qs.completed[cur.id] = {wrong: qs.wrong[cur.id] || 0}; delete qs.wrong[cur.id]; }
   }
   if(lis) clearTimeout(lis.badT);
   cur = null; lis = null;
   s.cursor++;
-  qview = s.cursor >= s.queue.length ? {name:'summary'} : {name:'quiz'};
+  qview = s.cursor >= s.queue.length
+    ? {name: mode === 'expr' ? 'exprDone' : 'summary'}
+    : {name:'quiz'};
   if(mode === 'main') qSave();
   draw();
 }
@@ -1400,6 +1486,34 @@ function pickTile(i){
 
 // 순서를 틀려도 통과 여부는 1단계 영작 채점 결과(cur.ok)로만 결정한다
 
+// 회화 탭에서 표현 하나를 B1 4문장 퀴즈로 푼다.
+// 기록은 회화 탭이 자체적으로 남기고 퀴즈 탭 진도에는 반영하지 않는다.
+function runExpression(o){
+  const items = QTENSES.map(function(t){ return o.folderId + '|' + o.cardIndex + '|' + t; })
+    .filter(function(id){ return qLookup(FOLDERS, id); });
+  if(!items.length) return false;
+  mode = 'expr';
+  ROOT = o.rootId || 'qzRoot';
+  expr = {queue:items, cursor:0, results:[], round:1, passed:{},
+          title:o.title || '', sub:o.sub || '', onExit:o.onExit || null};
+  cur = null; if(lis) clearTimeout(lis.badT); lis = null;
+  qview = {name:'quiz'};
+  draw();
+  return true;
+}
+
+function exitExpression(){
+  const okN = expr.results.filter(function(r){ return r.ok; }).length;
+  const total = expr.queue.length;
+  const back = expr.onExit;
+  mode = 'main'; expr = null; cur = null;
+  if(lis) clearTimeout(lis.badT);
+  lis = null;
+  ROOT = 'qzRoot';
+  qview = {name:'quiz'};
+  if(back) back(okN, total);
+}
+
 /* ---------- 화면 ---------- */
 const TENSE_LABEL = {present:'현재형', past:'과거형', future:'미래형', progressive:'진행형'};
 
@@ -1414,6 +1528,15 @@ function dots(n, total, results){
 }
 
 function headHTML(sub){
+  if(mode === 'expr'){
+    const n = Math.min(expr.cursor + 1, expr.queue.length);
+    return '<div class="qz-head">' +
+      '<button class="qz-back" id="qzExprBack" aria-label="뒤로">&lsaquo;</button>' +
+      '<div class="qz-h1">' + esc(expr.title) + '<span>' + esc(expr.sub) + '</span></div>' +
+      '<div class="qz-hbar"><i style="width:' + (n / expr.queue.length * 100).toFixed(1) + '%"></i></div>' +
+      '<span class="qz-hchip">문장 ' + n + ' / ' + expr.queue.length + '</span>' +
+      '</div>';
+  }
   const done = doneCount(), pct = POOL.length ? done / POOL.length * 100 : 0;
   return '<div class="qz-head">' +
     '<div class="qz-h1">영작 퀴즈<span>' + esc(sub) + '</span></div>' +
@@ -1424,7 +1547,9 @@ function headHTML(sub){
 
 function quizHTML(){
   const s = S(), id = s.queue[s.cursor], it = qLookup(FOLDERS, id);
-  const badge = mode === 'review' ? '복습' : '라운드 ' + s.round;
+  // 표현 모드에선 라운드가 뜻이 없으니 시제를 보여준다
+  const badge = mode === 'expr' ? TENSE_LABEL[it.tense]
+    : mode === 'review' ? '복습' : '라운드 ' + s.round;
   return headHTML(mode === 'review' ? '틀렸던 문장 복습' : '한국어를 영어로 써 보세요') +
     '<div class="qz-meta"><span class="qz-round">' + badge + '</span>' +
       dots(s.cursor, s.queue.length, s.results) +
@@ -1562,13 +1687,23 @@ function listenHTML(){
       : '');
 }
 
+function exprDoneHTML(){
+  const okN = expr.results.filter(function(r){ return r.ok; }).length;
+  return headHTML('') +
+    '<div class="qz-done"><div class="e">' + (okN === expr.queue.length ? '🎉' : '👏') + '</div>' +
+    '<b>' + expr.queue.length + '문장 중 ' + okN + '문장 정답</b>' +
+    '<p>' + esc(expr.title) + ' 연습을 마쳤어요.</p></div>' +
+    '<button class="qz-btn fill" id="qzExprEnd">표현 목록으로</button>';
+}
+
 function draw(){
-  const root = document.getElementById('qzRoot');
+  const root = document.getElementById(ROOT);
   if(!root) return;
   if(qview.name === 'quiz'){ ensureRound(); if(!S().queue.length) qview = {name:'done'}; }
   if(qview.name === 'quiz') root.innerHTML = quizHTML();
   else if(qview.name === 'result') root.innerHTML = resultHTML();
   else if(qview.name === 'listen') root.innerHTML = listenHTML();
+  else if(qview.name === 'exprDone') root.innerHTML = exprDoneHTML();
   else if(qview.name === 'summary') root.innerHTML = summaryHTML();
   else if(qview.name === 'done') root.innerHTML = doneHTML();
   else root.innerHTML = completedHTML();
@@ -1577,7 +1712,7 @@ function draw(){
 }
 
 function bindQuiz(){
-  const root = document.getElementById('qzRoot');
+  const root = document.getElementById(ROOT);
   root.querySelectorAll('[data-say]').forEach(function(b){
     b.onclick = function(e){ e.stopPropagation(); speak(b.dataset.say); };
   });
@@ -1608,13 +1743,15 @@ function bindQuiz(){
   const co = root.querySelector('#qzCorrect'); if(co) co.onclick = correctMe;
   const nr = root.querySelector('#qzNextRound'); if(nr) nr.onclick = nextRound;
   const rv = root.querySelector('#qzReview'); if(rv) rv.onclick = startReview;
+  const eb = root.querySelector('#qzExprBack'); if(eb) eb.onclick = exitExpression;
+  const ee = root.querySelector('#qzExprEnd'); if(ee) ee.onclick = exitExpression;
   const rs = root.querySelector('#qzReset');
   if(rs) rs.onclick = function(){
     if(confirm('퀴즈 완료 기록과 진행 중인 라운드를 모두 지울까요?')) resetAll();
   };
 }
 
-window.QuizApp = {render: draw};
+window.QuizApp = {render: draw, runExpression: runExpression};
 
 })();
 </script>
@@ -1710,9 +1847,9 @@ return{render:render};
 </script>
 
 <nav id="tabbar">
-  <div class="tab active" data-s="learn" onclick="tabTo('learn')"><div class="ico">▶</div><div class="lab">학습</div></div>
-  <div class="tab" data-s="conv" onclick="tabTo('conv')"><div class="ico">💬</div><div class="lab">회화</div></div>
   <div class="tab" data-s="wquiz" onclick="tabTo('wquiz')"><div class="ico">🎯</div><div class="lab">퀴즈</div></div>
+  <div class="tab" data-s="conv" onclick="tabTo('conv')"><div class="ico">💬</div><div class="lab">회화</div></div>
+  <div class="tab active" data-s="learn" onclick="tabTo('learn')"><div class="ico">▶</div><div class="lab">학습</div></div>
   <div class="tab" data-s="write" onclick="tabTo('write')"><div class="ico">✍️</div><div class="lab">영작</div></div>
   <div class="tab" data-s="settings" onclick="tabTo('settings')"><div class="ico">⚙</div><div class="lab">더보기</div></div>
 </nav>
