@@ -222,6 +222,7 @@ const TOTAL_CARDS = FOLDERS.reduce((a,f)=>a+f.cards.length,0);
 function totalDone(){ return Object.keys(state.done).length; }
 
 function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+/* TESTABLE-START */
 const STOP = new Set(['ones',"one's",'someone','something','the','a','an','to','of','for','with','my','your','his','her','our','their','i']);
 function exprWords(expr){
   return expr.toLowerCase().replace(/\([^)]*\)/g,' ').replace(/["“”.,]/g,' ')
@@ -234,6 +235,7 @@ function variants(w){
   else { v.add(w+'s'); v.add(w+'ed'); v.add(w+'ing'); v.add(w+w.slice(-1)+'ing'); v.add(w+w.slice(-1)+'ed'); }
   return [...v];
 }
+/* TESTABLE-END */
 function highlightEn(en, expr){
   let words = exprWords(expr);
   if(!words.length) return esc(en);
@@ -518,6 +520,140 @@ history.replaceState(view,'');
 render();
 booted=true;
 </script>
+<script id="quiz-module">
+(function(){
+"use strict";
+/* TESTABLE-START */
+const QTENSES = ['present','past','future','progressive'];
+const QLEVEL = 'B1';
+const QSIZE = 5;
+const QPASS = 0.8;
+
+const QCONTRACTIONS = [
+  [/\bwon't\b/g, 'will not'],
+  [/\bcan't\b/g, 'cannot'],
+  [/\bshan't\b/g, 'shall not'],
+  [/n't\b/g, ' not'],
+  [/\bi'm\b/g, 'i am'],
+  [/\blet's\b/g, 'let us'],
+  [/\b(i|we|you|they|he|she|it|that|there|who|what)'ll\b/g, '$1 will'],
+  [/\b(i|we|you|they|there|who|what)'ve\b/g, '$1 have'],
+  [/\b(we|you|they|there|who|what)'re\b/g, '$1 are'],
+  [/\b(i|we|you|they|he|she|it|there|who|what)'d\b/g, '$1 would'],
+  [/\b(he|she|it|that|there|here|what|who|everyone|everything)'s\b/g, '$1 is']
+];
+
+function qNorm(s){
+  let t = (s == null ? '' : String(s)).toLowerCase().replace(/[\u2018\u2019\u02BC`\u00B4]/g, "'");
+  for(const [re, rep] of QCONTRACTIONS) t = t.replace(re, rep);
+  return t.replace(/'/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function qTokens(s){
+  const n = qNorm(s);
+  return n ? n.split(' ') : [];
+}
+
+function qContent(tokens){ return tokens.filter(w => !STOP.has(w)); }
+
+function qBag(tokens){
+  const b = Object.create(null);
+  for(const w of tokens) b[w] = (b[w] || 0) + 1;
+  return b;
+}
+
+// 모범답안 내용어 중 사용자가 쓰지 못한 것 (다중집합 차집합)
+function qMissing(userT, modelT){
+  const bag = qBag(qContent(userT)), out = [];
+  for(const w of qContent(modelT)){
+    if(bag[w] > 0) bag[w]--; else out.push(w);
+  }
+  return out;
+}
+
+// 사용자가 썼지만 모범답안에 없는 내용어
+function qExtra(userT, modelT){
+  const bag = qBag(qContent(modelT)), out = [];
+  for(const w of qContent(userT)){
+    if(bag[w] > 0) bag[w]--; else out.push(w);
+  }
+  return out;
+}
+
+function qRatio(userT, modelT){
+  const model = qContent(modelT);
+  if(!model.length) return 1;
+  return (model.length - qMissing(userT, modelT).length) / model.length;
+}
+
+// 핵심 표현 단어가 어형변화를 포함해 모두 들어있는가
+function qHasExpression(userT, expression){
+  const words = exprWords(expression || '');
+  if(!words.length) return true;
+  const set = new Set(userT);
+  return words.every(w => variants(w).some(v => set.has(qNorm(v))));
+}
+
+function qGrade(userText, expression, modelEn){
+  const u = qTokens(userText);
+  if(!u.length) return {ok:false, ratio:0, hasExpr:false, missing:qContent(qTokens(modelEn)), extra:[]};
+  const m = qTokens(modelEn);
+  const hasExpr = qHasExpression(u, expression);
+  const ratio = qRatio(u, m);
+  return {ok: hasExpr && ratio >= QPASS, ratio, hasExpr, missing: qMissing(u, m), extra: qExtra(u, m)};
+}
+
+// 문장 id = "<folderId>|<cardIndex>|<tense>"
+function qBuildPool(folders){
+  const out = [];
+  folders.forEach(f => f.cards.forEach((c, i) => {
+    if(!c.practice || !c.practice[QLEVEL]) return;
+    QTENSES.forEach(t => { if(c.practice[QLEVEL][t]) out.push(f.id + '|' + i + '|' + t); });
+  }));
+  return out;
+}
+
+function qLookup(folders, id){
+  const parts = String(id).split('|');
+  if(parts.length !== 3) return null;
+  const f = folders.find(x => x.id === parts[0]);
+  if(!f) return null;
+  const c = f.cards[+parts[1]];
+  if(!c || !c.practice || !c.practice[QLEVEL]) return null;
+  const cell = c.practice[QLEVEL][parts[2]];
+  if(!cell) return null;
+  return {id:String(id), folderId:f.id, titleKo:f.titleKo, expression:c.expression,
+          meaningKo:c.meaningKo, tense:parts[2], ko:cell.ko, en:cell.en};
+}
+
+// 큐를 QSIZE개로 채운다. 이미 큐에 있거나 완료한 문장은 제외.
+// 남은 문장이 부족하면 QSIZE 미만으로 둔다.
+function qRefill(queue, pool, completed, rand){
+  const r = rand || Math.random;
+  const used = new Set(queue);
+  for(const k in completed) used.add(k);
+  const avail = pool.filter(id => !used.has(id));
+  const q = queue.slice();
+  while(q.length < QSIZE && avail.length){
+    q.push(avail.splice(Math.floor(r() * avail.length), 1)[0]);
+  }
+  return q;
+}
+
+function qShuffle(arr, rand){
+  const r = rand || Math.random, a = arr.slice();
+  for(let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(r() * (i + 1));
+    const t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+/* TESTABLE-END */
+
+window.__QUIZ_CORE__={qGrade:qGrade,qBuildPool:qBuildPool,qLookup:qLookup,qRefill:qRefill,qShuffle:qShuffle};
+})();
+</script>
+
 <section id="scr-quiz" style="display:none">
   <div class="qz" id="qzRoot"></div>
 </section>
