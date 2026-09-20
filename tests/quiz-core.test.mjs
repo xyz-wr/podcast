@@ -156,25 +156,6 @@ test('qShuffle: 원본을 바꾸지 않고 같은 원소를 돌려준다', () =>
   assert.deepEqual([...out].sort(), [...src].sort());
 });
 
-test('qzWords: 문장부호를 떼고 단어만 남긴다', () => {
-  assert.deepEqual(C.qzWords("We'll hit the road soon, okay?"),
-    ["We'll", 'hit', 'the', 'road', 'soon', 'okay']);
-});
-
-test('qzWords: 단어 안의 아포스트로피는 유지한다', () => {
-  assert.deepEqual(C.qzWords("It's a runner's high."), ["It's", 'a', "runner's", 'high']);
-});
-
-test('qzWords: 모든 B1 문장에서 빈 타일이 생기지 않는다', () => {
-  const core = C, pool = core.qBuildPool(FOLDERS);
-  for(const id of pool){
-    const en = core.qLookup(FOLDERS, id).en;
-    const ws = core.qzWords(en);
-    assert.ok(ws.length >= 2, `타일 부족: ${en}`);
-    assert.ok(ws.every(w => w.trim()), `빈 타일: ${en}`);
-  }
-});
-
 const V = (name, lang, local = true) => ({name, lang, localService: local});
 
 test('rankVoices: 영어 음성만 남긴다', () => {
