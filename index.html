@@ -1874,14 +1874,6 @@ return{render:render};
 #screen-video .vd-back{flex:none;width:34px;height:34px;border-radius:11px;border:1px solid var(--paper-line);background:var(--card);color:var(--ink-soft);font-size:18px;line-height:1;padding:0;}
 #screen-video .vd-htitle{flex:1;min-width:0;font-weight:800;font-size:16px;color:var(--ink);}
 #screen-video .vd-htitle span{display:block;font-size:12px;color:var(--ink-faint);font-weight:400;margin-top:1px;}
-#screen-video .vd-player{background:var(--card);border:1px solid var(--paper-line);border-radius:18px;padding:12px;box-shadow:0 1px 2px rgba(0,40,89,.04),0 8px 22px rgba(0,40,89,.06);}
-#screen-video #ygWidget{min-height:340px;}
-#screen-video .vd-status{text-align:center;color:var(--ink-faint);font-size:13px;padding:26px 10px;}
-#screen-video .vd-cap{margin-top:12px;background:var(--card);border:1px solid var(--paper-line);border-radius:16px;padding:13px 15px;}
-#screen-video .vd-cap .line{font-size:15px;line-height:1.6;color:var(--ink);word-break:break-word;}
-#screen-video .vd-cap mark{background:var(--brand-tint);color:var(--brand-deep);font-weight:700;padding:0 2px;border-radius:3px;}
-#screen-video .vd-cap .gloss{margin-top:8px;padding-top:8px;border-top:1px dashed var(--paper-line);font-size:13.5px;color:var(--ink-soft);}
-#screen-video .vd-open{width:100%;margin-top:12px;border-radius:var(--pill);padding:13px;font-size:14px;font-weight:700;background:var(--brand-tint);color:var(--brand-deep);border:1px solid var(--brand-soft);}
 #screen-video .vd-empty{text-align:center;color:var(--ink-faint);font-size:13.5px;padding:38px 0;}
 </style>
 
@@ -1911,19 +1903,22 @@ function allItems(){
   var out=[];meta().cats.forEach(function(c){out=out.concat(catItems(c));});return out;
 }
 
-// "Brush (one's) teeth" -> "Brush * teeth"  (YouGlish 는 * 를 한 단어 와일드카드로 지원)
-function ygQuery(expr){
-  return expr.replace(/\([^)]*\)/g,' * ').replace(/["\u201C\u201D.,!?]/g,' ')
-    .replace(/\s+/g,' ').trim().replace(/^\* /,'').replace(/ \*$/,'');
+// PlayPhrase 는 문자 그대로 검색하므로 괄호 자리를 자연스러운 대명사로 바꾼다
+// "Brush (one's) teeth" -> "brush my teeth"
+function ppQuery(expr){
+  return expr
+    .replace(/\((?:one\x27s|ones)\)/gi,'my')
+    .replace(/\((?:someone|somebody|sb)\)/gi,'you')
+    .replace(/\((?:something|sth|it)\)/gi,'it')
+    .replace(/\([^)]*\)/g,' ')
+    .replace(/["\u201C\u201D.,!?]/g,' ')
+    .replace(/\s+/g,' ').trim();
 }
-function ygUrl(expr){return 'https://youglish.com/pronounce/'+encodeURIComponent(ygQuery(expr))+'/english';}
+function ppUrl(expr){return 'https://www.playphrase.me/#/search?q='+encodeURIComponent(ppQuery(expr));}
 
 var view={name:'home'}, q='';
-var widget=null, apiState='none';   // none | loading | ready | failed
-
 function rootEl(){return document.getElementById('vdRoot');}
-function nav(v){closeWidget();view=v;draw();window.scrollTo(0,0);}
-function closeWidget(){if(widget){try{widget.close();}catch(e){}widget=null;}}
+function nav(v){view=v;draw();window.scrollTo(0,0);}
 
 function tileHTML(it){
   var g=it.cat.g;
@@ -1954,7 +1949,7 @@ function homeHTML(){
     }).join('');
   }
   return '<div class="vd-hero"><h1>실제 영상으로 듣기</h1>'+
-    '<p>표현을 고르면 원어민이 그 표현을 말하는 유튜브 장면을 이어서 보여줘요.</p></div>'+
+    '<p>표현을 고르면 그 문구를 말하는 영화 장면들이 PlayPhrase.me 새 창에서 이어서 재생돼요.</p></div>'+
     '<div class="vd-search"><i>⌕</i><input id="vdSearch" type="search" placeholder="표현 검색 (예: hit the road, 출발)" value="'+esc(q)+'"></div>'+
     body;
 }
@@ -1968,99 +1963,24 @@ function catHTML(cid){
     '<div class="vd-grid">'+items.map(tileHTML).join('')+'</div>';
 }
 
-function playerHTML(){
-  return '<div class="vd-head"><button class="vd-back" data-back="'+(view.from||'home')+'"'+
-      (view.cid?' data-cid="'+view.cid+'"':'')+'>&lsaquo;</button>'+
-    '<div class="vd-htitle">'+esc(view.expr)+'<span>'+esc(view.ko||'')+'</span></div></div>'+
-    '<div class="vd-player"><div id="ygWidget"><div class="vd-status">영상을 불러오는 중…</div></div></div>'+
-    '<div class="vd-cap" id="vdCap" hidden></div>'+
-    '<button class="vd-open" id="vdOpen">YouGlish 사이트에서 열기 ↗</button>';
-}
-
 function draw(){
   var r=rootEl();if(!r)return;
-  if(view.name==='home')r.innerHTML=homeHTML();
-  else if(view.name==='cat')r.innerHTML=catHTML(view.cid);
-  else r.innerHTML=playerHTML();
+  r.innerHTML=view.name==='cat'?catHTML(view.cid):homeHTML();
   bind();
-  if(view.name==='player')mountWidget();
 }
 
 function bind(){
   var r=rootEl();
-  r.querySelectorAll('[data-back]').forEach(function(b){b.onclick=function(){
-    var t=b.dataset.back;
-    nav(t==='cat'?{name:'cat',cid:b.dataset.cid}:{name:'home'});};});
+  r.querySelectorAll('[data-back]').forEach(function(b){b.onclick=function(){nav({name:'home'});};});
   r.querySelectorAll('[data-cat]').forEach(function(b){b.onclick=function(){nav({name:'cat',cid:b.dataset.cat});};});
   r.querySelectorAll('[data-play]').forEach(function(b){b.onclick=function(){
-    var f=fById(b.dataset.fid),ko='';
-    if(f)f.cards.forEach(function(c){if(c.expression===b.dataset.play)ko=c.meaningKo;});
-    nav({name:'player',expr:b.dataset.play,ko:ko,
-         from:view.name==='cat'?'cat':'home',cid:view.cid});};});
+    window.open(ppUrl(b.dataset.play),'_blank','noopener');};});
   var sIn=r.querySelector('#vdSearch');
   if(sIn)sIn.oninput=function(){
     var at=sIn.selectionStart;q=sIn.value;draw();
     var s2=rootEl().querySelector('#vdSearch');
     if(s2){s2.focus();try{s2.setSelectionRange(at,at);}catch(e){}}
   };
-  var op=r.querySelector('#vdOpen');
-  if(op)op.onclick=function(){window.open(ygUrl(view.expr),'_blank','noopener');};
-}
-
-// 자막에서 표현이 나온 부분([[[ ]]])만 하이라이트하고, 그 부분의 해석을 붙인다
-function renderCaption(raw){
-  var el=document.getElementById('vdCap');
-  if(!el)return;
-  if(!raw){el.hidden=true;return;}
-  try{raw=decodeURIComponent(raw);}catch(e){}      // 자막이 URL 인코딩으로 온다
-  raw=raw.replace(/\]\]\]\s+\[\[\[/g,' ');          // 단어별 마킹을 한 덩어리로
-  var marked=false;
-  var html=esc(raw).replace(/\[\[\[([\s\S]*?)\]\]\]/g,function(_,w){
-    marked=true;
-    return '<mark>'+w+'</mark>';
-  });
-  el.innerHTML='<div class="line">'+html+'</div>'+
-    (marked?'<div class="gloss"><mark>'+esc(view.expr)+'</mark> = '+esc(view.ko||'')+'</div>':'');
-  el.hidden=false;
-}
-
-function widgetFail(msg){
-  var el=document.getElementById('ygWidget');
-  if(el)el.innerHTML='<div class="vd-status">'+esc(msg)+'<br>아래 버튼으로 YouGlish 사이트에서 볼 수 있어요.</div>';
-}
-
-// YouGlish 위젯 스크립트는 처음 재생할 때 한 번만 로드한다
-function mountWidget(){
-  if(apiState==='ready')return createWidget();
-  if(apiState==='failed')return widgetFail('플레이어를 불러오지 못했어요.');
-  if(apiState==='loading')return;   // onYouglishAPIReady 가 이어서 처리
-  apiState='loading';
-  window.onYouglishAPIReady=function(){
-    apiState='ready';
-    if(view.name==='player')createWidget();
-  };
-  var tag=document.createElement('script');
-  tag.src='https://youglish.com/public/emb/widget.js';
-  tag.onerror=function(){apiState='failed';widgetFail('플레이어를 불러오지 못했어요. (인터넷 연결 확인)');};
-  document.head.appendChild(tag);
-}
-
-function createWidget(){
-  var el=document.getElementById('ygWidget');
-  if(!el)return;
-  el.innerHTML='';
-  try{
-    widget=new YG.Widget('ygWidget',{
-      width:Math.min(el.parentElement.clientWidth-2,640)||320,
-      autoStart:1,
-      events:{
-        'onFetchDone':function(ev){if(ev.totalResult===0)widgetFail('이 표현이 나오는 영상을 찾지 못했어요.');},
-        'onCaptionChange':function(ev){renderCaption(ev.caption);},
-        'onError':function(){widgetFail('영상을 재생하지 못했어요.');}
-      }
-    });
-    widget.fetch(ygQuery(view.expr),'english');
-  }catch(e){widgetFail('플레이어를 불러오지 못했어요.');}
 }
 
 return {render:function(){draw();}};
