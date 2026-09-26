@@ -1877,6 +1877,10 @@ return{render:render};
 #screen-video .vd-player{background:var(--card);border:1px solid var(--paper-line);border-radius:18px;padding:12px;box-shadow:0 1px 2px rgba(0,40,89,.04),0 8px 22px rgba(0,40,89,.06);}
 #screen-video #ygWidget{min-height:340px;}
 #screen-video .vd-status{text-align:center;color:var(--ink-faint);font-size:13px;padding:26px 10px;}
+#screen-video .vd-cap{margin-top:12px;background:var(--card);border:1px solid var(--paper-line);border-radius:16px;padding:13px 15px;}
+#screen-video .vd-cap .line{font-size:15px;line-height:1.6;color:var(--ink);word-break:break-word;}
+#screen-video .vd-cap mark{background:var(--brand-tint);color:var(--brand-deep);font-weight:700;padding:0 2px;border-radius:3px;}
+#screen-video .vd-cap .gloss{margin-top:8px;padding-top:8px;border-top:1px dashed var(--paper-line);font-size:13.5px;color:var(--ink-soft);}
 #screen-video .vd-open{width:100%;margin-top:12px;border-radius:var(--pill);padding:13px;font-size:14px;font-weight:700;background:var(--brand-tint);color:var(--brand-deep);border:1px solid var(--brand-soft);}
 #screen-video .vd-empty{text-align:center;color:var(--ink-faint);font-size:13.5px;padding:38px 0;}
 </style>
@@ -1969,6 +1973,7 @@ function playerHTML(){
       (view.cid?' data-cid="'+view.cid+'"':'')+'>&lsaquo;</button>'+
     '<div class="vd-htitle">'+esc(view.expr)+'<span>'+esc(view.ko||'')+'</span></div></div>'+
     '<div class="vd-player"><div id="ygWidget"><div class="vd-status">영상을 불러오는 중…</div></div></div>'+
+    '<div class="vd-cap" id="vdCap" hidden></div>'+
     '<button class="vd-open" id="vdOpen">YouGlish 사이트에서 열기 ↗</button>';
 }
 
@@ -2002,6 +2007,23 @@ function bind(){
   if(op)op.onclick=function(){window.open(ygUrl(view.expr),'_blank','noopener');};
 }
 
+// 자막에서 표현이 나온 부분([[[ ]]])만 하이라이트하고, 그 부분의 해석을 붙인다
+function renderCaption(raw){
+  var el=document.getElementById('vdCap');
+  if(!el)return;
+  if(!raw){el.hidden=true;return;}
+  try{raw=decodeURIComponent(raw);}catch(e){}      // 자막이 URL 인코딩으로 온다
+  raw=raw.replace(/\]\]\]\s+\[\[\[/g,' ');          // 단어별 마킹을 한 덩어리로
+  var marked=false;
+  var html=esc(raw).replace(/\[\[\[([\s\S]*?)\]\]\]/g,function(_,w){
+    marked=true;
+    return '<mark>'+w+'</mark>';
+  });
+  el.innerHTML='<div class="line">'+html+'</div>'+
+    (marked?'<div class="gloss"><mark>'+esc(view.expr)+'</mark> = '+esc(view.ko||'')+'</div>':'');
+  el.hidden=false;
+}
+
 function widgetFail(msg){
   var el=document.getElementById('ygWidget');
   if(el)el.innerHTML='<div class="vd-status">'+esc(msg)+'<br>아래 버튼으로 YouGlish 사이트에서 볼 수 있어요.</div>';
@@ -2033,6 +2055,7 @@ function createWidget(){
       autoStart:1,
       events:{
         'onFetchDone':function(ev){if(ev.totalResult===0)widgetFail('이 표현이 나오는 영상을 찾지 못했어요.');},
+        'onCaptionChange':function(ev){renderCaption(ev.caption);},
         'onError':function(){widgetFail('영상을 재생하지 못했어요.');}
       }
     });

@@ -21,7 +21,7 @@ const GLOBALS = new Set([
   'Date', 'RegExp', 'Error', 'Promise', 'parseInt', 'parseFloat', 'isNaN',
   'document', 'window', 'localStorage', 'sessionStorage', 'console', 'confirm',
   'alert', 'setTimeout', 'clearTimeout', 'requestAnimationFrame', 'speechSynthesis',
-  'SpeechSynthesisUtterance', 'Event', 'CustomEvent', 'fetch', 'encodeURIComponent'
+  'SpeechSynthesisUtterance', 'Event', 'CustomEvent', 'fetch', 'encodeURIComponent', 'decodeURIComponent'
 ]);
 
 function declaredNames(src){
