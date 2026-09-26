@@ -642,6 +642,7 @@ function catById(id){return CATS.filter(function(c){return c.id===id;})[0];}
 function catOf(fid){for(var i=0;i<CATS.length;i++){if(CATS[i].f.indexOf(fid)>=0)return CATS[i];}return CATS[0];}
 function catFolders(c){return c.f.map(fById).filter(Boolean);}
 function catDone(c){var fs=catFolders(c),d=0,t=0;fs.forEach(function(f){d+=folderDone(f);t+=f.cards.length;});return {d:d,t:t};}
+window.CONV_META={cats:CATS,emoji:FEMOJI};   // 영상 탭이 같은 분류를 쓴다
 
 var cview={name:'home'}, searchQ='';
 function fById(id){return FOLDERS.filter(function(f){return f.id===id;})[0];}
@@ -1845,11 +1846,209 @@ return{render:render};
 })();
 </script>
 
+<style id="video-style">
+#screen-video{padding:0 14px 10px;}
+#screen-video .vd-hero{padding:14px 2px 4px;}
+#screen-video .vd-hero h1{font-family:'Fraunces',Georgia,serif;font-size:24px;font-weight:600;margin:0 0 3px;color:var(--ink);}
+#screen-video .vd-hero p{margin:0;color:var(--ink-soft);font-size:13px;}
+#screen-video .vd-search{position:relative;margin:14px 0 4px;}
+#screen-video .vd-search i{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--ink-faint);font-style:normal;}
+#screen-video .vd-search input{width:100%;border:1.5px solid var(--paper-line);border-radius:14px;padding:12px 14px 12px 36px;font-family:inherit;font-size:14px;background:var(--card);color:var(--ink);}
+#screen-video .vd-search input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-tint);}
+#screen-video .vd-sec{margin-top:24px;}
+#screen-video .vd-sechead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 2px 12px;}
+#screen-video .vd-sechead b{display:flex;align-items:center;gap:7px;font-size:17px;font-weight:800;color:var(--ink);}
+#screen-video .vd-more{background:none;border:none;padding:0;color:var(--brand);font-size:13.5px;font-weight:700;}
+#screen-video .vd-row{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x proximity;margin:0 -14px;padding:2px 14px 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+#screen-video .vd-row::-webkit-scrollbar{display:none;}
+#screen-video .vd-row .vd-tile{flex:0 0 150px;scroll-snap-align:start;}
+#screen-video .vd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px 12px;}
+#screen-video .vd-tile{display:flex;flex-direction:column;background:none;border:none;padding:0;text-align:left;cursor:pointer;}
+#screen-video .vd-tile .img{position:relative;display:flex;align-items:center;justify-content:center;aspect-ratio:4/3;border-radius:16px;overflow:hidden;box-shadow:0 1px 2px rgba(0,40,89,.05),0 6px 16px rgba(0,40,89,.07);transition:transform .08s;}
+#screen-video .vd-tile .img .fe{font-size:38px;line-height:1;filter:drop-shadow(0 3px 6px rgba(0,40,89,.16));}
+#screen-video .vd-tile .img .play{position:absolute;right:8px;bottom:8px;width:26px;height:26px;border-radius:99px;background:rgba(255,255,255,.92);color:var(--brand-deep);font-size:11px;display:flex;align-items:center;justify-content:center;padding-left:2px;}
+#screen-video .vd-tile .en{margin-top:9px;font-size:14px;font-weight:700;line-height:1.35;color:var(--ink);}
+#screen-video .vd-tile .ko{margin-top:3px;font-size:12px;color:var(--ink-faint);word-break:keep-all;}
+#screen-video .vd-tile:active .img{transform:scale(.97);}
+#screen-video .vd-head{display:flex;align-items:center;gap:10px;padding:14px 2px 10px;}
+#screen-video .vd-back{flex:none;width:34px;height:34px;border-radius:11px;border:1px solid var(--paper-line);background:var(--card);color:var(--ink-soft);font-size:18px;line-height:1;padding:0;}
+#screen-video .vd-htitle{flex:1;min-width:0;font-weight:800;font-size:16px;color:var(--ink);}
+#screen-video .vd-htitle span{display:block;font-size:12px;color:var(--ink-faint);font-weight:400;margin-top:1px;}
+#screen-video .vd-player{background:var(--card);border:1px solid var(--paper-line);border-radius:18px;padding:12px;box-shadow:0 1px 2px rgba(0,40,89,.04),0 8px 22px rgba(0,40,89,.06);}
+#screen-video #ygWidget{min-height:340px;}
+#screen-video .vd-status{text-align:center;color:var(--ink-faint);font-size:13px;padding:26px 10px;}
+#screen-video .vd-open{width:100%;margin-top:12px;border-radius:var(--pill);padding:13px;font-size:14px;font-weight:700;background:var(--brand-tint);color:var(--brand-deep);border:1px solid var(--brand-soft);}
+#screen-video .vd-empty{text-align:center;color:var(--ink-faint);font-size:13.5px;padding:38px 0;}
+</style>
+
+<section id="screen-video" class="screen">
+  <div id="vdRoot"></div>
+</section>
+
+<script id="video-module">
+window.VideoApp=(function(){
+"use strict";
+var DATA=JSON.parse(document.getElementById('conv-data').textContent);
+var FOLDERS=DATA.folders;
+function esc(x){return (x||'').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function meta(){return window.CONV_META||{cats:[],emoji:{}};}
+function fById(id){for(var i=0;i<FOLDERS.length;i++){if(FOLDERS[i].id===id)return FOLDERS[i];}return null;}
+
+// 카테고리별 표현 목록 [{expr, ko, fid, cat}]
+function catItems(c){
+  var out=[];
+  c.f.forEach(function(fid){
+    var f=fById(fid);if(!f)return;
+    f.cards.forEach(function(card){out.push({expr:card.expression,ko:card.meaningKo,fid:fid,cat:c});});
+  });
+  return out;
+}
+function allItems(){
+  var out=[];meta().cats.forEach(function(c){out=out.concat(catItems(c));});return out;
+}
+
+// "Brush (one's) teeth" -> "Brush * teeth"  (YouGlish 는 * 를 한 단어 와일드카드로 지원)
+function ygQuery(expr){
+  return expr.replace(/\([^)]*\)/g,' * ').replace(/["\u201C\u201D.,!?]/g,' ')
+    .replace(/\s+/g,' ').trim().replace(/^\* /,'').replace(/ \*$/,'');
+}
+function ygUrl(expr){return 'https://youglish.com/pronounce/'+encodeURIComponent(ygQuery(expr))+'/english';}
+
+var view={name:'home'}, q='';
+var widget=null, apiState='none';   // none | loading | ready | failed
+
+function rootEl(){return document.getElementById('vdRoot');}
+function nav(v){closeWidget();view=v;draw();window.scrollTo(0,0);}
+function closeWidget(){if(widget){try{widget.close();}catch(e){}widget=null;}}
+
+function tileHTML(it){
+  var g=it.cat.g;
+  return '<button class="vd-tile" data-play="'+esc(it.expr)+'" data-fid="'+it.fid+'">'+
+    '<span class="img" style="background:linear-gradient(145deg,'+g[0]+','+g[1]+')">'+
+      '<span class="fe">'+(meta().emoji[it.fid]||'🎬')+'</span><span class="play">&#9654;</span></span>'+
+    '<span class="en">'+esc(it.expr)+'</span>'+
+    '<span class="ko">'+esc(it.ko)+'</span></button>';
+}
+
+function homeHTML(){
+  var body;
+  if(q){
+    var ql=q.toLowerCase();
+    var found=allItems().filter(function(it){
+      return it.expr.toLowerCase().indexOf(ql)>=0||(it.ko||'').indexOf(q)>=0;});
+    body='<div class="vd-sec"><div class="vd-sechead"><b>검색 결과 '+found.length+'개</b></div>'+
+      (found.length?'<div class="vd-grid">'+found.map(tileHTML).join('')+'</div>'
+                   :'<div class="vd-empty">검색 결과가 없어요.</div>')+'</div>';
+  } else {
+    body=meta().cats.map(function(c){
+      var items=catItems(c);
+      if(!items.length)return '';
+      return '<div class="vd-sec"><div class="vd-sechead">'+
+        '<b><span>'+c.emoji+'</span>'+esc(c.name)+'</b>'+
+        '<button class="vd-more" data-cat="'+c.id+'">모두 보기</button></div>'+
+        '<div class="vd-row">'+items.map(tileHTML).join('')+'</div></div>';
+    }).join('');
+  }
+  return '<div class="vd-hero"><h1>실제 영상으로 듣기</h1>'+
+    '<p>표현을 고르면 원어민이 그 표현을 말하는 유튜브 장면을 이어서 보여줘요.</p></div>'+
+    '<div class="vd-search"><i>⌕</i><input id="vdSearch" type="search" placeholder="표현 검색 (예: hit the road, 출발)" value="'+esc(q)+'"></div>'+
+    body;
+}
+
+function catHTML(cid){
+  var c=null;meta().cats.forEach(function(x){if(x.id===cid)c=x;});
+  if(!c)return '';
+  var items=catItems(c);
+  return '<div class="vd-head"><button class="vd-back" data-back="home">&lsaquo;</button>'+
+    '<div class="vd-htitle">'+c.emoji+' '+esc(c.name)+'<span>표현 '+items.length+'개</span></div></div>'+
+    '<div class="vd-grid">'+items.map(tileHTML).join('')+'</div>';
+}
+
+function playerHTML(){
+  return '<div class="vd-head"><button class="vd-back" data-back="'+(view.from||'home')+'"'+
+      (view.cid?' data-cid="'+view.cid+'"':'')+'>&lsaquo;</button>'+
+    '<div class="vd-htitle">'+esc(view.expr)+'<span>'+esc(view.ko||'')+'</span></div></div>'+
+    '<div class="vd-player"><div id="ygWidget"><div class="vd-status">영상을 불러오는 중…</div></div></div>'+
+    '<button class="vd-open" id="vdOpen">YouGlish 사이트에서 열기 ↗</button>';
+}
+
+function draw(){
+  var r=rootEl();if(!r)return;
+  if(view.name==='home')r.innerHTML=homeHTML();
+  else if(view.name==='cat')r.innerHTML=catHTML(view.cid);
+  else r.innerHTML=playerHTML();
+  bind();
+  if(view.name==='player')mountWidget();
+}
+
+function bind(){
+  var r=rootEl();
+  r.querySelectorAll('[data-back]').forEach(function(b){b.onclick=function(){
+    var t=b.dataset.back;
+    nav(t==='cat'?{name:'cat',cid:b.dataset.cid}:{name:'home'});};});
+  r.querySelectorAll('[data-cat]').forEach(function(b){b.onclick=function(){nav({name:'cat',cid:b.dataset.cat});};});
+  r.querySelectorAll('[data-play]').forEach(function(b){b.onclick=function(){
+    var f=fById(b.dataset.fid),ko='';
+    if(f)f.cards.forEach(function(c){if(c.expression===b.dataset.play)ko=c.meaningKo;});
+    nav({name:'player',expr:b.dataset.play,ko:ko,
+         from:view.name==='cat'?'cat':'home',cid:view.cid});};});
+  var sIn=r.querySelector('#vdSearch');
+  if(sIn)sIn.oninput=function(){
+    var at=sIn.selectionStart;q=sIn.value;draw();
+    var s2=rootEl().querySelector('#vdSearch');
+    if(s2){s2.focus();try{s2.setSelectionRange(at,at);}catch(e){}}
+  };
+  var op=r.querySelector('#vdOpen');
+  if(op)op.onclick=function(){window.open(ygUrl(view.expr),'_blank','noopener');};
+}
+
+function widgetFail(msg){
+  var el=document.getElementById('ygWidget');
+  if(el)el.innerHTML='<div class="vd-status">'+esc(msg)+'<br>아래 버튼으로 YouGlish 사이트에서 볼 수 있어요.</div>';
+}
+
+// YouGlish 위젯 스크립트는 처음 재생할 때 한 번만 로드한다
+function mountWidget(){
+  if(apiState==='ready')return createWidget();
+  if(apiState==='failed')return widgetFail('플레이어를 불러오지 못했어요.');
+  if(apiState==='loading')return;   // onYouglishAPIReady 가 이어서 처리
+  apiState='loading';
+  window.onYouglishAPIReady=function(){
+    apiState='ready';
+    if(view.name==='player')createWidget();
+  };
+  var tag=document.createElement('script');
+  tag.src='https://youglish.com/public/emb/widget.js';
+  tag.onerror=function(){apiState='failed';widgetFail('플레이어를 불러오지 못했어요. (인터넷 연결 확인)');};
+  document.head.appendChild(tag);
+}
+
+function createWidget(){
+  var el=document.getElementById('ygWidget');
+  if(!el)return;
+  el.innerHTML='';
+  try{
+    widget=new YG.Widget('ygWidget',{
+      width:Math.min(el.parentElement.clientWidth-2,640)||320,
+      autoStart:1,
+      events:{
+        'onFetchDone':function(ev){if(ev.totalResult===0)widgetFail('이 표현이 나오는 영상을 찾지 못했어요.');},
+        'onError':function(){widgetFail('영상을 재생하지 못했어요.');}
+      }
+    });
+    widget.fetch(ygQuery(view.expr),'english');
+  }catch(e){widgetFail('플레이어를 불러오지 못했어요.');}
+}
+
+return {render:function(){draw();}};
+})();
+</script>
+
 <nav id="tabbar">
   <div class="tab" data-s="conv" onclick="tabTo('conv')"><div class="ico">💬</div><div class="lab">회화</div></div>
   <div class="tab" data-s="wquiz" onclick="tabTo('wquiz')"><div class="ico">🎯</div><div class="lab">퀴즈</div></div>
   <div class="tab active" data-s="learn" onclick="tabTo('learn')"><div class="ico">▶</div><div class="lab">학습</div></div>
-  <div class="tab" data-s="write" onclick="tabTo('write')"><div class="ico">✍️</div><div class="lab">영작</div></div>
+  <div class="tab" data-s="video" onclick="tabTo('video')"><div class="ico">🎥</div><div class="lab">영상</div></div>
   <div class="tab" data-s="settings" onclick="tabTo('settings')"><div class="ico">⚙</div><div class="lab">더보기</div></div>
 </nav>
 
@@ -2231,6 +2430,7 @@ function tabTo(s){try{localStorage.setItem(TAB_LS,s);}catch(e){}
   else if(s==='diary'){showScreen('diary');DiaryApp.render();}
   else if(s==='wquiz'){showScreen('wquiz');QuizApp.render();}
   else if(s==='write'){showScreen('write');WriteApp.render();}
+  else if(s==='video'){showScreen('video');VideoApp.render();}
   else if(s==='streak'){showScreen('streak');renderStreak();}
   else if(s==='settings'){showScreen('settings');renderSettings();}}
 

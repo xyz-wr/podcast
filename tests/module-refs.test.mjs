@@ -49,7 +49,7 @@ function calledNames(src){
   return out;
 }
 
-for(const id of ['quiz-module', 'write-module']){
+for(const id of ['quiz-module', 'write-module', 'video-module']){
   test(`${id}: 호출하는 함수가 모두 선언돼 있다`, () => {
     const src = moduleSource(id);
     const declared = declaredNames(src);
@@ -65,6 +65,6 @@ test('quiz-module: 리스닝 단계 함수가 모두 살아 있다', () => {
 });
 
 test('index.html: 스크립트 블록이 문법적으로 유효하다', () => {
-  for(const id of ['quiz-module', 'write-module'])
+  for(const id of ['quiz-module', 'write-module', 'video-module'])
     assert.doesNotThrow(() => new Function(moduleSource(id)), id);
 });
