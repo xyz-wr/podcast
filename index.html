@@ -2295,6 +2295,36 @@ return {render:function(){draw();}};
 #screen-voca .s1{background:var(--vk-gs2);}
 #screen-voca .s2{background:var(--vk-g);}
 #screen-voca .s3{background:var(--vk-g9);}
+#screen-voca .vk-cal-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+#screen-voca .vk-cal-h b{font-size:16px;}
+#screen-voca .vk-cal-nav{width:34px;height:34px;padding:0;border-radius:11px;background:#fff;color:var(--vk-sf);border:1px solid var(--vk-ln2);font-size:19px;line-height:1;}
+#screen-voca .vk-cal-nav:disabled{opacity:.3;}
+#screen-voca .vk-cal-w,#screen-voca .vk-cal-g{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+#screen-voca .vk-cal-w span{text-align:center;font-size:11px;font-weight:700;color:var(--vk-ft);padding:2px 0 4px;}
+#screen-voca .vk-cal-w span:first-child{color:var(--vk-rd);}
+#screen-voca .vk-cal-d{position:relative;aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:10px;border:none;padding:0;background:transparent;color:var(--vk-sf);font-size:13px;font-weight:600;}
+#screen-voca button.vk-cal-d{cursor:pointer;}
+#screen-voca .vk-cal-d.fut{color:var(--vk-mute);}
+#screen-voca .vk-cal-d.h1{background:var(--vk-gs);color:var(--vk-gd);}
+#screen-voca .vk-cal-d.h2{background:var(--vk-gs2);color:var(--vk-g9);}
+#screen-voca .vk-cal-d.h3{background:var(--vk-g);color:#fff;}
+#screen-voca .vk-cal-d.h4{background:var(--vk-g9);color:#fff;}
+#screen-voca .vk-cal-d.today::after{content:"";position:absolute;left:50%;bottom:5px;width:14px;height:2.5px;margin-left:-7px;border-radius:2px;background:currentColor;}
+#screen-voca .vk-cal-d.sel{outline:2.5px solid var(--vk-ink);outline-offset:1px;}
+#screen-voca .vk-cal-l{display:flex;align-items:center;justify-content:flex-end;gap:4px;font-size:11px;color:var(--vk-ft);margin-top:10px;}
+#screen-voca .vk-cal-l i{display:inline-block;width:12px;height:12px;border-radius:3px;}
+#screen-voca .vk-cal-l i.h1{background:var(--vk-gs);}
+#screen-voca .vk-cal-l i.h2{background:var(--vk-gs2);}
+#screen-voca .vk-cal-l i.h3{background:var(--vk-g);}
+#screen-voca .vk-cal-l i.h4{background:var(--vk-g9);margin-right:4px;}
+#screen-voca .vk-cal-day{border-top:1px solid var(--vk-ln);margin-top:14px;padding-top:14px;}
+#screen-voca .vk-cal-dh{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+#screen-voca .vk-cal-dh b{font-size:15px;}
+#screen-voca .vk-cal-dh span{font-size:12px;color:var(--vk-ft);}
+#screen-voca .vk-cal-it{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--vk-ln);border-radius:12px;padding:10px 12px;}
+#screen-voca .vk-cal-src{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px;max-width:45%;}
+#screen-voca .vk-cal-src i{font-style:normal;font-size:10.5px;font-weight:700;color:var(--vk-gd);background:var(--vk-gs);border-radius:6px;padding:2px 6px;white-space:nowrap;}
+#screen-voca .vk-cal-src i.ng{color:var(--vk-rd);background:var(--vk-rds);}
 #screen-voca .vk-test-last b{display:block;font-size:18px;}
 #screen-voca .vk-test-last span{display:block;font-size:13px;color:var(--vk-sf);margin-top:2px;}
 #screen-voca .vk-test-last small{display:block;font-size:11.5px;color:var(--vk-ft);margin-top:6px;}
@@ -2705,6 +2735,34 @@ function vkTileWords(en){
     return w.replace(/^[^A-Za-z0-9\u0027\u2019]+/, '').replace(/[^A-Za-z0-9\u0027\u2019]+$/, '');
   }).filter(Boolean);
 }
+// 그날 학습한 표현: 일별 기록(log[day].k) + 이 기능 전 기록 복원(복습 기록의 처음/마지막 학습일, 오답 노트)
+// s 는 출처 글자 모음: f 채우기 · c 회화 · q 퀴즈 · l 리스닝
+function vkDayItems(dayLog, srs, wrongs, k){
+  const map = Object.create(null);
+  const add = function(key, src){
+    const e = map[key] || (map[key] = {key: key, s: '', ok: 0, ng: 0});
+    if(src && e.s.indexOf(src) < 0) e.s += src;
+    return e;
+  };
+  Object.keys(srs || {}).forEach(function(key){
+    const r = srs[key];
+    if((r.first && vkDay(r.first) === k) || (r.last && vkDay(r.last) === k)) add(key, 'f');
+  });
+  (wrongs || []).forEach(function(w){ if(w.at && vkDay(w.at) === k) add(w.k, w.conv ? 'c' : 'f').ng++; });
+  if(dayLog && dayLog.k) Object.keys(dayLog.k).forEach(function(key){
+    const x = dayLog.k[key], e = add(key, '');
+    String(x.s || '').split('').forEach(function(ch){ if(e.s.indexOf(ch) < 0) e.s += ch; });
+    e.ok = Math.max(e.ok, x.ok || 0);
+    e.ng = Math.max(e.ng, x.ng || 0);
+  });
+  return Object.keys(map).map(function(key){ return map[key]; });
+}
+// 달력 칸 색 단계: 그날 학습한 표현 수
+function vkHeat(n){ return !n ? 0 : n < 5 ? 1 : n < 10 ? 2 : n < 20 ? 3 : 4; }
+function vkMonth(ts){
+  const d = new Date(ts), y = d.getFullYear(), m = d.getMonth();
+  return {y: y, m: m, lead: new Date(y, m, 1).getDay(), days: new Date(y, m + 1, 0).getDate()};
+}
 /* VOCA-TESTABLE-END */
 
 /* ── 데이터 ── */
@@ -2824,6 +2882,15 @@ function noteTense(t, ok){
   if(ok) r.ok++; else r.ng++;
 }
 function pushWrong(w){ st.wrongs.unshift(w); if(st.wrongs.length > 60) st.wrongs.length = 60; }
+// 오늘 다룬 표현을 출처(f 채우기 · c 회화 · q 퀴즈 · l 리스닝)와 함께 남긴다. ok 가 null 이면 정오 없이 기록만
+function logItem(key, src, ok){
+  if(!CARD[key]) return;
+  const r = dayRec();
+  if(!r.k) r.k = {};
+  const e = r.k[key] || (r.k[key] = {s:'', ok:0, ng:0});
+  if(e.s.indexOf(src) < 0) e.s += src;
+  if(ok === true) e.ok++; else if(ok === false) e.ng++;
+}
 function dueKeys(now){
   return CARDS.filter(function(x){ const r = st.srs[x.key]; return r && r.due <= now; }).map(function(x){ return x.key; });
 }
@@ -2953,6 +3020,7 @@ let ses = null, mis = null, lis = null, qz = null, lt = null;
 let outSeg = 'conv';        // 꺼내기 하위 탭: conv | listen
 let wrongFilter = 'all';
 let quizTimer = null;
+let calMonth = 0, calSel = '', calAll = false;   // 리포트 달력
 const ACT = Object.create(null);
 
 function root(){ return document.getElementById('vkRoot'); }
@@ -3208,7 +3276,7 @@ function fillSessionHTML(){
   if(ses.phase === 'done') return fillDoneHTML();
   const c = ses.cur, card = c.card;
   const tag = c.isNew ? '<span class="vk-tag new">새 표현</span>' : '<span class="vk-tag">복습 · ' + VK_STEP_KO[c.prevS] + ' 단계</span>';
-  let h = sessHead('① 채우기', ses.i + 1, ses.q.length);
+  let h = sessHead(ses.practice ? '📅 ' + esc(ses.practice.label) + ' 복습' : '① 채우기', ses.i + 1, ses.q.length);
   h += '<div class="vk-card vk-qcard">' + tag + '<span class="vk-topic">' + ficon(card.f) + ' ' + esc(card.f.titleKo) + '</span>' +
     '<div class="vk-mean">' + esc(card.c.meaningKo) + '</div>' +
     (c.s ? '<div class="vk-qko">' + esc(c.s.ko) + '</div>' : '<div class="vk-qko dim">이 표현을 영어로 써 보세요</div>') +
@@ -3224,7 +3292,8 @@ function fillSessionHTML(){
   const n = c.next, failedBefore = c.failedBefore;
   if(c.ok){
     h += '<div class="vk-fb ok"><b>정답이에요!</b><span>' +
-      (c.isNew && !failedBefore && !c.hint ? '이미 아는 표현이네요. ' : '') + VK_STEP_KO[n.s] + ' 뒤에 다시 물어볼게요</span></div>';
+      (c.kept ? '복습 일정은 그대로예요 · 다음 복습 ' + whenText(n.due) :
+        (c.isNew && !failedBefore && !c.hint ? '이미 아는 표현이네요. ' : '') + VK_STEP_KO[n.s] + ' 뒤에 다시 물어볼게요') + '</span></div>';
   } else {
     h += '<div class="vk-fb no"><b>이따 다시 물어볼게요!</b><span>틀린 표현은 몇 문제 뒤에 다른 예문으로 다시 나와요</span></div>';
   }
@@ -3248,15 +3317,17 @@ function fillDoneHTML(){
   const sched = Object.keys(byStep).sort(function(a, b){ return a - b; }).map(function(s){
     return '<span><b>' + byStep[s] + '</b> ' + VK_STEP_KO[s] + ' 뒤</span>';
   }).join('');
-  return sessHead('① 채우기', ses.q.length + 1, ses.q.length, '완료') +
-    '<div class="vk-card vk-done"><div class="vk-done-ico">🎉</div><h2>채우기 완료!</h2>' +
+  const pr = ses.practice;
+  return sessHead(pr ? '📅 ' + esc(pr.label) + ' 복습' : '① 채우기', ses.q.length + 1, ses.q.length, '완료') +
+    '<div class="vk-card vk-done"><div class="vk-done-ico">🎉</div><h2>' + (pr ? '복습 완료!' : '채우기 완료!') + '</h2>' +
     '<div class="vk-done-n"><div><b>' + keys.length + '</b><small>학습한 표현</small></div>' +
     '<div><b>' + (keys.length ? Math.round(firstOk / keys.length * 100) : 0) + '%</b><small>첫 시도 정답률</small></div>' +
     '<div><b>+' + ses.xp + '</b><small>XP</small></div></div>' +
     '<div class="vk-lab">다음 복습 일정</div><div class="vk-sched">' + sched + '</div>' +
     '<p class="vk-note">아는 표현 <b>' + knownCount() + '</b>개 · 이제 문장으로 꺼내 볼까요?</p></div>' +
+    (pr ? '<div class="vk-actions"><button class="grow" data-act="exit">리포트로 돌아가기</button></div>' :
     '<div class="vk-actions"><button class="ghost grow" data-act="exit">홈으로</button>' +
-    '<button class="grow" data-act="exitTo" data-v="out">② 꺼내기로 →</button></div>';
+    '<button class="grow" data-act="exitTo" data-v="out">② 꺼내기로 →</button></div>');
 }
 ACT.fillHint = function(){ collectVals(ses.cur); ses.cur.hint = true; draw(); };
 ACT.fillCheck = function(){
@@ -3268,7 +3339,10 @@ ACT.fillCheck = function(){
   c.ok = c.oks.every(Boolean);
   const now = Date.now(), prev = st.srs[c.key];
   c.failedBefore = !!ses.failed[c.key];
-  const next = vkReview(prev, c.ok, now, {failed: c.failedBefore, hinted: c.hint});
+  // 달력 복습(연습)에서 맞히면 복습 일정은 그대로 두고, 틀리면 평소처럼 5분 단계로
+  c.kept = !!(ses.practice && prev && c.ok);
+  const next = c.kept ? Object.assign({}, prev, {n: prev.n + 1, ok: prev.ok + 1, last: now})
+    : vkReview(prev, c.ok, now, {failed: c.failedBefore, hinted: c.hint});
   next.sk = c.s ? c.s.sk : '';
   st.srs[c.key] = next;
   c.next = next;
@@ -3278,6 +3352,7 @@ ACT.fillCheck = function(){
   const xp = c.ok ? 10 : 2;
   addXp(xp); ses.xp += xp;
   if(c.s) noteTense(c.s.tense, c.ok);
+  logItem(c.key, 'f', c.ok);
   if(!c.ok){
     ses.failed[c.key] = true;
     pushWrong({k:c.key, sk:c.s ? c.s.sk : '', t:c.s ? c.s.tense : '', ko:c.s ? c.s.ko : c.card.c.meaningKo,
@@ -3424,6 +3499,7 @@ ACT.misSend = async function(){
   const first = m.tries === 0;
   m.tries++;
   if(first) noteTense(it.s.tense, res.ok);
+  logItem(it.card.key, 'c', res.ok);
   if(res.ok){
     const xp = first && !m.hint ? 15 : 8;
     addXp(xp); m.xp += xp; m.cleared++;
@@ -3573,7 +3649,7 @@ ACT.lisMic = function(){
 function moveLis(d){
   stopListen();
   clearTimeout(lis.badT);
-  if(d > 0 && lis.heard[lis.i]){ addXp(3); save(); }
+  if(d > 0 && lis.heard[lis.i]){ logItem(lis.items[lis.i].card.key, 'l', lis.solved[lis.i] ? true : null); addXp(3); save(); }
   lis.i += d; lis.said = null; lis.showKo = false;
   if(lis.i >= lis.items.length){ lis.done = true; lis.scores = lis.scores.filter(function(x){ return x != null; }); draw(); return; }
   newOrder();
@@ -3667,6 +3743,7 @@ ACT.qzPick = function(el){
   c.picked = +el.dataset.v;
   const ok = c.opts[c.picked] === c.ans;
   qz.n++;
+  logItem(c.card.key, 'q', ok);
   if(ok){ qz.score++; qz.combo++; qz.maxCombo = Math.max(qz.maxCombo, qz.combo); addXp(5); qz.xp += 5; }
   else { qz.combo = 0; qz.wrong.push(c); }
   draw();
@@ -3795,6 +3872,7 @@ function reportHTML(){
     '<div><b>' + streak + '일</b><small>연속 학습</small></div>' +
     '<div><b>' + wx + '</b><small>이번 주 XP</small></div>' +
   '</div>' +
+  calendarHTML() +
   '<div class="vk-card"><div class="vk-lab">어휘력 변화</div><div class="vk-ch-h">아는 표현 수 · 최근 30일 <b>' + (gain >= 0 ? '+' : '') + gain + '</b></div>' +
     lineChart(series) + '</div>' +
   '<div class="vk-card"><div class="vk-lab">학습 시간</div><div class="vk-ch-h">최근 7일 (분) · 하루 평균 <b>' + avg + '분</b> · 목표 ' + st.set.goal + '분</div>' +
@@ -3857,6 +3935,90 @@ ACT.wrongsToReview = function(){
   Object.keys(keys).forEach(function(k){ const r = st.srs[k]; st.srs[k] = r ? Object.assign({}, r, {due:now}) : {s:0, due:now, n:0, ok:0, ng:0, first:now}; });
   save();
   startFill(null, 0);
+};
+
+/* ── 학습 달력: 날짜를 누르면 그날 학습한 표현만 복습 ── */
+const SRC_KO = {f:'채우기', c:'회화', q:'퀴즈', l:'리스닝'};
+const WD_KO = ['일','월','화','수','목','금','토'];
+function dayItems(k){
+  return vkDayItems(st.log[k], st.srs, st.wrongs, k).filter(function(x){ return CARD[x.key]; });
+}
+function monthStart(ts){ const d = new Date(ts); return new Date(d.getFullYear(), d.getMonth(), 1).getTime(); }
+function defaultCalDay(){
+  const t = todayKey();
+  if(dayItems(t).length) return t;
+  const keys = Object.keys(st.log).filter(function(k){ return k <= t; }).sort().reverse();
+  for(let i = 0; i < keys.length; i++) if(dayItems(keys[i]).length) return keys[i];
+  return t;
+}
+function dayLabel(k){
+  const d = new Date(k + 'T00:00:00');
+  return (d.getMonth() + 1) + '월 ' + d.getDate() + '일 (' + WD_KO[d.getDay()] + ')';
+}
+function calendarHTML(){
+  const now = Date.now(), today = todayKey();
+  if(!calSel) calSel = defaultCalDay();
+  if(!calMonth) calMonth = monthStart(new Date(calSel + 'T00:00:00').getTime());
+  const M = vkMonth(calMonth), isNow = calMonth >= monthStart(now);
+  let cells = '';
+  for(let i = 0; i < M.lead; i++) cells += '<span class="vk-cal-e"></span>';
+  for(let d = 1; d <= M.days; d++){
+    const k = M.y + '-' + vkPad(M.m + 1) + '-' + vkPad(d);
+    const n = k > today ? 0 : dayItems(k).length, r = st.log[k];
+    const cls = 'vk-cal-d h' + vkHeat(n) + (k === today ? ' today' : '') + (k === calSel ? ' sel' : '') + (k > today ? ' fut' : '');
+    cells += n
+      ? '<button class="' + cls + '" data-act="calPick" data-v="' + k + '" title="' + (M.m + 1) + '/' + d + ' · 표현 ' + n + '개' + (r ? ' · ' + Math.round(r.sec / 60) + '분' : '') + '">' + d + '</button>'
+      : '<span class="' + cls + '">' + d + '</span>';
+  }
+  return '<div class="vk-card vk-cal"><div class="vk-cal-h">' +
+      '<button class="vk-cal-nav" data-act="calMove" data-v="-1" aria-label="이전 달">‹</button>' +
+      '<b>' + M.y + '년 ' + (M.m + 1) + '월</b>' +
+      '<button class="vk-cal-nav" data-act="calMove" data-v="1" aria-label="다음 달"' + (isNow ? ' disabled' : '') + '>›</button></div>' +
+    '<div class="vk-cal-w">' + WD_KO.map(function(w){ return '<span>' + w + '</span>'; }).join('') + '</div>' +
+    '<div class="vk-cal-g">' + cells + '</div>' +
+    '<div class="vk-cal-l">적음<i class="h1"></i><i class="h2"></i><i class="h3"></i><i class="h4"></i>많음 · 그날 학습한 표현 수</div>' +
+    calDayHTML(calSel) + '</div>';
+}
+function calDayHTML(k){
+  const items = dayItems(k);
+  if(!items.length) return '<div class="vk-cal-day"><div class="vk-cal-dh"><b>' + dayLabel(k) + '</b></div><div class="vk-empty">이 날은 학습 기록이 없어요</div></div>';
+  const order = Object.create(null);
+  CARDS.forEach(function(x, i){ order[x.key] = i; });
+  items.sort(function(a, b){ return (b.ng > 0) - (a.ng > 0) || order[a.key] - order[b.key]; });
+  const wrong = items.filter(function(x){ return x.ng > 0; }).length, r = st.log[k];
+  const shown = calAll ? items : items.slice(0, 12);
+  return '<div class="vk-cal-day"><div class="vk-cal-dh"><b>' + dayLabel(k) + '</b><span>표현 ' + items.length + '개' +
+      (r && r.sec >= 60 ? ' · ' + Math.round(r.sec / 60) + '분' : '') + (wrong ? ' · 틀린 표현 ' + wrong + '개' : '') + '</span></div>' +
+    '<div class="vk-row2"><button class="grow" data-act="calReview" data-v="all">이 날 표현 ' + items.length + '개 복습</button>' +
+      '<button class="secondary grow" data-act="calReview" data-v="wrong"' + (wrong ? '' : ' disabled') + '>틀린 것만 (' + wrong + ')</button></div>' +
+    '<div class="vk-list">' + shown.map(function(x){
+      const c = CARD[x.key].c;
+      return '<div class="vk-cal-it"><span class="vk-row-t"><b>' + esc(exprShort(c.expression)) + '</b><small>' + esc(c.meaningKo) + '</small></span>' +
+        '<span class="vk-cal-src">' + x.s.split('').map(function(ch){ return SRC_KO[ch] ? '<i>' + SRC_KO[ch] + '</i>' : ''; }).join('') +
+        (x.ng ? '<i class="ng">틀림 ' + x.ng + '</i>' : '') + '</span></div>';
+    }).join('') + '</div>' +
+    (items.length > 12 ? '<button class="ghost vk-full" data-act="calAll">' + (calAll ? '접기' : '모두 보기 (' + items.length + '개)') + '</button>' : '') +
+    '<p class="vk-note">복습은 빈칸 채우기로 풀어요. 맞히면 원래 복습 일정은 그대로, 틀리면 5분 뒤 단계로 돌아가요.</p></div>';
+}
+function startPractice(keys, label){
+  const q = vkShuffle(keys.filter(function(k){ return CARD[k]; }));
+  if(!q.length){ toast('복습할 표현이 없어요'); return; }
+  ses = {q:q, i:0, fid:null, failed:{}, res:[], xp:0, cur:null, phase:'ask', start:Date.now(), practice:{label:label}};
+  mode = 'fill';
+  nextFill();
+  top0();
+}
+ACT.calPick = function(el){ calSel = el.dataset.v; calAll = false; draw(); };
+ACT.calMove = function(el){
+  const d = new Date(calMonth);
+  calMonth = new Date(d.getFullYear(), d.getMonth() + (+el.dataset.v), 1).getTime();
+  draw();
+};
+ACT.calAll = function(){ calAll = !calAll; draw(); };
+ACT.calReview = function(el){
+  const items = dayItems(calSel).filter(function(x){ return el.dataset.v !== 'wrong' || x.ng > 0; });
+  const d = new Date(calSel + 'T00:00:00');
+  startPractice(items.map(function(x){ return x.key; }), (d.getMonth() + 1) + '/' + d.getDate() + (el.dataset.v === 'wrong' ? ' 틀린 표현' : ''));
 };
 
 /* ── 레벨 테스트 ── */

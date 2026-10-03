@@ -12,7 +12,8 @@ function loadVoca(){
   while((m = re.exec(HTML))){ src += m[1] + '\n'; blocks++; }
   if(blocks < 2) throw new Error(`VOCA-TESTABLE 블록을 ${blocks}개만 찾았습니다 (2개 이상 필요)`);
   const names = ['vkBlank','vkParseExpr','vkNorm','vkSameAnswer','vkHintOf','vkGrade','vkReview','VK_STEPS','VK_STEP_KO',
-    'VK_KNOWN_STEP','vkDay','vkAddDays','vkWeekStart','vkStreak','vkShadow','vkShuffle','VK_DAY','vkTileWords'];
+    'VK_KNOWN_STEP','vkDay','vkAddDays','vkWeekStart','vkStreak','vkShadow','vkShuffle','VK_DAY','vkTileWords',
+    'vkDayItems','vkHeat','vkMonth'];
   return new Function(src + '\nreturn {' + names.join(',') + '};')();
 }
 const V = loadVoca();
@@ -146,6 +147,32 @@ test('vkTileWords: 문장부호는 떼고 축약·하이픈은 한 타일로', (
   assert.deepEqual(V.vkTileWords("We're hitting the road now, and everyone's excited."),
     ["We're", 'hitting', 'the', 'road', 'now', 'and', "everyone's", 'excited']);
   assert.deepEqual(V.vkTileWords('"Is it dog-ear the page?" she asked.'), ['Is', 'it', 'dog-ear', 'the', 'page', 'she', 'asked']);
+});
+
+test('vkDayItems: 그날 일별 기록의 표현과 출처·정오를 돌려준다', () => {
+  const k = '2026-10-03';
+  const log = {k: {'a|0': {s: 'fq', ok: 2, ng: 1}, 'b|1': {s: 'l', ok: 0, ng: 0}}};
+  const items = V.vkDayItems(log, {}, [], k).sort((x, y) => x.key < y.key ? -1 : 1);
+  assert.deepEqual(items, [{key: 'a|0', s: 'fq', ok: 2, ng: 1}, {key: 'b|1', s: 'l', ok: 0, ng: 0}]);
+});
+
+test('vkDayItems: 일별 기록이 없던 날은 복습 기록·오답 노트로 복원하고, 겹치면 한 번만', () => {
+  const day = new Date(2026, 9, 1, 9).getTime(), other = new Date(2026, 9, 2, 9).getTime();
+  const srs = {'a|0': {s: 2, first: day, last: other}, 'b|1': {s: 0, first: other, last: day}, 'c|2': {s: 1, first: other, last: other}};
+  const wrongs = [{k: 'b|1', at: day, conv: true}, {k: 'c|2', at: other}];
+  const items = V.vkDayItems(null, srs, wrongs, V.vkDay(day)).sort((x, y) => x.key < y.key ? -1 : 1);
+  assert.deepEqual(items.map(x => x.key), ['a|0', 'b|1']);
+  assert.equal(items[1].ng, 1);
+  assert.equal(items[1].s, 'fc');
+  // 일별 기록과 오답 노트가 같은 오답을 담고 있어도 두 번 세지 않는다
+  const both = V.vkDayItems({k: {'b|1': {s: 'c', ok: 0, ng: 1}}}, srs, wrongs, V.vkDay(day)).find(x => x.key === 'b|1');
+  assert.equal(both.ng, 1);
+});
+
+test('vkHeat · vkMonth: 달력 색 단계와 월 구성', () => {
+  assert.deepEqual([0, 1, 4, 5, 9, 10, 19, 20].map(V.vkHeat), [0, 1, 1, 2, 2, 3, 3, 4]);
+  const m = V.vkMonth(new Date(2026, 9, 3).getTime());   // 2026년 10월: 목요일 시작, 31일
+  assert.deepEqual(m, {y: 2026, m: 9, lead: 4, days: 31});
 });
 
 test('vkShadow: 말한 단어만 맞음 표시', () => {
