@@ -21,14 +21,16 @@ const GLOBALS = new Set([
   'Date', 'RegExp', 'Error', 'Promise', 'parseInt', 'parseFloat', 'isNaN',
   'document', 'window', 'localStorage', 'sessionStorage', 'console', 'confirm',
   'alert', 'setTimeout', 'clearTimeout', 'requestAnimationFrame', 'speechSynthesis',
-  'SpeechSynthesisUtterance', 'Event', 'CustomEvent', 'fetch', 'encodeURIComponent', 'decodeURIComponent'
+  'SpeechSynthesisUtterance', 'Event', 'CustomEvent', 'fetch', 'encodeURIComponent', 'decodeURIComponent',
+  'setInterval', 'clearInterval'
 ]);
 
 function declaredNames(src){
   const names = new Set();
   for(const m of src.matchAll(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/g)) names.add(m[1]);
   for(const m of src.matchAll(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/g)) names.add(m[1]);
-  for(const m of src.matchAll(/\bfunction\s*\(([^)]*)\)/g))
+  // 이름 있는 함수(function listen(onText))의 매개변수도 선언으로 본다
+  for(const m of src.matchAll(/\bfunction\s*(?:[A-Za-z_$][\w$]*)?\s*\(([^)]*)\)/g))
     m[1].split(',').map(s => s.trim()).filter(Boolean).forEach(a => names.add(a));
   for(const m of src.matchAll(/\(([^)]*)\)\s*=>/g))
     m[1].split(',').map(s => s.trim()).filter(Boolean).forEach(a => names.add(a));
@@ -49,7 +51,7 @@ function calledNames(src){
   return out;
 }
 
-for(const id of ['quiz-module', 'write-module', 'video-module']){
+for(const id of ['quiz-module', 'write-module', 'video-module', 'voca-module']){
   test(`${id}: 호출하는 함수가 모두 선언돼 있다`, () => {
     const src = moduleSource(id);
     const declared = declaredNames(src);
@@ -65,6 +67,6 @@ test('quiz-module: 리스닝 단계 함수가 모두 살아 있다', () => {
 });
 
 test('index.html: 스크립트 블록이 문법적으로 유효하다', () => {
-  for(const id of ['quiz-module', 'write-module', 'video-module'])
+  for(const id of ['quiz-module', 'write-module', 'video-module', 'voca-module'])
     assert.doesNotThrow(() => new Function(moduleSource(id)), id);
 });
