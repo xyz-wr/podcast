@@ -12,7 +12,7 @@ function loadVoca(){
   while((m = re.exec(HTML))){ src += m[1] + '\n'; blocks++; }
   if(blocks < 2) throw new Error(`VOCA-TESTABLE 블록을 ${blocks}개만 찾았습니다 (2개 이상 필요)`);
   const names = ['vkBlank','vkParseExpr','vkNorm','vkSameAnswer','vkHintOf','vkGrade','vkReview','VK_STEPS','VK_STEP_KO',
-    'VK_KNOWN_STEP','vkDay','vkAddDays','vkWeekStart','vkStreak','vkShadow','vkShuffle','VK_DAY'];
+    'VK_KNOWN_STEP','vkDay','vkAddDays','vkWeekStart','vkStreak','vkShadow','vkShuffle','VK_DAY','vkTileWords'];
   return new Function(src + '\nreturn {' + names.join(',') + '};')();
 }
 const V = loadVoca();
@@ -140,6 +140,12 @@ test('vkWeekStart: 월요일 0시', () => {
   const ws = new Date(V.vkWeekStart(new Date(2026, 9, 3, 15).getTime()));   // 2026-10-03 토요일
   assert.equal(ws.getDay(), 1);
   assert.equal(V.vkDay(ws.getTime()), '2026-09-28');
+});
+
+test('vkTileWords: 문장부호는 떼고 축약·하이픈은 한 타일로', () => {
+  assert.deepEqual(V.vkTileWords("We're hitting the road now, and everyone's excited."),
+    ["We're", 'hitting', 'the', 'road', 'now', 'and', "everyone's", 'excited']);
+  assert.deepEqual(V.vkTileWords('"Is it dog-ear the page?" she asked.'), ['Is', 'it', 'dog-ear', 'the', 'page', 'she', 'asked']);
 });
 
 test('vkShadow: 말한 단어만 맞음 표시', () => {

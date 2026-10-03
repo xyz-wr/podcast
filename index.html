@@ -2225,12 +2225,22 @@ return {render:function(){draw();}};
 /* 리스닝 */
 #screen-voca .vk-lis{text-align:center;padding:20px 18px;}
 #screen-voca .vk-lis .vk-topic{margin:0;display:block;}
-#screen-voca .vk-play{width:84px;height:84px;border-radius:99px;font-size:34px;margin:16px auto 12px;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 8px 22px rgba(17,188,120,.35);}
+#screen-voca .vk-play{width:84px;height:84px;border-radius:99px;font-size:34px;margin:20px auto 12px;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 8px 22px rgba(17,188,120,.35);}
 #screen-voca .vk-rates{display:flex;gap:6px;justify-content:center;margin-bottom:14px;}
-#screen-voca .vk-lis-en,#screen-voca .vk-lis-ko{display:block;width:100%;background:var(--vk-sur);color:var(--vk-ink);border:none;border-radius:12px;padding:12px;margin-top:8px;font-weight:500;line-height:1.55;}
-#screen-voca .vk-lis-en{font-size:16px;}
+#screen-voca .vk-lis-ko{display:block;width:100%;background:var(--vk-sur);color:var(--vk-ink);border:none;border-radius:12px;padding:12px;margin-top:8px;font-weight:500;line-height:1.55;}
 #screen-voca .vk-lis-ko{font-size:13.5px;color:var(--vk-sf);}
-#screen-voca .vk-lis-en.hid,#screen-voca .vk-lis-ko.hid{color:var(--vk-ft);font-size:13px;font-weight:600;border:1px dashed var(--vk-ln2);background:#fff;}
+#screen-voca .vk-lis-ko.hid{color:var(--vk-ft);font-size:13px;font-weight:600;border:1px dashed var(--vk-ln2);background:#fff;}
+#screen-voca .vk-ord-t{font-size:15px;font-weight:500;color:#6D7581;margin:14px 0;word-break:keep-all;}
+#screen-voca .vk-ord-t b{color:var(--vk-g);font-weight:700;}
+#screen-voca .vk-slot{min-height:92px;display:flex;flex-wrap:wrap;justify-content:center;align-content:flex-start;gap:9px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px dashed var(--vk-ln2);}
+#screen-voca .vk-ph{align-self:center;color:#A6ADBA;font-size:13.5px;}
+#screen-voca .vk-tiles{display:flex;flex-wrap:wrap;justify-content:center;gap:9px;}
+#screen-voca .vk-tile{display:inline-block;background:var(--vk-sur);border:1px solid var(--vk-ln2);border-radius:14px;padding:12px 18px;font-size:16.5px;font-weight:800;color:var(--vk-sf);line-height:1.1;}
+#screen-voca button.vk-tile:active{transform:translateY(1px);}
+#screen-voca .vk-tile.in{background:var(--vk-gs);border-color:#C7E7D9;color:var(--vk-gd);}
+#screen-voca .vk-tile.bad{background:var(--vk-rds);border-color:var(--vk-rd);color:var(--vk-rd);animation:vkshake .34s;}
+@keyframes vkshake{0%,100%{transform:translateX(0)}20%{transform:translateX(-5px)}45%{transform:translateX(5px)}70%{transform:translateX(-3px)}}
+#screen-voca .vk-ord-en{font-size:15px;line-height:1.6;color:var(--vk-ink);}
 #screen-voca .vk-said{text-align:left;margin-top:12px;background:#FAFEFC;border:1px solid var(--vk-gs2);border-radius:12px;padding:10px 12px;}
 #screen-voca .vk-said-h{font-size:12px;font-weight:700;color:var(--vk-ft);}
 #screen-voca .vk-said-h b{color:var(--vk-gd);font-size:15px;}
@@ -2688,6 +2698,12 @@ function vkShuffle(arr, rand){
   const r = rand || Math.random, a = arr.slice();
   for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(r() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; }
   return a;
+}
+// 순서 맞추기 타일: 앞뒤 문장부호를 떼고, 단어 안의 아포스트로피·하이픈은 둔다
+function vkTileWords(en){
+  return String(en).split(/\s+/).map(function(w){
+    return w.replace(/^[^A-Za-z0-9\u0027\u2019]+/, '').replace(/[^A-Za-z0-9\u0027\u2019]+$/, '');
+  }).filter(Boolean);
 }
 /* VOCA-TESTABLE-END */
 
@@ -3453,7 +3469,7 @@ ACT.misNext = function(){
   draw();
 };
 
-/* ── 리스닝 ── */
+/* ── 리스닝: 듣고 단어 순서 맞추기 + 따라 말하기 ── */
 const RATES = [0.7, 0.85, 1, 1.2];
 function startListen(fid){
   const lvl = st.set.lvl;
@@ -3464,18 +3480,55 @@ function startListen(fid){
     const ss = sentencesOf(card, lvl);
     return {card:card, s:ss[Math.floor(Math.random() * ss.length)]};
   });
-  lis = {items:items, i:0, showEn:false, showKo:false, heard:{}, said:null, scores:[], done:false};
+  lis = {items:items, i:0, showKo:false, heard:{}, said:null, scores:[], solved:{}, done:false, ord:null, badT:0};
   mode = 'listen';
+  newOrder();
   draw(); top0();
-  setTimeout(function(){ playLis(); }, 250);
+  setTimeout(function(){ if(lis) playLis(); }, 250);
+}
+// 타일 순서: 짧은 문장은 섞어도 그대로일 수 있어 몇 번 다시 섞는다
+function newOrder(){
+  const words = vkTileWords(lis.items[lis.i].s.en);
+  const idx = words.map(function(w, i){ return i; });
+  let order = vkShuffle(idx);
+  for(let t = 0; t < 5 && words.length > 1 && order.every(function(v, i){ return words[v] === words[i]; }); t++) order = vkShuffle(idx);
+  lis.ord = {words:words, order:order, picked:[], bad:-1, done:false};
 }
 function playLis(){ const it = lis.items[lis.i]; lis.heard[lis.i] = true; speak(it.s.en, st.set.rate); }
+// 같은 단어가 여러 번 나올 수 있어 인덱스가 아니라 글자로 비교한다
+function pickTile(i){
+  const o = lis.ord;
+  if(o.done || o.picked.indexOf(i) >= 0) return;
+  if(o.words[i] !== o.words[o.picked.length]){
+    o.bad = i;
+    draw();
+    clearTimeout(lis.badT);
+    lis.badT = setTimeout(function(){ if(lis && lis.ord === o){ o.bad = -1; draw(); } }, 420);
+    return;
+  }
+  o.bad = -1;
+  o.picked.push(i);
+  if(o.picked.length === o.words.length){ o.done = true; lis.solved[lis.i] = true; }
+  draw();
+}
+function orderHTML(it){
+  const o = lis.ord;
+  const slot = o.picked.length
+    ? o.picked.map(function(wi){ return '<span class="vk-tile in">' + esc(o.words[wi]) + '</span>'; }).join('')
+    : '<span class="vk-ph">들리는 순서대로 단어를 탭하세요</span>';
+  const pool = o.order.filter(function(i){ return o.picked.indexOf(i) < 0; }).map(function(i){
+    return '<button class="vk-tile' + (o.bad === i ? ' bad' : '') + '" data-act="lisTile" data-v="' + i + '">' + esc(o.words[i]) + '</button>';
+  }).join('');
+  return '<div class="vk-ord-t">' + (o.done ? '<b>✓ 순서를 맞혔어요</b>' : '잘 듣고 문장을 완성해 보세요') + '</div>' +
+    '<div class="vk-slot' + (o.done ? ' done' : '') + '">' + slot + '</div>' +
+    (o.done ? '<div class="vk-ord-en">' + markedEn(it.card, it.s) + '</div>' : '<div class="vk-tiles">' + pool + '</div>');
+}
 function listenHTML(){
   if(lis.done){
     const avg = lis.scores.length ? Math.round(lis.scores.reduce(function(a, b){ return a + b; }, 0) / lis.scores.length * 100) : null;
     return sessHead('🎧 리스닝', lis.items.length + 1, lis.items.length, '완료') +
       '<div class="vk-card vk-done"><div class="vk-done-ico">🎧</div><h2>리스닝 완료!</h2>' +
-      '<div class="vk-done-n"><div><b>' + lis.items.length + '</b><small>들은 문장</small></div>' +
+      '<div class="vk-done-n"><div><b>' + Object.keys(lis.solved).length + ' / ' + lis.items.length + '</b><small>순서 맞춘 문장</small></div>' +
       '<div><b>' + (avg == null ? '-' : avg + '%') + '</b><small>따라 말하기 평균</small></div></div></div>' +
       '<div class="vk-actions"><button class="ghost grow" data-act="exit">나가기</button><button class="grow" data-act="startListen">새 10문장</button></div>';
   }
@@ -3483,17 +3536,20 @@ function listenHTML(){
   let said = '';
   if(lis.said != null){
     const r = vkShadow(it.s.en, lis.said);
-    said = '<div class="vk-said"><div class="vk-said-h">따라 말하기 <b>' + Math.round(r.score * 100) + '%</b></div><div class="vk-said-w">' +
-      r.parts.map(function(p){ return '<span class="' + (p.ok ? 'ok' : 'no') + '">' + esc(p.p) + '</span>'; }).join(' ') + '</div>' +
-      '<div class="vk-said-me">내 발음 인식: ' + esc(lis.said || '(인식 안 됨)') + '</div></div>';
+    // 순서를 맞추기 전에는 인식된 문장이 곧 정답이라 점수만 보여준다
+    said = '<div class="vk-said"><div class="vk-said-h">따라 말하기 <b>' + Math.round(r.score * 100) + '%</b></div>' +
+      (lis.ord.done
+        ? '<div class="vk-said-w">' + r.parts.map(function(p){ return '<span class="' + (p.ok ? 'ok' : 'no') + '">' + esc(p.p) + '</span>'; }).join(' ') + '</div>' +
+          '<div class="vk-said-me">내 발음 인식: ' + esc(lis.said || '(인식 안 됨)') + '</div>'
+        : '<div class="vk-said-me">순서를 다 맞추면 단어별 결과가 보여요</div>') + '</div>';
   }
   return sessHead('🎧 리스닝', lis.i + 1, lis.items.length) +
     '<div class="vk-card vk-lis"><div class="vk-topic">' + ficon(it.card.f) + ' ' + esc(it.card.f.titleKo) + '</div>' +
+      orderHTML(it) +
       '<button class="vk-play" data-act="lisPlay" aria-label="다시 듣기">🔊</button>' +
       '<div class="vk-rates">' + RATES.map(function(r){
         return '<button class="vk-chip' + (st.set.rate === r ? ' on' : '') + '" data-act="lisRate" data-v="' + r + '">' + r + 'x</button>';
       }).join('') + '</div>' +
-      '<button class="vk-lis-en' + (lis.showEn ? '' : ' hid') + '" data-act="lisEn">' + (lis.showEn ? markedEn(it.card, it.s) : '영어 문장 보기') + '</button>' +
       '<button class="vk-lis-ko' + (lis.showKo ? '' : ' hid') + '" data-act="lisKo">' + (lis.showKo ? esc(it.s.ko) : '한국어 뜻 보기') + '</button>' +
       said + '</div>' +
     '<div class="vk-actions"><button class="ghost" data-act="lisPrev"' + (lis.i ? '' : ' disabled') + '>‹ 이전</button>' +
@@ -3501,26 +3557,26 @@ function listenHTML(){
       '<button data-act="lisNext">다음 ›</button></div>';
 }
 ACT.lisPlay = function(){ playLis(); };
+ACT.lisTile = function(el){ pickTile(+el.dataset.v); };
 ACT.lisRate = function(el){ st.set.rate = +el.dataset.v; save(); draw(); playLis(); };
-ACT.lisEn = function(){ lis.showEn = !lis.showEn; draw(); };
 ACT.lisKo = function(){ lis.showKo = !lis.showKo; draw(); };
 ACT.lisMic = function(){
   if(recog){ stopListen(); return; }
   if('speechSynthesis' in window) speechSynthesis.cancel();
   listen(function(t, fin){
-    if(!fin) return;
+    if(!fin || !lis) return;
     lis.said = t;
-    const r = vkShadow(lis.items[lis.i].s.en, t);
-    lis.scores[lis.i] = r.score;
-    lis.showEn = true;
+    lis.scores[lis.i] = vkShadow(lis.items[lis.i].s.en, t).score;
     draw();
   });
 };
 function moveLis(d){
   stopListen();
+  clearTimeout(lis.badT);
   if(d > 0 && lis.heard[lis.i]){ addXp(3); save(); }
-  lis.i += d; lis.said = null; lis.showEn = false; lis.showKo = false;
+  lis.i += d; lis.said = null; lis.showKo = false;
   if(lis.i >= lis.items.length){ lis.done = true; lis.scores = lis.scores.filter(function(x){ return x != null; }); draw(); return; }
+  newOrder();
   draw(); playLis();
 }
 ACT.lisNext = function(){ moveLis(1); };
