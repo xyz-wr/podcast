@@ -2073,7 +2073,9 @@ return {render:function(){draw();}};
 #screen-voca .vk-set-r{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-top:1px solid var(--vk-ln);flex-wrap:wrap;}
 #screen-voca .vk-set-r:first-of-type{border-top:none;}
 #screen-voca .vk-set-r > span{font-size:13px;color:var(--vk-sf);font-weight:600;}
-#screen-voca .vk-set-r > div{display:flex;gap:5px;flex-wrap:wrap;}
+#screen-voca .vk-set-r > div{display:flex;gap:5px;flex-wrap:wrap;align-items:center;}
+#screen-voca .vk-sync small{font-size:11.5px;color:var(--vk-ft);margin-right:4px;}
+#screen-voca .vk-sync small.err{color:var(--vk-rd);}
 
 /* 채우기 탭 */
 #screen-voca .vk-start-n{display:flex;gap:10px;}
@@ -2763,6 +2765,65 @@ function vkMonth(ts){
   const d = new Date(ts), y = d.getFullYear(), m = d.getMonth();
   return {y: y, m: m, lead: new Date(y, m, 1).getDay(), days: new Date(y, m + 1, 0).getDate()};
 }
+// 두 기기의 보카 기록 합치기 (같은 결과를 다시 합쳐도 그대로 = 반복 동기화에 안전)
+// 복습 단계: 더 나중에 학습한 쪽 · 날짜 기록/시제 집계: 큰 값 + 표현 목록 합집합 · 오답/테스트: 합집합
+// 설정: 나중에 바꾼 쪽(setAt) · 퀴즈 최고 기록/회화 진도: 큰 값
+function vkMergeState(a, b){
+  const A = a || {}, B = b || {}, out = {};
+  const both = function(f, fn){ [A[f] || {}, B[f] || {}].forEach(function(src){ Object.keys(src).forEach(function(k){ fn(k, src[k]); }); }); };
+  out.srs = {};
+  both('srs', function(k, x){
+    const y = out.srs[k];
+    if(!y || (x.last || 0) > (y.last || 0) || ((x.last || 0) === (y.last || 0) && (x.n || 0) > (y.n || 0))) out.srs[k] = x;
+  });
+  out.log = {};
+  both('log', function(d, x){
+    const y = out.log[d] || (out.log[d] = {});
+    ['sec', 'xp', 'ok', 'ng', 'newc', 'known'].forEach(function(f){ if(x[f] != null) y[f] = Math.max(y[f] || 0, x[f]); });
+    if(x.k){
+      y.k = y.k || {};
+      Object.keys(x.k).forEach(function(key){
+        const p = x.k[key], q = y.k[key] || (y.k[key] = {s: '', ok: 0, ng: 0});
+        String(p.s || '').split('').forEach(function(ch){ if(q.s.indexOf(ch) < 0) q.s += ch; });
+        q.ok = Math.max(q.ok, p.ok || 0);
+        q.ng = Math.max(q.ng, p.ng || 0);
+      });
+    }
+  });
+  out.ten = {};
+  both('ten', function(t, x){
+    const y = out.ten[t] || (out.ten[t] = {ok: 0, ng: 0});
+    y.ok = Math.max(y.ok, x.ok || 0);
+    y.ng = Math.max(y.ng, x.ng || 0);
+  });
+  const seenW = {};
+  out.wrongs = (A.wrongs || []).concat(B.wrongs || []).filter(function(w){
+    const id = w.k + '|' + w.at + '|' + (w.conv ? 'c' : 'f');
+    if(seenW[id]) return false;
+    seenW[id] = true;
+    return true;
+  }).sort(function(x, y){ return (y.at || 0) - (x.at || 0); }).slice(0, 60);
+  const useB = !!B.set && (!A.set || (B.setAt || 0) >= (A.setAt || 0));
+  out.set = Object.assign({}, useB ? B.set : A.set);
+  out.setAt = Math.max(A.setAt || 0, B.setAt || 0);
+  const qa = A.quiz || {}, qb = B.quiz || {};
+  out.quiz = {best: Math.max(qa.best || 0, qb.best || 0), plays: Math.max(qa.plays || 0, qb.plays || 0)};
+  out.conv = {};
+  both('conv', function(fid, x){
+    const y = out.conv[fid] || (out.conv[fid] = {best: 0, n: 0, at: 0});
+    y.best = Math.max(y.best, x.best || 0);
+    y.n = Math.max(y.n, x.n || 0);
+    y.at = Math.max(y.at, x.at || 0);
+  });
+  const seenT = {};
+  out.tests = (A.tests || []).concat(B.tests || []).filter(function(t){
+    const id = t.day + '|' + t.est + '|' + t.lvl + '|' + JSON.stringify(t.acc || []);
+    if(seenT[id]) return false;
+    seenT[id] = true;
+    return true;
+  }).sort(function(x, y){ return String(x.day).localeCompare(String(y.day)); }).slice(-30);
+  return out;
+}
 /* VOCA-TESTABLE-END */
 
 /* ── 데이터 ── */
@@ -2833,22 +2894,24 @@ function markedEn(card, s){
 /* ── 저장 ── */
 function blankState(){
   return {srs:{}, log:{}, ten:{}, wrongs:[], set:{lvl:'B1', daily:10, goal:20, rate:1},
-          quiz:{best:0, plays:0}, conv:{}, tests:[]};
+          quiz:{best:0, plays:0}, conv:{}, tests:[], setAt:0};
+}
+function normState(s){
+  const b = blankState();
+  const src = s || {};
+  Object.keys(b).forEach(function(k){
+    if(src[k] == null) return;
+    b[k] = (k === 'set' || k === 'quiz') ? Object.assign(b[k], src[k]) : src[k];
+  });
+  return b;
 }
 function loadSt(){
-  const b = blankState();
-  try{
-    const s = JSON.parse(localStorage.getItem(LS) || '{}');
-    Object.keys(b).forEach(function(k){
-      if(s[k] == null) return;
-      b[k] = (k === 'set' || k === 'quiz') ? Object.assign(b[k], s[k]) : s[k];
-    });
-  }catch(e){}
-  return b;
+  try{ return normState(JSON.parse(localStorage.getItem(LS) || '{}')); }catch(e){ return blankState(); }
 }
 let st = loadSt();
 let saveT = null;
-function save(){ clearTimeout(saveT); saveT = null; try{ localStorage.setItem(LS, JSON.stringify(st)); }catch(e){} }
+function saveLocal(){ clearTimeout(saveT); saveT = null; try{ localStorage.setItem(LS, JSON.stringify(st)); }catch(e){} }
+function save(){ saveLocal(); syncSoon(); }
 function saveSoon(){ if(!saveT) saveT = setTimeout(save, 1500); }
 
 function todayKey(){ return vkDay(Date.now()); }
@@ -3078,6 +3141,65 @@ function chips(key, vals, fmt){
   }).join('');
 }
 
+/* ── 기기 간 동기화: 더보기의 Supabase 설정(kv 테이블)을 그대로 써서 보카 기록을 합친다 ── */
+const KV_KEY = 'voca_v1';
+let syncT = null, syncBusy = null, syncInfo = {at: 0, err: ''};
+function syncReady(){
+  try{ return typeof window.sbReady === 'function' && window.sbReady() && typeof window.kvSelect === 'function' && typeof window.kvUpsert === 'function'; }
+  catch(e){ return false; }
+}
+function syncSoon(){
+  if(!syncReady()) return;
+  clearTimeout(syncT);
+  syncT = setTimeout(function(){ syncVoca(); }, 4000);
+}
+// 받아와서 합치고, 합친 결과가 서버와 다르면 올린다
+function syncVoca(){
+  if(!syncReady()) return Promise.resolve(false);
+  if(syncBusy) return syncBusy;
+  clearTimeout(syncT);
+  syncBusy = (async function(){
+    try{
+      const rows = await window.kvSelect();
+      const row = (rows || []).filter(function(r){ return r.k === KV_KEY; })[0];
+      const remote = row && row.v ? (typeof row.v === 'string' ? JSON.parse(row.v) : row.v) : null;
+      const merged = normState(remote ? vkMergeState(st, remote) : st);
+      if(JSON.stringify(merged) !== JSON.stringify(st)){
+        st = merged;
+        saveLocal();
+        if(!mode) draw();
+      }
+      if(!remote || JSON.stringify(normState(remote)) !== JSON.stringify(merged)) await window.kvUpsert(KV_KEY, JSON.stringify(st), Date.now());
+      syncInfo = {at: Date.now(), err: ''};
+      const rowEl = document.querySelector('#screen-voca .vk-sync');
+      if(rowEl) rowEl.outerHTML = syncRowHTML();
+      return true;
+    }catch(e){
+      syncInfo.err = String(e && e.message || e);
+      const rowEl = document.querySelector('#screen-voca .vk-sync');
+      if(rowEl) rowEl.outerHTML = syncRowHTML();
+      console.warn('voca sync', syncInfo.err);
+      return false;
+    }finally{ syncBusy = null; }
+  })();
+  return syncBusy;
+}
+function syncRowHTML(){
+  if(!syncReady()) return '<div class="vk-set-r vk-sync"><span>기기 간 동기화</span><div><small>꺼짐 · 더보기에서 Supabase 설정</small>' +
+    '<button class="vk-chip" data-act="syncSettings">설정</button></div></div>';
+  const ago = syncInfo.at ? Math.max(0, Math.round((Date.now() - syncInfo.at) / 60000)) : -1;
+  const status = syncInfo.err ? '<small class="err">오류: ' + esc(syncInfo.err.slice(0, 40)) + '</small>' :
+    '<small>켜짐 · ' + (ago < 0 ? '아직 안 맞춤' : ago === 0 ? '방금 맞춤' : ago + '분 전 맞춤') + '</small>';
+  return '<div class="vk-set-r vk-sync"><span>기기 간 동기화</span><div>' + status + '<button class="vk-chip" data-act="syncNow">지금 동기화</button></div></div>';
+}
+ACT.syncNow = async function(el){
+  el.disabled = true;
+  const ok = await syncVoca();
+  toast(ok ? '보카 기록을 맞췄어요' : '동기화 실패: ' + (syncInfo.err || '설정을 확인하세요'));
+  draw();
+};
+ACT.syncSettings = function(){ if(typeof window.tabTo === 'function') window.tabTo('settings'); };
+
 /* ════════ 홈 ════════ */
 function homeHTML(){
   const now = Date.now(), dr = dayRec(), known = knownCount(), total = CARDS.length;
@@ -3117,6 +3239,7 @@ function homeHTML(){
     '<div class="vk-set-r"><span>문장 레벨</span><div>' + chips('lvl', LEVELS, function(v){ return v; }) + '</div></div>' +
     '<div class="vk-set-r"><span>하루 새 표현</span><div>' + chips('daily', [5, 10, 20], function(v){ return v + '개'; }) + '</div></div>' +
     '<div class="vk-set-r"><span>하루 목표</span><div>' + chips('goal', [10, 20, 35, 60], function(v){ return v + '분'; }) + '</div></div>' +
+    syncRowHTML() +
   '</div>';
 }
 
@@ -3634,7 +3757,7 @@ function listenHTML(){
 }
 ACT.lisPlay = function(){ playLis(); };
 ACT.lisTile = function(el){ pickTile(+el.dataset.v); };
-ACT.lisRate = function(el){ st.set.rate = +el.dataset.v; save(); draw(); playLis(); };
+ACT.lisRate = function(el){ st.set.rate = +el.dataset.v; st.setAt = Date.now(); save(); draw(); playLis(); };
 ACT.lisKo = function(){ lis.showKo = !lis.showKo; draw(); };
 ACT.lisMic = function(){
   if(recog){ stopListen(); return; }
@@ -4095,11 +4218,11 @@ ACT.testMark = function(el){
   dayRec().known = knownCount();
   save(); el.remove(); toast('아는 표현이 ' + knownCount() + '개가 됐어요');
 };
-ACT.testLevel = function(el){ st.set.lvl = el.dataset.v; save(); el.remove(); toast('학습 레벨을 ' + st.set.lvl + '(으)로 바꿨어요'); };
+ACT.testLevel = function(el){ st.set.lvl = el.dataset.v; st.setAt = Date.now(); save(); el.remove(); toast('학습 레벨을 ' + st.set.lvl + '(으)로 바꿨어요'); };
 
 /* ── 공용 동작 ── */
 ACT.tab = function(el){ view = {tab:el.dataset.v, sub:null, q:''}; draw(); top0(); };
-ACT.set = function(el){ const k = el.dataset.k; st.set[k] = k === 'lvl' ? el.dataset.v : +el.dataset.v; save(); draw(); };
+ACT.set = function(el){ const k = el.dataset.k; st.set[k] = k === 'lvl' ? el.dataset.v : +el.dataset.v; st.setAt = Date.now(); save(); draw(); };
 ACT.say = function(el){ speak(el.dataset.t, 1); };
 ACT.startFill = function(el){ startFill(el.dataset.v || null); };
 ACT.startMission = function(el){ startMission(el.dataset.v); };
@@ -4177,7 +4300,7 @@ function onMove(e){
   window.addEventListener('pagehide', save);
 })();
 
-return {render: function(){ lastAct = Date.now(); draw(); }};
+return {render: function(){ lastAct = Date.now(); draw(); }, sync: syncVoca};
 })();
 </script>
 
@@ -5107,7 +5230,7 @@ async function saveSyncConfig(){
   ss.textContent='연결 확인 중…';
   try{
     await sbSelect('vocab');                    // 실제 연결 테스트 (실패 시 throw)
-    await pushGeminiKey(); await syncPull(); await pushAll(); await loadAll();
+    await pushGeminiKey(); await syncPull(); await pushAll(); await loadAll(); if(window.VocaApp&&VocaApp.sync)await VocaApp.sync();
     ss.textContent='연결됨 ✓ (코드: '+SYNC_CODE+')';
     toast('동기화 설정 저장됨');
   }catch(e){
@@ -5117,14 +5240,14 @@ async function saveSyncConfig(){
 }
 async function syncNow(){
   if(!sbReady()){toast('동기화 설정을 먼저 입력하세요');return;}
-  try{await flushQueue();await pushGeminiKey();await syncPull();await pushAll();await loadAll();toast('동기화 완료');}
+  try{await flushQueue();await pushGeminiKey();await syncPull();await pushAll();await loadAll();if(window.VocaApp&&VocaApp.sync)await VocaApp.sync();toast('동기화 완료');}
   catch(e){toast('동기화 실패: '+e.message);}
 }
 let _syncing=false;
 async function autoSync(full){              // 버튼 없이 자동 동기화 (앱 열 때/돌아올 때)
   if(!sbReady()||_syncing)return;
   _syncing=true;
-  try{await flushQueue();await pushGeminiKey();await syncPull();if(full)await pushAll();await loadAll();}
+  try{await flushQueue();await pushGeminiKey();await syncPull();if(full)await pushAll();await loadAll();if(window.VocaApp&&VocaApp.sync)await VocaApp.sync();}
   catch(e){console.warn('autoSync',e.message);}
   finally{_syncing=false;}
 }

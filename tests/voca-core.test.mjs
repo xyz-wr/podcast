@@ -13,7 +13,7 @@ function loadVoca(){
   if(blocks < 2) throw new Error(`VOCA-TESTABLE 블록을 ${blocks}개만 찾았습니다 (2개 이상 필요)`);
   const names = ['vkBlank','vkParseExpr','vkNorm','vkSameAnswer','vkHintOf','vkGrade','vkReview','VK_STEPS','VK_STEP_KO',
     'VK_KNOWN_STEP','vkDay','vkAddDays','vkWeekStart','vkStreak','vkShadow','vkShuffle','VK_DAY','vkTileWords',
-    'vkDayItems','vkHeat','vkMonth'];
+    'vkDayItems','vkHeat','vkMonth','vkMergeState'];
   return new Function(src + '\nreturn {' + names.join(',') + '};')();
 }
 const V = loadVoca();
@@ -173,6 +173,58 @@ test('vkHeat · vkMonth: 달력 색 단계와 월 구성', () => {
   assert.deepEqual([0, 1, 4, 5, 9, 10, 19, 20].map(V.vkHeat), [0, 1, 1, 2, 2, 3, 3, 4]);
   const m = V.vkMonth(new Date(2026, 9, 3).getTime());   // 2026년 10월: 목요일 시작, 31일
   assert.deepEqual(m, {y: 2026, m: 9, lead: 4, days: 31});
+});
+
+test('vkMergeState: 두 기기 기록을 합친다', () => {
+  const pc = {
+    srs: {'a|0': {s: 3, last: 200, n: 3}, 'b|1': {s: 1, last: 50, n: 1}},
+    log: {'2026-10-03': {sec: 600, xp: 40, ok: 4, ng: 1, k: {'a|0': {s: 'f', ok: 1, ng: 0}}}},
+    ten: {past: {ok: 3, ng: 1}},
+    wrongs: [{k: 'b|1', at: 50}],
+    set: {lvl: 'B2', daily: 10, goal: 20, rate: 1}, setAt: 300,
+    quiz: {best: 9, plays: 2}, conv: {cafe: {best: 3, n: 7, at: 10}}, tests: [{day: '2026-10-01', est: 120, lvl: 'B1', acc: [1, 0.6, 0.2]}]
+  };
+  const phone = {
+    srs: {'a|0': {s: 2, last: 100, n: 2}, 'c|2': {s: 0, last: 400, n: 1}},
+    log: {'2026-10-03': {sec: 900, xp: 10, ok: 1, ng: 0, k: {'c|2': {s: 'q', ok: 0, ng: 1}}}, '2026-10-02': {sec: 60, xp: 5, ok: 1, ng: 0}},
+    ten: {past: {ok: 1, ng: 2}},
+    wrongs: [{k: 'c|2', at: 400}, {k: 'b|1', at: 50}],
+    set: {lvl: 'A2', daily: 5, goal: 10, rate: 0.85}, setAt: 100,
+    quiz: {best: 12, plays: 1}, conv: {cafe: {best: 5, n: 7, at: 20}}, tests: []
+  };
+  const m = V.vkMergeState(pc, phone);
+  assert.equal(m.srs['a|0'].s, 3);                       // 더 나중에 학습한 쪽
+  assert.ok(m.srs['b|1'] && m.srs['c|2']);              // 한쪽에만 있던 표현도 유지
+  assert.equal(m.log['2026-10-03'].sec, 900);
+  assert.deepEqual(Object.keys(m.log['2026-10-03'].k).sort(), ['a|0', 'c|2']);
+  assert.ok(m.log['2026-10-02']);
+  assert.deepEqual(m.ten.past, {ok: 3, ng: 2});
+  assert.equal(m.wrongs.length, 2);                      // 같은 오답은 한 번만, 최신이 앞
+  assert.equal(m.wrongs[0].k, 'c|2');
+  assert.equal(m.set.lvl, 'B2');                         // 나중에 바꾼 설정
+  assert.equal(m.quiz.best, 12);
+  assert.equal(m.conv.cafe.best, 5);
+  assert.equal(m.tests.length, 1);
+});
+
+test('vkMergeState: 다시 합쳐도 그대로 (반복 동기화에 안전)', () => {
+  const a = {srs: {'a|0': {s: 2, last: 1, n: 1}}, log: {'2026-10-03': {sec: 5, k: {'a|0': {s: 'f', ok: 1, ng: 0}}}}, wrongs: [{k: 'a|0', at: 1}],
+             set: {lvl: 'B1'}, setAt: 0, quiz: {best: 1, plays: 1}, conv: {}, tests: [], ten: {}};
+  const once = V.vkMergeState(a, {});
+  assert.deepEqual(V.vkMergeState(once, once), once);
+  assert.deepEqual(V.vkMergeState(once, a), V.vkMergeState(once, once));
+});
+
+test('vkMergeState: 둘 다 설정 시각이 없으면 서버(두 번째) 설정을 따른다', () => {
+  const fresh = {set: {lvl: 'B1'}, setAt: 0}, server = {set: {lvl: 'B2'}, setAt: 0};
+  assert.equal(V.vkMergeState(fresh, server).set.lvl, 'B2');
+});
+
+test('voca-module: ACT 는 선언한 뒤에만 쓴다 (앞에서 쓰면 모듈 전체가 멈춘다)', () => {
+  const src = HTML.match(/<script id="voca-module">([\s\S]*?)<\/script>/)[1];
+  const decl = src.indexOf('const ACT = Object.create(null);');
+  const firstUse = src.search(/\nACT\.[A-Za-z]+ = /);
+  assert.ok(decl > 0 && firstUse > decl, `ACT 선언 ${decl}, 첫 사용 ${firstUse}`);
 });
 
 test('vkShadow: 말한 단어만 맞음 표시', () => {

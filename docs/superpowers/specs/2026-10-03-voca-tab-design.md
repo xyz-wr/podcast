@@ -15,7 +15,11 @@
   `<script id="voca-module">` IIFE → `window.VocaApp`
 - 데이터는 기존 `<script id="conv-data">`를 그대로 읽는다 (중복 임베드 없음)
 - 상단 세그먼트 탭: **홈 · 채우기 · 꺼내기 · 퀴즈 · 리포트**
-- 저장: localStorage `elab_voca_v1` (다른 localStorage 모듈과 같은 방식, 동기화 대상 아님)
+- 저장: localStorage `elab_voca_v1`. 더보기의 Supabase 동기화가 켜져 있으면 `kv` 테이블 `voca_v1` 행으로도 맞춘다:
+  저장 4초 뒤 · 앱 열 때/돌아올 때/지금 동기화/동기화 저장 때(메인 `autoSync`·`syncNow`·`saveSyncConfig`가
+  `VocaApp.sync()` 호출) 받아와서 `vkMergeState`로 합치고, 서버와 다르면 올린다. 합치기는 반복해도 결과가 같다
+  (복습 단계: 더 나중 학습, 날짜 기록·시제 집계: 최댓값 + 표현 합집합, 오답·테스트: 합집합, 설정: `setAt`이 큰 쪽,
+  같으면 서버 쪽). 회화·퀴즈 탭 기록은 동기화하지 않는다(사용자 선택).
 
 ## 학습 단위
 
