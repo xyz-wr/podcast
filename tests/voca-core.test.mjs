@@ -12,7 +12,7 @@ function loadVoca(){
   while((m = re.exec(HTML))){ src += m[1] + '\n'; blocks++; }
   if(blocks < 2) throw new Error(`VOCA-TESTABLE 블록을 ${blocks}개만 찾았습니다 (2개 이상 필요)`);
   const names = ['vkBlank','vkParseExpr','vkNorm','vkSameAnswer','vkHintOf','vkGrade','vkReview','VK_STEPS','VK_STEP_KO',
-    'VK_KNOWN_STEP','vkDay','vkAddDays','vkWeekStart','vkStreak','vkBotXp','vkRank','vkTierAfter','VK_BOTS','vkShadow','vkShuffle','VK_DAY'];
+    'VK_KNOWN_STEP','vkDay','vkAddDays','vkWeekStart','vkStreak','vkShadow','vkShuffle','VK_DAY'];
   return new Function(src + '\nreturn {' + names.join(',') + '};')();
 }
 const V = loadVoca();
@@ -140,27 +140,6 @@ test('vkWeekStart: 월요일 0시', () => {
   const ws = new Date(V.vkWeekStart(new Date(2026, 9, 3, 15).getTime()));   // 2026-10-03 토요일
   assert.equal(ws.getDay(), 1);
   assert.equal(V.vkDay(ws.getTime()), '2026-09-28');
-});
-
-test('vkBotXp: 결정적이고 주중에 줄지 않는다', () => {
-  const ws = V.vkWeekStart(new Date(2026, 9, 3).getTime());
-  let prev = -1;
-  for(let h = 0; h <= 7 * 24; h += 6){
-    const x = V.vkBotXp('꾸준이', ws, 1, ws + h * 3600e3);
-    assert.ok(x >= prev);
-    prev = x;
-  }
-  assert.equal(V.vkBotXp('꾸준이', ws, 1, ws + 3 * V.VK_DAY), V.vkBotXp('꾸준이', ws, 1, ws + 3 * V.VK_DAY));
-  assert.equal(V.vkBotXp('꾸준이', ws, 1, ws), 0);
-});
-
-test('vkRank · vkTierAfter: 상위 3 승급, 하위 3 강등', () => {
-  assert.equal(V.vkRank(100, [50, 200, 300]), 3);
-  assert.equal(V.vkTierAfter(1, 3, 10), 2);
-  assert.equal(V.vkTierAfter(1, 5, 10), 1);
-  assert.equal(V.vkTierAfter(1, 8, 10), 0);
-  assert.equal(V.vkTierAfter(0, 10, 10), 0);
-  assert.equal(V.vkTierAfter(4, 1, 10), 4);
 });
 
 test('vkShadow: 말한 단어만 맞음 표시', () => {

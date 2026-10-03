@@ -2065,7 +2065,7 @@ return {render:function(){draw();}};
 #screen-voca .vk-step-m b{font-size:14px;}
 #screen-voca .vk-step button{flex:none;padding:10px 16px;}
 #screen-voca .vk-step-link{text-align:center;color:var(--vk-mute);font-size:14px;line-height:1;padding:4px 0;}
-#screen-voca .vk-quick{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;}
+#screen-voca .vk-quick{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px;}
 #screen-voca .vk-q{display:flex;flex-direction:column;align-items:flex-start;gap:2px;background:#fff;color:var(--vk-ink);border:1px solid var(--vk-ln);border-radius:16px;padding:12px;box-shadow:var(--vk-sh);text-align:left;}
 #screen-voca .vk-q span{font-size:20px;}
 #screen-voca .vk-q b{font-size:13px;}
@@ -2253,22 +2253,6 @@ return {render:function(){draw();}};
 #screen-voca .vk-quizcard small{display:block;font-size:12px;color:var(--vk-sf);margin-top:2px;word-break:keep-all;}
 #screen-voca .vk-quiz-ico{font-size:30px;}
 #screen-voca .vk-quiz-best{font-size:12px;color:var(--vk-gd);font-weight:600;margin-top:5px;}
-#screen-voca .vk-league .vk-lg-h{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:8px;}
-#screen-voca .vk-league .vk-lg-h b{font-size:18px;}
-#screen-voca .vk-lg-left{font-size:12px;color:var(--vk-ft);font-weight:600;}
-#screen-voca .vk-lg-last{font-size:12.5px;border-radius:10px;padding:8px 10px;background:var(--vk-sur);margin-bottom:8px;}
-#screen-voca .vk-lg-last.up{background:var(--vk-gs);color:var(--vk-gd);}
-#screen-voca .vk-lg-last.down{background:var(--vk-rds);color:var(--vk-rd);}
-#screen-voca .vk-lg-r{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:12px;font-size:14px;}
-#screen-voca .vk-lg-r.me{background:var(--vk-gs);font-weight:700;box-shadow:inset 0 0 0 1.5px var(--vk-gs2);}
-#screen-voca .vk-lg-rank{width:22px;text-align:center;font-weight:800;color:var(--vk-ft);}
-#screen-voca .vk-lg-r.up .vk-lg-rank{color:var(--vk-gd);}
-#screen-voca .vk-lg-name{flex:1;min-width:0;}
-#screen-voca .vk-lg-xp{font-weight:700;font-variant-numeric:tabular-nums;}
-#screen-voca .vk-bot{font-style:normal;font-size:10px;font-weight:700;color:var(--vk-ft);background:var(--vk-sur);border-radius:5px;padding:1px 5px;vertical-align:1px;}
-#screen-voca .vk-lg-sep{font-size:10.5px;font-weight:700;padding:4px 10px;border-top:1px dashed var(--vk-ln2);margin-top:2px;}
-#screen-voca .vk-lg-sep.up{color:var(--vk-gd);}
-#screen-voca .vk-lg-sep.down{color:var(--vk-rd);}
 
 /* 리포트 */
 #screen-voca .vk-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;}
@@ -2604,7 +2588,7 @@ function vkBlank(en, expr){
 }
 /* VOCA-TESTABLE-END */
 /* VOCA-TESTABLE-START */
-// ── 채점 · 간격 반복 · 날짜 · 리그 (순수 함수) ──
+// ── 채점 · 간격 반복 · 날짜 (순수 함수) ──
 const VK_DAY = 864e5;
 function vkRe(src){ return new RegExp(src, 'g'); }
 const VK_CONTRACTIONS = [
@@ -2683,25 +2667,6 @@ function vkStreak(days, now){
   if(!days.has(vkDay(t))) t = vkAddDays(t, -1);
   while(days.has(vkDay(t))){ n++; t = vkAddDays(t, -1); }
   return n;
-}
-
-function vkHash(s){ let h = 2166136261; for(let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
-const VK_TIERS = ['브론즈','실버','골드','플래티넘','다이아'];
-const VK_TIER_BASE = [150, 300, 500, 800, 1200];
-const VK_BOTS = ['새벽러너','출근길보카','토익준비생','육아틈새','꾸준이','퇴근후30분','여행가자','단어수집가','밤샘공부'];
-// 가상 라이벌(봇)의 주간 XP: 이름·주차로 정해진 목표치를 주간 경과 비율만큼 채운다 (결정적·단조 증가)
-function vkBotXp(name, weekStart, tier, now){
-  const h = vkHash(name + '|' + vkDay(weekStart));
-  const target = VK_TIER_BASE[tier] * (0.35 + (h % 1000) / 1000 * 1.5);
-  const frac = Math.min(1, Math.max(0, (now - weekStart) / (7 * VK_DAY)));
-  const shape = 0.7 + ((h >>> 12) % 100) / 100 * 0.8;
-  return Math.round(target * Math.pow(frac, shape));
-}
-function vkRank(myXp, botXps){ return 1 + botXps.filter(function(x){ return x > myXp; }).length; }
-function vkTierAfter(tier, rank, size){
-  if(rank <= 3) return Math.min(VK_TIERS.length - 1, tier + 1);
-  if(rank > size - 3) return Math.max(0, tier - 1);
-  return tier;
 }
 
 // 따라 말하기: 모범 문장 단어마다 말한 문장에 있었는지
@@ -2794,7 +2759,7 @@ function markedEn(card, s){
 /* ── 저장 ── */
 function blankState(){
   return {srs:{}, log:{}, ten:{}, wrongs:[], set:{lvl:'B1', daily:10, goal:20, rate:1},
-          quiz:{best:0, plays:0}, conv:{}, tests:[], league:{week:'', tier:0, last:null}};
+          quiz:{best:0, plays:0}, conv:{}, tests:[]};
 }
 function loadSt(){
   const b = blankState();
@@ -2802,7 +2767,7 @@ function loadSt(){
     const s = JSON.parse(localStorage.getItem(LS) || '{}');
     Object.keys(b).forEach(function(k){
       if(s[k] == null) return;
-      b[k] = (k === 'set' || k === 'quiz' || k === 'league') ? Object.assign(b[k], s[k]) : s[k];
+      b[k] = (k === 'set' || k === 'quiz') ? Object.assign(b[k], s[k]) : s[k];
     });
   }catch(e){}
   return b;
@@ -2965,7 +2930,7 @@ async function gradeMission(it, text){
 function exprShort(e){ return String(e).replace(/[.?!]+$/, ''); }
 
 /* ── 화면 상태 ── */
-const NAV = [['home','홈'], ['fill','① 채우기'], ['out','② 꺼내기'], ['quiz','퀴즈·리그'], ['report','리포트']];
+const NAV = [['home','홈'], ['fill','① 채우기'], ['out','② 꺼내기'], ['quiz','퀴즈'], ['report','리포트']];
 let view = {tab:'home', sub:null, q:''};
 let mode = null;            // fill | mission | listen | quiz | test — 전체 화면 세션
 let ses = null, mis = null, lis = null, qz = null, lt = null;
@@ -2978,7 +2943,6 @@ function root(){ return document.getElementById('vkRoot'); }
 function draw(){
   const r = root();
   if(!r) return;
-  leagueRollover();
   let html;
   if(mode === 'fill') html = fillSessionHTML();
   else if(mode === 'mission') html = missionHTML();
@@ -3036,7 +3000,6 @@ function homeHTML(){
   const due = dueKeys(now).length, nl = newLeftToday();
   const min = Math.round(dr.sec / 60), goal = st.set.goal, pct = Math.min(1, dr.sec / 60 / goal);
   const streak = vkStreak(activeDays(), now);
-  const rows = leagueRows(now), rank = rows.findIndex(function(x){ return x.me; }) + 1;
   const lastT = st.tests[st.tests.length - 1];
   return '' +
   '<div class="vk-hero">' +
@@ -3064,7 +3027,6 @@ function homeHTML(){
   '</div>' +
   '<div class="vk-quick">' +
     '<button class="vk-q" data-act="startQuiz"><span>⚡</span><b>1분 퀴즈</b><small>최고 ' + st.quiz.best + '점</small></button>' +
-    '<button class="vk-q" data-act="tab" data-v="quiz"><span>🏆</span><b>주간 리그</b><small>' + rank + '위 · ' + VK_TIERS[st.league.tier] + '</small></button>' +
     '<button class="vk-q" data-act="startTest"><span>📊</span><b>레벨 테스트</b><small>' + (lastT ? '예상 ' + lastT.est + '개' : '15문항') + '</small></button>' +
   '</div>' +
   '<div class="vk-card vk-set"><div class="vk-lab">학습 설정</div>' +
@@ -3564,7 +3526,7 @@ function moveLis(d){
 ACT.lisNext = function(){ moveLis(1); };
 ACT.lisPrev = function(){ if(lis.i > 0) moveLis(-1); };
 
-/* ════════ 퀴즈 · 리그 ════════ */
+/* ════════ 1분 퀴즈 ════════ */
 function quizItem(pool){
   for(let tries = 0; tries < 30; tries++){
     const card = pool[Math.floor(Math.random() * pool.length)];
@@ -3671,53 +3633,13 @@ ACT.quizToReview = function(){
   draw();
 };
 
-function leagueRows(now){
-  const ws = vkWeekStart(now), tier = st.league.tier;
-  const rows = VK_BOTS.map(function(n){ return {name:n, xp:vkBotXp(n, ws, tier, now), bot:true}; });
-  rows.push({name:'나', xp:weekXp(ws), me:true});
-  rows.sort(function(a, b){ return b.xp - a.xp || (a.me ? -1 : b.me ? 1 : 0); });
-  return rows;
-}
-function leagueRollover(){
-  const now = Date.now(), wk = vkDay(vkWeekStart(now)), L = st.league;
-  if(L.week === wk) return;
-  if(L.week){
-    const pws = new Date(L.week + 'T00:00:00').getTime();
-    const my = weekXp(pws);
-    const bots = VK_BOTS.map(function(n){ return vkBotXp(n, pws, L.tier, vkAddDays(pws, 7)); });
-    const rank = vkRank(my, bots), to = vkTierAfter(L.tier, rank, VK_BOTS.length + 1);
-    L.last = {week:L.week, rank:rank, from:L.tier, to:to, xp:my};
-    L.tier = to;
-  }
-  L.week = wk;
-  save();
-}
-function leagueHTML(){
-  const now = Date.now(), rows = leagueRows(now), ws = vkWeekStart(now);
-  const left = vkAddDays(ws, 7) - now, d = Math.floor(left / VK_DAY), hh = Math.floor(left % VK_DAY / 3600e3);
-  const L = st.league;
-  let last = '';
-  if(L.last){
-    const up = L.last.to > L.last.from, down = L.last.to < L.last.from;
-    last = '<div class="vk-lg-last ' + (up ? 'up' : down ? 'down' : '') + '">지난주 ' + L.last.rank + '위 (' + L.last.xp + ' XP) · ' +
-      (up ? VK_TIERS[L.last.to] + ' 승급 🎉' : down ? VK_TIERS[L.last.to] + '(으)로 강등' : VK_TIERS[L.last.to] + ' 유지') + '</div>';
-  }
-  return '<div class="vk-card vk-league"><div class="vk-lg-h"><div><div class="vk-lab">주간 리그</div><b>' + VK_TIERS[L.tier] + ' 리그</b></div>' +
-    '<div class="vk-lg-left">' + d + '일 ' + hh + '시간 남음</div></div>' + last +
-    '<div class="vk-lg-rows">' + rows.map(function(r, i){
-      const zone = i < 3 ? 'up' : i >= rows.length - 3 ? 'down' : '';
-      return (i === 3 || i === rows.length - 3 ? '<div class="vk-lg-sep ' + (i === 3 ? 'up' : 'down') + '">' + (i === 3 ? '▲ 승급권' : '▼ 강등권') + '</div>' : '') +
-        '<div class="vk-lg-r ' + zone + (r.me ? ' me' : '') + '"><span class="vk-lg-rank">' + (i + 1) + '</span>' +
-        '<span class="vk-lg-name">' + esc(r.name) + (r.bot ? ' <i class="vk-bot">봇</i>' : '') + '</span><span class="vk-lg-xp">' + r.xp + ' XP</span></div>';
-    }).join('') + '</div>' +
-    '<p class="vk-note">상위 3명 승급 · 하위 3명 강등 (매주 월요일). 라이벌은 정해진 속도로 XP가 오르는 <b>가상 봇</b>이에요.<br>' +
-    'XP: 채우기 정답 10 · 회화 통과 15 · 1분 퀴즈 정답 5 · 리스닝 3 · 레벨 테스트 20</p></div>';
-}
 function quizTabHTML(){
   return '<div class="vk-card vk-quizcard"><div class="vk-quiz-ico">⚡</div><div class="grow"><b>1분 퀴즈</b>' +
     '<small>60초 동안 빈칸 4지선다. 출퇴근길·잠들기 전 자투리 시간용</small>' +
     '<div class="vk-quiz-best">최고 <b>' + st.quiz.best + '</b>점 · ' + st.quiz.plays + '회 도전</div></div>' +
-    '<button data-act="startQuiz">시작</button></div>' + leagueHTML();
+    '<button data-act="startQuiz">시작</button></div>' +
+    '<p class="vk-note">학습한 표현이 12개 이상이면 그 안에서, 아니면 전체 ' + CARDS.length + '개 표현에서 출제돼요. ' +
+    '끝난 뒤 틀린 표현을 바로 복습 대기열에 넣을 수 있어요.</p>';
 }
 
 /* ════════ 리포트 ════════ */
