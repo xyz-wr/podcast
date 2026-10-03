@@ -391,11 +391,14 @@
     </div>
     <div class="panel">
       <h2>기기 간 동기화 · 선택</h2>
-      <p style="font-size:12px;color:var(--ink-soft);line-height:1.55;margin:0 0 10px;">여러 기기에서 단어·영상·예문을 같이 보려면 <b>Supabase(무료)</b>에 연결하세요. 같은 <b>동기화 코드</b>를 넣은 기기끼리 데이터가 맞춰집니다. 비워두면 이 기기에만 저장돼요(기존과 동일). 녹음·AI키는 동기화되지 않습니다.</p>
+      <p style="font-size:12px;color:var(--ink-soft);line-height:1.55;margin:0 0 10px;">같은 <b>동기화 코드</b>를 넣은 기기끼리 단어·영상·예문, Gemini 키, 보카 학습 기록이 맞춰집니다. 코드가 곧 비밀번호라 다른 사람에게 알려주지 마세요. 비워두면 이 기기에만 저장돼요. 녹음은 동기화되지 않습니다.</p>
+      <div id="sbDefaultNote" style="display:none;font-size:12px;color:var(--brand-deep);margin:0 0 6px;">✓ 기본 서버 사용 중 — 동기화 코드만 넣으면 돼요 (처음이면 <b>새 코드</b>, 다른 기기와 맞추려면 그 기기의 코드)</div>
+      <details id="sbAdvanced" style="margin:0 0 4px;"><summary style="font-size:12px;color:var(--ink-soft);cursor:pointer;">Supabase 서버 직접 입력 (선택)</summary>
       <label class="fld">Supabase URL</label>
       <input id="sbUrlInput" type="text" placeholder="https://xxxx.supabase.co">
       <label class="fld">Supabase anon key</label>
       <input id="sbKeyInput" type="text" placeholder="eyJ...">
+      </details>
       <label class="fld">동기화 코드</label>
       <div class="row">
         <input id="syncCodeInput" type="text" placeholder="tablo-..." style="flex:1;">
@@ -5200,7 +5203,10 @@ document.getElementById('importFile').addEventListener('change',async e=>{const 
 /* ============ AI (free Gemini) + practice ============ */
 let GEMINI_KEY='', GEMINI_MODEL='gemini-2.5-flash', GEMINI_KEY_TS=0;
 let SB_URL='', SB_KEY='', SYNC_CODE='';
-function genSyncCode(){const r=()=>Math.random().toString(36).slice(2,6);return 'tablo-'+r()+'-'+r();}
+// 이 앱 전용 Supabase 프로젝트. anon key 는 공개돼도 되는 키이고, 데이터는 RLS 정책으로
+// '요청 헤더 x-sync-code 와 같은 동기화 코드의 행'만 열린다 → 동기화 코드가 곧 비밀번호.
+const SB_DEFAULT_URL='', SB_DEFAULT_KEY='';
+function genSyncCode(){const a='abcdefghijkmnpqrstuvwxyz23456789',b=new Uint8Array(12);crypto.getRandomValues(b);let s='';b.forEach((x,i)=>{s+=a[x%a.length];if(i===3||i===7)s+='-';});return 'tablo-'+s;}
 function sbReady(){return !!(SB_URL && SB_KEY && SYNC_CODE);}
 function openSettings(){tabTo('settings');}
 function renderSettings(){const i=document.getElementById('geminiKeyInput');if(i)i.value=GEMINI_KEY;const s=document.getElementById('keyStatus');if(s)s.textContent=GEMINI_KEY?'키 저장됨 ✓':'키 없음';
@@ -5208,22 +5214,25 @@ function renderSettings(){const i=document.getElementById('geminiKeyInput');if(i
   const k=document.getElementById('sbKeyInput'); if(k)k.value=SB_KEY;
   const c=document.getElementById('syncCodeInput'); if(c)c.value=SYNC_CODE;
   const ss=document.getElementById('syncStatus'); if(ss)ss.textContent=sbReady()?'연결됨 ✓':'동기화 꺼짐';
+  const adv=document.getElementById('sbAdvanced'), note=document.getElementById('sbDefaultNote');
+  if(adv)adv.open=!SB_DEFAULT_URL; if(note)note.style.display=SB_DEFAULT_URL?'':'none';
 }
 async function saveKey(){GEMINI_KEY=document.getElementById('geminiKeyInput').value.trim();GEMINI_KEY_TS=Date.now();await idbPut('settings',{key:'geminiKey',value:GEMINI_KEY,updatedAt:GEMINI_KEY_TS});document.getElementById('keyStatus').textContent=GEMINI_KEY?'저장됨 ✓':'키 없음';toast('저장됨');pushGeminiKey();}
 async function loadSyncConfig(){
-  try{const u=await idbGet('settings','sbUrl');SB_URL=(u&&u.value)||'';}catch(e){}
-  try{const k=await idbGet('settings','sbKey');SB_KEY=(k&&k.value)||'';}catch(e){}
+  SB_URL=SB_DEFAULT_URL; SB_KEY=SB_DEFAULT_KEY;
+  try{const u=await idbGet('settings','sbUrl');if(u&&u.value)SB_URL=u.value;}catch(e){}
+  try{const k=await idbGet('settings','sbKey');if(k&&k.value)SB_KEY=k.value;}catch(e){}
   try{const c=await idbGet('settings','syncCode');SYNC_CODE=(c&&c.value)||'';}catch(e){}
 }
 function normSbUrl(s){return (s||'').trim().replace(/\/+$/,'').replace(/\/rest\/v1$/,'').replace(/\/+$/,'');}
 async function saveSyncConfig(){
   const u=document.getElementById('sbUrlInput'),k=document.getElementById('sbKeyInput'),c=document.getElementById('syncCodeInput');
   if(!u||!k||!c)return;
-  SB_URL=normSbUrl(u.value); u.value=SB_URL;   // 정규화한 값을 칸에도 반영
-  SB_KEY=k.value.trim();
+  SB_URL=normSbUrl(u.value)||SB_DEFAULT_URL; u.value=SB_URL;   // 정규화한 값을 칸에도 반영 (비우면 기본 서버)
+  SB_KEY=k.value.trim()||SB_DEFAULT_KEY;
   SYNC_CODE=c.value.trim();
-  await idbPut('settings',{key:'sbUrl',value:SB_URL});
-  await idbPut('settings',{key:'sbKey',value:SB_KEY});
+  await idbPut('settings',{key:'sbUrl',value:SB_URL===SB_DEFAULT_URL?'':SB_URL});
+  await idbPut('settings',{key:'sbKey',value:SB_KEY===SB_DEFAULT_KEY?'':SB_KEY});
   await idbPut('settings',{key:'syncCode',value:SYNC_CODE});
   const ss=document.getElementById('syncStatus');
   if(!sbReady()){ss.textContent='동기화 꺼짐 (값을 모두 입력하세요)';toast('저장됨');return;}
@@ -5282,7 +5291,7 @@ function runSyncSelfTest(){
   console.log('runSyncSelfTest:', pass?'PASS':'FAIL', cases.filter(c=>!c[0]).map(c=>c[1]));
   return pass;
 }
-function sbHeaders(){return {'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'};}
+function sbHeaders(){return {'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','x-sync-code':SYNC_CODE};}
 async function sbUpsert(table, rows){
   if(!sbReady()||!rows.length)return;
   const r=await fetch(SB_URL+'/rest/v1/'+table+'?on_conflict=sync_code,id',{
