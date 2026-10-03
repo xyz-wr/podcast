@@ -5205,7 +5205,7 @@ let GEMINI_KEY='', GEMINI_MODEL='gemini-2.5-flash', GEMINI_KEY_TS=0;
 let SB_URL='', SB_KEY='', SYNC_CODE='';
 // 이 앱 전용 Supabase 프로젝트. anon key 는 공개돼도 되는 키이고, 데이터는 RLS 정책으로
 // '요청 헤더 x-sync-code 와 같은 동기화 코드의 행'만 열린다 → 동기화 코드가 곧 비밀번호.
-const SB_DEFAULT_URL='', SB_DEFAULT_KEY='';
+const SB_DEFAULT_URL='https://dqinuwadlythebpwpqxc.supabase.co', SB_DEFAULT_KEY='sb_publishable_dErSr81L2hcsLRbN8tIcbQ_avmsF-eX';
 function genSyncCode(){const a='abcdefghijkmnpqrstuvwxyz23456789',b=new Uint8Array(12);crypto.getRandomValues(b);let s='';b.forEach((x,i)=>{s+=a[x%a.length];if(i===3||i===7)s+='-';});return 'tablo-'+s;}
 function sbReady(){return !!(SB_URL && SB_KEY && SYNC_CODE);}
 function openSettings(){tabTo('settings');}
