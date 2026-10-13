@@ -5,6 +5,8 @@ import { lsGetJSON, lsSetJSON } from '../../storage/local';
 
 export type Tense = 'present' | 'past' | 'future' | 'progressive';
 export const TENSE_LABEL: Record<Tense, string> = { present: '현재형', past: '과거형', future: '미래형', progressive: '진행형' };
+/** legacy QTENSES: 표현 연습에서 문제를 내는 순서 */
+export const TENSES: Tense[] = ['present', 'past', 'future', 'progressive'];
 
 export interface QuizItem {
   id: string; folderId: string; titleKo: string; expression: string; meaningKo: string; tense: Tense; ko: string; en: string;
