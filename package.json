@@ -7,8 +7,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "extract": "node scripts/extract-legacy.mjs",
-    "test": "vitest run --passWithNoTests && npm run test:legacy",
-    "test:legacy": "node --test tests/quiz-core.test.mjs tests/module-refs.test.mjs tests/voca-core.test.mjs"
+    "test": "vitest run"
   },
   "dependencies": {
     "react": "^19.3.0",

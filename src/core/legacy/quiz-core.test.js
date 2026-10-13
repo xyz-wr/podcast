@@ -1,9 +1,9 @@
-import test from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { loadCore, loadFolders } from './extract.mjs';
+import * as C from './quiz-core.js';
+import conv from '../../data/conv.json';
 
-const C = loadCore();
-const FOLDERS = loadFolders();
+const FOLDERS = conv.folders;
 
 test('qNorm: 소문자화 + 문장부호 제거', () => {
   assert.equal(C.qNorm("Let's HIT the road, now!"), 'let us hit the road now');

@@ -1,23 +1,9 @@
-import test from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
+import * as V from './voca-core.js';
+import conv from '../../data/conv.json';
 
-// 보카 모듈의 순수 로직은 /* VOCA-TESTABLE-START */ ~ /* VOCA-TESTABLE-END */ 로 마킹돼 있다.
-// (퀴즈 탭의 TESTABLE 블록과 이름이 섞이지 않게 마커를 따로 쓴다)
-const HTML = fs.readFileSync(new URL('../legacy/index.html', import.meta.url), 'utf8');
-
-function loadVoca(){
-  const re = /\/\* VOCA-TESTABLE-START \*\/([\s\S]*?)\/\* VOCA-TESTABLE-END \*\//g;
-  let src = '', m, blocks = 0;
-  while((m = re.exec(HTML))){ src += m[1] + '\n'; blocks++; }
-  if(blocks < 2) throw new Error(`VOCA-TESTABLE 블록을 ${blocks}개만 찾았습니다 (2개 이상 필요)`);
-  const names = ['vkBlank','vkParseExpr','vkNorm','vkSameAnswer','vkHintOf','vkGrade','vkReview','VK_STEPS','VK_STEP_KO',
-    'VK_KNOWN_STEP','vkDay','vkAddDays','vkWeekStart','vkStreak','vkShadow','vkShuffle','VK_DAY','vkTileWords',
-    'vkDayItems','vkHeat','vkMonth','vkMergeState'];
-  return new Function(src + '\nreturn {' + names.join(',') + '};')();
-}
-const V = loadVoca();
-const FOLDERS = JSON.parse(HTML.match(/<script id="conv-data" type="application\/json">([\s\S]*?)<\/script>/)[1]).folders;
+const FOLDERS = conv.folders;
 
 // 빈칸을 [정답] 으로 표시한 문자열
 function show(en, expr){
@@ -218,13 +204,6 @@ test('vkMergeState: 다시 합쳐도 그대로 (반복 동기화에 안전)', ()
 test('vkMergeState: 둘 다 설정 시각이 없으면 서버(두 번째) 설정을 따른다', () => {
   const fresh = {set: {lvl: 'B1'}, setAt: 0}, server = {set: {lvl: 'B2'}, setAt: 0};
   assert.equal(V.vkMergeState(fresh, server).set.lvl, 'B2');
-});
-
-test('voca-module: ACT 는 선언한 뒤에만 쓴다 (앞에서 쓰면 모듈 전체가 멈춘다)', () => {
-  const src = HTML.match(/<script id="voca-module">([\s\S]*?)<\/script>/)[1];
-  const decl = src.indexOf('const ACT = Object.create(null);');
-  const firstUse = src.search(/\nACT\.[A-Za-z]+ = /);
-  assert.ok(decl > 0 && firstUse > decl, `ACT 선언 ${decl}, 첫 사용 ${firstUse}`);
 });
 
 test('vkShadow: 말한 단어만 맞음 표시', () => {
