@@ -36,7 +36,7 @@
 | Phase | 내용 | 계획 문서 | 완료 기준 |
 |---|---|---|---|
 | 1 | 기반 작업: 브랜치·worktree, Vite 프로젝트, Netlify 브랜치 배포, 데이터·순수 로직·CSS 추출, 저장소·동기화 계층, 앱 뼈대(탭바) | `2026-10-13-react-migration-phase1.md` | 완료 |
-| 2 | 화면 구조(`<main>` 안/밖, `screen-` id) + 영작 퀴즈(`wquiz`) + TTS 모듈(`elab_voice`) | `2026-10-13-react-migration-phase2.md` | `elab_quiz_v1`을 legacy와 서로 주고받아도 같은 진도, TTS 동작 |
+| 2 | 화면 구조(`<main>` 안/밖, `screen-` id) + 영작 퀴즈(`wquiz`) + TTS 모듈(`elab_voice`) | `2026-10-13-react-migration-phase2.md` | 완료 |
 | 3 | 회화·학습·상세: 회화 카드, 진도(`elab_progress_v1`), 라이브러리, 퀴즈 표현 모드(`runExpression`) | 추후 작성 | |
 | 4 | 영상: YouTube 플레이어, 자막, 구간 반복, 녹음(`recordings`), 이어보기 | 추후 작성 | StrictMode에서도 플레이어 중복 생성 없음 |
 | 5 | 보카(가장 큼): 학습 단계, 복습, 캘린더, `voca_v1` kv 병합 동기화 | 추후 작성 | `elab_voca_v1`과 kv 병합 결과가 기존과 같음 |
@@ -60,6 +60,14 @@
 | 탭 id와 화면 id 분리 → 숨은 화면을 이관하지 않기로 해서 필요 없어짐. 학습 탭 안의 하위 화면(`study`, `detail`)은 Phase 3에서 탭 내부 상태로 다룬다 | 3 |
 | 추출 스크립트: `<style>` 개수 검증, 같은 이름 중복 시 오류 | 다음에 `npm run extract`를 고칠 때 |
 | master에서 기존 앱이 바뀌면 브랜치의 루트 `index.html`과 충돌한다 → 그 변경을 `legacy/index.html`에 적용하고 `npm run extract` 실행 | master를 브랜치에 합칠 때마다 |
+
+## Phase 2 리뷰에서 넘어온 할 일
+
+| 항목 | 처리할 Phase |
+|---|---|
+| 퀴즈 표현 모드(`runExpression`): 스토어 하나에 넣으면 회화 탭에서 표현 연습을 시작할 때 퀴즈 탭의 진행 화면·복습 세션이 덮어써진다(legacy도 같음). 세션별 스토어(예: `createQuizSession(kind)`)로 분리하고, 끝났을 때 콜백(`onExit`)은 상태가 아니라 동작 인자로 넘긴다. `settle`은 표현 모드에서 라운드를 다시 채우지 않는다 | 3 |
+| 회화 데이터(515KB)가 메인 번들에 들어가 JS가 913KB(gzip 258KB)다. legacy도 HTML에 같은 데이터를 담고 있어 회귀는 아니지만, 지연 로딩(`import()`)으로 첫 화면을 가볍게 할 수 있다 | 7 이후 (개선) |
+| **legacy 채점기 한계:** 핵심 표현이 불규칙 활용(made, laid, got …)으로 바뀌면 모범 답안도 오답 처리된다(1,284문장 중 227개, 약 18%). "사실 맞았어요"로 넘길 수는 있다. 이관 범위에서는 legacy와 똑같이 두었고, 고치려면 `exprWords`/`variants`에 불규칙 동사표를 더한다(보카의 `VK_IRR` 재사용 가능) | 이관 후 개선 (사용자 결정) |
 
 ## Phase 7 교체 체크리스트에 추가
 
