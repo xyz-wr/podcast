@@ -55,6 +55,15 @@
 | 서버에서 `deleted:false`인데 `data:null`인 행이 오면 pull 전체가 멈춤 → 해당 행 건너뛰고 경고 | 7 |
 | 동시 flush(타이머 + autoSync)로 오래된 묶음이 나중에 도착할 수 있음 → flush 직렬화. 근본 해결은 서버 쪽 `updated_at` 비교 upsert(트리거/RPC)를 두 앱 공통으로 적용하는 것 | 7 |
 | `repo.idbPut` 타입 강화(동기화 대상은 `id` 필수) | 기능에서 처음 쓸 때 |
+| 화면을 legacy처럼 `<main>` 안의 `<section id="screen-<이름>" class="screen">`으로 감싸기. `base.css`의 `main`(최대 폭 560px, 탭바 높이만큼 아래 여백)과 `#screen-voca` 같은 선택자가 적용되게 한다. 탭 id와 화면 id가 다른 경우(`learn` → `screen-library`)를 위한 대응표 필요 | **2 시작 시** |
+| 탭 id와 화면 id 분리: 탭바 6개(`TabId`)와 그 밖의 화면(`improve`, `diary`, `write`, `streak`)을 나눈다. 가상 페이지뷰 제목은 legacy `TAB_NAMES` 10개 기준. 복원(`elab_tab`)은 탭바 6개만 허용하고 나머지는 `wquiz`로 (legacy와 동일) | **2 시작 시** |
+| 추출 스크립트: `<style>` 개수 검증, 같은 이름 중복 시 오류 | 다음에 `npm run extract`를 고칠 때 |
+| master에서 기존 앱이 바뀌면 브랜치의 루트 `index.html`과 충돌한다 → 그 변경을 `legacy/index.html`에 적용하고 `npm run extract` 실행 | master를 브랜치에 합칠 때마다 |
+
+## Phase 8 교체 체크리스트에 추가
+
+- 병합 배포 후 실제 사이트에서 `gtm.js` 요청과 `dataLayer`를 확인한다. GTM은 Netlify 빌드의 `CONTEXT=production`에만 의존하므로, Netlify가 아닌 곳에서 빌드한 결과를 배포하면 GA가 꺼진 채로 나간다.
+- Netlify 환경 변수에 `NODE_ENV=production`을 넣지 않는다. 넣으면 빌드에 필요한 devDependencies(tsc, vite)가 설치되지 않는다.
 
 ## 교체 절차 (Phase 8)
 
