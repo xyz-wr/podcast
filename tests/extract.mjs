@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 
-const HTML_PATH = new URL('../index.html', import.meta.url);
+const HTML_PATH = new URL('../legacy/index.html', import.meta.url);
 
 // index.html은 단일 파일 앱이라 로직을 별도 모듈로 분리하지 않는다.
 // 대신 순수 로직을 /* TESTABLE-START */ ~ /* TESTABLE-END */ 로 마킹해 두고

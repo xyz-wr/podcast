@@ -4,7 +4,7 @@ import fs from 'node:fs';
 
 // 보카 모듈의 순수 로직은 /* VOCA-TESTABLE-START */ ~ /* VOCA-TESTABLE-END */ 로 마킹돼 있다.
 // (퀴즈 탭의 TESTABLE 블록과 이름이 섞이지 않게 마커를 따로 쓴다)
-const HTML = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const HTML = fs.readFileSync(new URL('../legacy/index.html', import.meta.url), 'utf8');
 
 function loadVoca(){
   const re = /\/\* VOCA-TESTABLE-START \*\/([\s\S]*?)\/\* VOCA-TESTABLE-END \*\//g;

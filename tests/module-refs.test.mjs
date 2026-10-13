@@ -6,7 +6,7 @@ import fs from 'node:fs';
 // 사라져도 문법 오류가 나지 않는다 (호출 시점에야 ReferenceError). 실제로
 // pickTile 이 그렇게 지워진 적이 있어서, 호출되는 이름이 선언돼 있는지 검사한다.
 
-const HTML = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const HTML = fs.readFileSync(new URL('../legacy/index.html', import.meta.url), 'utf8');
 
 function moduleSource(id){
   const m = HTML.match(new RegExp('<script id="' + id + '"[^>]*>([\\s\\S]*?)</script>'));
