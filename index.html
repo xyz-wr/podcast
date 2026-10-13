@@ -4693,7 +4693,9 @@ function clearBookmark(){if(!currentVideo||!currentVideo.bookmark)return;delete 
 /* ============ navigation ============ */
 function showScreen(name){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById('screen-'+name).classList.add('active');window.scrollTo(0,0);}
 const TAB_LS='elab_tab';
+const TAB_NAMES={voca:'보카',conv:'회화',wquiz:'퀴즈',learn:'학습',video:'영상',settings:'더보기',improve:'개선',diary:'일기',write:'작문',streak:'스트릭'};
 function tabTo(s){try{localStorage.setItem(TAB_LS,s);}catch(e){}
+  (window.dataLayer=window.dataLayer||[]).push({event:'virtual_pageview',page_path:'/'+s,page_title:TAB_NAMES[s]||s});   // GA: 탭 = 가상 페이지
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.s===s));clearSelection();
   pausePlayer();
   if(s==='learn'){showScreen('library');learnSeg==='words'?renderLearnVocab():renderLibrary();}
