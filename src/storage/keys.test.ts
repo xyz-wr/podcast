@@ -21,4 +21,6 @@ it('저장소 이름이 기존 앱과 같다', () => {
 it('모든 이름이 legacy/index.html 에 실제로 있다', () => {
   for(const v of [...Object.values(LS_KEYS), IDB_NAME, ...SETTINGS_KEYS, ...Object.values(KV_KEYS)])
     expect(LEGACY, v).toContain(`'${v}'`);
+  expect(LEGACY).toContain(`DB_VER=${IDB_VERSION}`);
+  expect(LEGACY).toContain(`SYNCED_STORES=['${SYNCED_STORES.join("','")}']`);
 });
