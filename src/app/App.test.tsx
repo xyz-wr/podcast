@@ -39,3 +39,19 @@ it('탭을 누르면 elab_tab 저장, 가상 페이지뷰, 화면 전환', () =>
   expect(screen.getByRole('button', { name: /영상/ })).toHaveClass('active');
   expect(screen.getByTestId('screen')).toHaveTextContent('영상');
 });
+
+it('legacy처럼 퀴즈 화면은 <main> 밖, 보카 화면은 <main> 안에 그린다', () => {
+  start('wquiz');
+  const quiz = screen.getByTestId('screen');
+  expect(quiz.id).toBe('screen-wquiz');
+  expect(quiz.closest('main')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: /보카/ }));
+  const voca = screen.getByTestId('screen');
+  expect(voca.id).toBe('screen-voca');
+  expect(voca.closest('main')).not.toBeNull();
+});
+
+it('학습 탭은 legacy 화면 id(screen-library)를 쓴다', () => {
+  start('learn');
+  expect(screen.getByTestId('screen').id).toBe('screen-library');
+});
