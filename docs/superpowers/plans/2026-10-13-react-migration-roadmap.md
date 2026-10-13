@@ -37,12 +37,13 @@
 |---|---|---|---|
 | 1 | 기반 작업: 브랜치·worktree, Vite 프로젝트, Netlify 브랜치 배포, 데이터·순수 로직·CSS 추출, 저장소·동기화 계층, 앱 뼈대(탭바) | `2026-10-13-react-migration-phase1.md` | 완료 |
 | 2 | 화면 구조(`<main>` 안/밖, `screen-` id) + 영작 퀴즈(`wquiz`) + TTS 모듈(`elab_voice`) | `2026-10-13-react-migration-phase2.md` | 완료 |
-| 3 | 회화·학습·상세: 회화 카드, 진도(`elab_progress_v1`), 라이브러리, 퀴즈 표현 모드(`runExpression`) | 추후 작성 | |
-| 4 | 영상: YouTube 플레이어, 자막, 구간 반복, 녹음(`recordings`), 이어보기 | 추후 작성 | StrictMode에서도 플레이어 중복 생성 없음 |
-| 5 | 보카(가장 큼): 학습 단계, 복습, 캘린더, `voca_v1` kv 병합 동기화 | 추후 작성 | `elab_voca_v1`과 kv 병합 결과가 기존과 같음 |
-| 6 | 더보기: 동기화 설정 UI, Gemini 키(kv `geminiKey`), 백업, 목소리 선택 | 추후 작성 | 테스트 코드로 기기 2대 동기화 확인 |
-| 7 | 동등성 검증과 교체: 기능 체크리스트, 실제 데이터 사본으로 확인, master 병합 | 추후 작성 | 아래 "교체 절차" 완료 |
-| 8 | 통계 리포트: Supabase Edge Function(GA4 Data API) + 리포트 화면 | 추후 작성 | |
+| 3 | 회화 탭(홈·카테고리·주제·북마크, `elab_progress_v1`) + 퀴즈 표현 모드(세션별 스토어) | `2026-10-13-react-migration-phase3.md` | 완료 |
+| 4 | 학습 탭("내 영상"): 영상 목록·폴더·이어보기, 학습 화면(YouTube 플레이어, 자막 입력·정렬, 구간 반복, 북마크), 단어 담기·상세, `videos`/`vocab`/`settings.folders` | 추후 작성 | StrictMode에서도 플레이어 중복 생성 없음, IndexedDB 기록이 legacy와 같음 |
+| 5 | 영상 탭(`VideoApp`, 회화 카테고리를 쓰는 약 480줄 모듈. 세부 내용은 계획 때 확인) | 추후 작성 | |
+| 6 | 보카(가장 큼): 학습 단계, 복습, 캘린더, `voca_v1` kv 병합 동기화 | 추후 작성 | `elab_voca_v1`과 kv 병합 결과가 기존과 같음 |
+| 7 | 더보기: 동기화 설정 UI, Gemini 키(kv `geminiKey`), 백업, 목소리 선택 | 추후 작성 | 테스트 코드로 기기 2대 동기화 확인 |
+| 8 | 동등성 검증과 교체: 기능 체크리스트, 실제 데이터 사본으로 확인, master 병합 | 추후 작성 | 아래 "교체 절차" 완료 |
+| 9 | 통계 리포트: Supabase Edge Function(GA4 Data API) + 리포트 화면 | 추후 작성 | |
 
 ## Phase 1 리뷰에서 넘어온 할 일
 
@@ -50,14 +51,14 @@
 
 | 항목 | 처리할 Phase |
 |---|---|
-| `registerSyncHook`에 단계 구분 추가(예: `postPull` → `reload`). Gemini 키·보카 kv 병합이 끝난 뒤 화면 다시 읽기가 실행되도록, 등록 순서에 기대지 않게 한다. | 5 또는 6 (첫 훅을 붙일 때) |
-| "지금 동기화" 버튼(`syncNow`)과 설정 저장 시 연결 테스트(`sbSelect` 후 전체 동기화) | 6 |
-| 동기화 코드를 바꾸면 큐에 남은 항목의 `sync_code`가 옛 값이라 RLS에 계속 거부됨 → 코드 변경 시 큐 정리 또는 flush 때 현재 코드로 바꿔 쓰기 | 6 |
-| 서버에서 `deleted:false`인데 `data:null`인 행이 오면 pull 전체가 멈춤 → 해당 행 건너뛰고 경고 | 6 |
-| 동시 flush(타이머 + autoSync)로 오래된 묶음이 나중에 도착할 수 있음 → flush 직렬화. 근본 해결은 서버 쪽 `updated_at` 비교 upsert(트리거/RPC)를 두 앱 공통으로 적용하는 것 | 6 |
+| `registerSyncHook`에 단계 구분 추가(예: `postPull` → `reload`). Gemini 키·보카 kv 병합이 끝난 뒤 화면 다시 읽기가 실행되도록, 등록 순서에 기대지 않게 한다. | 6 또는 7 (첫 훅을 붙일 때) |
+| "지금 동기화" 버튼(`syncNow`)과 설정 저장 시 연결 테스트(`sbSelect` 후 전체 동기화) | 7 |
+| 동기화 코드를 바꾸면 큐에 남은 항목의 `sync_code`가 옛 값이라 RLS에 계속 거부됨 → 코드 변경 시 큐 정리 또는 flush 때 현재 코드로 바꿔 쓰기 | 7 |
+| 서버에서 `deleted:false`인데 `data:null`인 행이 오면 pull 전체가 멈춤 → 해당 행 건너뛰고 경고 | 7 |
+| 동시 flush(타이머 + autoSync)로 오래된 묶음이 나중에 도착할 수 있음 → flush 직렬화. 근본 해결은 서버 쪽 `updated_at` 비교 upsert(트리거/RPC)를 두 앱 공통으로 적용하는 것 | 7 |
 | `repo.idbPut` 타입 강화(동기화 대상은 `id` 필수) | 기능에서 처음 쓸 때 |
 | ~~화면을 `<main>` 안/밖 `<section id="screen-…">`으로~~ | 2 (Task 2) |
-| 탭 id와 화면 id 분리 → 숨은 화면을 이관하지 않기로 해서 필요 없어짐. 학습 탭 안의 하위 화면(`study`, `detail`)은 Phase 3에서 탭 내부 상태로 다룬다 | 3 |
+| 탭 id와 화면 id 분리 → 숨은 화면을 이관하지 않기로 해서 필요 없어짐. 학습 탭 안의 하위 화면(`study`, `detail`)은 Phase 4에서 탭 내부 상태로 다룬다 | 4 |
 | 추출 스크립트: `<style>` 개수 검증, 같은 이름 중복 시 오류 | 다음에 `npm run extract`를 고칠 때 |
 | master에서 기존 앱이 바뀌면 브랜치의 루트 `index.html`과 충돌한다 → 그 변경을 `legacy/index.html`에 적용하고 `npm run extract` 실행 | master를 브랜치에 합칠 때마다 |
 
@@ -65,18 +66,18 @@
 
 | 항목 | 처리할 Phase |
 |---|---|
-| 퀴즈 표현 모드(`runExpression`): 스토어 하나에 넣으면 회화 탭에서 표현 연습을 시작할 때 퀴즈 탭의 진행 화면·복습 세션이 덮어써진다(legacy도 같음). 세션별 스토어(예: `createQuizSession(kind)`)로 분리하고, 끝났을 때 콜백(`onExit`)은 상태가 아니라 동작 인자로 넘긴다. `settle`은 표현 모드에서 라운드를 다시 채우지 않는다 | 3 |
-| 회화 데이터(515KB)가 메인 번들에 들어가 JS가 913KB(gzip 258KB)다. legacy도 HTML에 같은 데이터를 담고 있어 회귀는 아니지만, 지연 로딩(`import()`)으로 첫 화면을 가볍게 할 수 있다 | 7 이후 (개선) |
+| 퀴즈 표현 모드(`runExpression`): 스토어 하나에 넣으면 회화 탭에서 표현 연습을 시작할 때 퀴즈 탭의 진행 화면·복습 세션이 덮어써진다(legacy도 같음). 세션별 스토어(예: `createQuizSession(kind)`)로 분리하고, 끝났을 때 콜백(`onExit`)은 상태가 아니라 동작 인자로 넘긴다. `settle`은 표현 모드에서 라운드를 다시 채우지 않는다 | 3 (완료) |
+| 회화 데이터(515KB)가 메인 번들에 들어가 JS가 913KB(gzip 258KB)다. legacy도 HTML에 같은 데이터를 담고 있어 회귀는 아니지만, 지연 로딩(`import()`)으로 첫 화면을 가볍게 할 수 있다 | 8 이후 (개선) |
 | **legacy 채점기 한계:** 핵심 표현이 불규칙 활용(made, laid, got …)으로 바뀌면 모범 답안도 오답 처리된다(1,284문장 중 227개, 약 18%). "사실 맞았어요"로 넘길 수는 있다. 이관 범위에서는 legacy와 똑같이 두었고, 고치려면 `exprWords`/`variants`에 불규칙 동사표를 더한다(보카의 `VK_IRR` 재사용 가능) | 이관 후 개선 (사용자 결정) |
 
-## Phase 7 교체 체크리스트에 추가
+## Phase 8 교체 체크리스트에 추가
 
 - 병합 배포 후 실제 사이트에서 `gtm.js` 요청과 `dataLayer`를 확인한다. GTM은 Netlify 빌드의 `CONTEXT=production`에만 의존하므로, Netlify가 아닌 곳에서 빌드한 결과를 배포하면 GA가 꺼진 채로 나간다.
 - Netlify 환경 변수에 `NODE_ENV=production`을 넣지 않는다. 넣으면 빌드에 필요한 devDependencies(tsc, vite)가 설치되지 않는다.
 
-## 교체 절차 (Phase 7)
+## 교체 절차 (Phase 8)
 
-1. 미리보기에서 Phase 2~6의 체크리스트를 모두 통과한다.
+1. 미리보기에서 Phase 2~7의 체크리스트를 모두 통과한다.
 2. 실제 사이트에서 "더보기 → 백업"으로 내보내기를 해 둔다(되돌릴 때를 대비).
 3. `react-migration`을 `master`에 병합하고 푸시한다. Netlify가 실제 사이트에 배포한다.
 4. 실제 사이트에서 기존 기록(보카, 퀴즈, 일기, 영상, 동기화 코드)이 그대로 보이는지 확인한다.
