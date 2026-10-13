@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { TabId } from './tabs';
 import { ConvScreen } from '../features/conv/ConvScreen';
 import { QuizScreen } from '../features/quiz/QuizScreen';
+import { LearnScreen } from '../features/learn/LearnScreen';
 
 export interface ScreenDef {
   id: string;          // legacy <section id="…">
@@ -14,7 +15,7 @@ export const SCREENS: Record<TabId, ScreenDef> = {
   voca: { id: 'screen-voca', inMain: true },
   conv: { id: 'screen-conv', inMain: true, render: () => <ConvScreen /> },
   wquiz: { id: 'screen-wquiz', inMain: false, render: () => <QuizScreen /> },
-  learn: { id: 'screen-library', inMain: true },
+  learn: { id: 'screen-library', inMain: true, render: () => <LearnScreen /> },
   video: { id: 'screen-video', inMain: false },
   settings: { id: 'screen-settings', inMain: true },
 };
