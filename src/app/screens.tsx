@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { TabId } from './tabs';
+import { QuizScreen } from '../features/quiz/QuizScreen';
 
 export interface ScreenDef {
   id: string;          // legacy <section id="…">
@@ -11,7 +12,7 @@ export interface ScreenDef {
 export const SCREENS: Record<TabId, ScreenDef> = {
   voca: { id: 'screen-voca', inMain: true },
   conv: { id: 'screen-conv', inMain: true },
-  wquiz: { id: 'screen-wquiz', inMain: false },
+  wquiz: { id: 'screen-wquiz', inMain: false, render: () => <QuizScreen /> },
   learn: { id: 'screen-library', inMain: true },
   video: { id: 'screen-video', inMain: false },
   settings: { id: 'screen-settings', inMain: true },

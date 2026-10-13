@@ -1,5 +1,5 @@
 import { beforeEach, expect, it } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { App } from './App';
 import { initialTab, useAppStore } from '../store/app';
 
@@ -13,7 +13,8 @@ beforeEach(() => { localStorage.clear(); window.dataLayer = []; });
 
 it('탭 6개를 기존 순서대로 그린다', () => {
   start();
-  expect(screen.getAllByRole('button').map(b => b.textContent)).toEqual(['🔤보카', '💬회화', '🎯퀴즈', '▶학습', '🎥영상', '⚙더보기']);
+  const tabbar = within(document.getElementById('tabbar')!);
+  expect(tabbar.getAllByRole('button').map(b => b.textContent)).toEqual(['🔤보카', '💬회화', '🎯퀴즈', '▶학습', '🎥영상', '⚙더보기']);
 });
 
 it('저장된 탭이 없으면 퀴즈 탭', () => {
