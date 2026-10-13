@@ -9,6 +9,8 @@ export function ConvScreen() {
   const hideToast = useConvStore(s => s.hideToast);
 
   useEffect(() => { window.scrollTo(0, 0); }, [view]);
+  // 탭을 떠나면(언마운트) 토스트도 닫는다. 타이머가 같이 사라지므로 안 닫으면 돌아왔을 때 다시 뜬다.
+  useEffect(() => () => { useConvStore.getState().hideToast(); }, []);
   useEffect(() => {
     if(!toast.show) return;
     const t = setTimeout(hideToast, 1800);

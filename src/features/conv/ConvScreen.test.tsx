@@ -4,6 +4,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 vi.mock('../../speech/tts', () => ({ speak: vi.fn(), whenVoicesReady: (cb: () => void) => cb() }));
 
 import { ConvScreen } from './ConvScreen';
+import { useQuizStore } from '../quiz/store';
 import { initialConvState, useConvStore } from './store';
 
 const FID = 'driving-on-the-road', TITLE = '운전과 도로 위 표현';
@@ -57,6 +58,9 @@ it('legacy 진도를 그대로 보여 주고 초기화는 확인 후에만', () 
 });
 
 it('표현 연습: 4시제 퀴즈, 뒤로 가면 주제 화면과 결과 토스트, 퀴즈 탭 기록은 그대로', () => {
+  useQuizStore.getState().open();
+  const before = useQuizStore.getState();
+  const snap = { qs: before.qs, view: before.view, mode: before.mode, cur: before.cur };
   useConvStore.setState({ view: { name: 'card', fid: FID, idx: 0 } });
   render(<ConvScreen />);
   expect(document.querySelector('#cvQuizRoot .qz-h1')?.textContent).toContain('hit the road');
@@ -64,8 +68,17 @@ it('표현 연습: 4시제 퀴즈, 뒤로 가면 주제 화면과 결과 토스�
   expect(document.querySelector('.qz-round')?.textContent).toBe('현재형');
   fireEvent.click(screen.getByRole('button', { name: '확인' }));
   expect(screen.getByText('✗ 다시 확인해 보세요')).toBeInTheDocument();
-  expect(localStorage.getItem('elab_quiz_v1')).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: '뒤로' }));
   expect(document.querySelector('.fhead h2')?.textContent).toBe(TITLE);
   expect(document.querySelector('#convToast')?.textContent).toBe('4문장 중 0문장 정답');
+  const after = useQuizStore.getState();
+  expect({ qs: after.qs, view: after.view, mode: after.mode, cur: after.cur }).toEqual(snap);
+  expect(after.qs).toBe(before.qs);
+});
+
+it('탭을 떠나(언마운트) 토스트가 남지 않는다', () => {
+  useConvStore.getState().showToast('x');
+  const { unmount } = render(<ConvScreen />);
+  unmount();
+  expect(useConvStore.getState().toast.show).toBe(false);
 });

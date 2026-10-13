@@ -1,4 +1,4 @@
-import { createElement, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { exprWords, qNorm, variants } from '../../core/legacy/quiz-core.js';
 import { speak } from '../../speech/tts';
 import { useQuiz } from './context';
@@ -12,7 +12,7 @@ export function markExpression(en: string, expression: string): ReactNode[] {
   if(!words.length) return [en];
   const all = words.flatMap((w: string) => variants(w) as string[]).sort((a, b) => b.length - a.length).map(escapeRe);
   const re = new RegExp('\\b(' + all.join('|') + ')\\b', 'ig');
-  return en.split(re).map((part, i) => (i % 2 ? createElement('mark', { key: i }, part) : part));
+  return en.split(re).map((part, i) => (i % 2 ? <mark key={i}>{part}</mark> : part));
 }
 
 /** legacy diffHTML: 모범 답안에 없는 내 단어를 흐리게 */
