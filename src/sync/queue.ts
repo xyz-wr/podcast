@@ -6,17 +6,15 @@ export interface QueueItem { table: string; row: SyncRow }
 
 let queue: QueueItem[] = [];
 let timer: ReturnType<typeof setTimeout> | undefined;
-let applying = false;   // 서버에서 받아 반영하는 중에는 다시 올리지 않는다
 
 export const getQueue = (): QueueItem[] => queue;
-export const setApplying = (v: boolean): void => { applying = v; };
 
 function persist(): Promise<void> {
   return putSetting({ key: 'syncQueue', value: queue }).catch(() => {});   // 오프라인 대비 영속
 }
 
 export function queuePush(table: string, row: SyncRow): void {
-  if(applying || !sbReady()) return;
+  if(!sbReady()) return;
   queue = queue.filter(q => !(q.table === table && q.row.id === row.id));   // 같은 항목은 최신만
   queue.push({ table, row });
   void persist();
@@ -48,5 +46,5 @@ export async function restoreQueue(): Promise<void> {
 }
 
 export function resetQueueForTests(): void {
-  queue = []; clearTimeout(timer); applying = false;
+  queue = []; clearTimeout(timer);
 }

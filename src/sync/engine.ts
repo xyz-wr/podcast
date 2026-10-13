@@ -1,7 +1,7 @@
 import { idbAll, idbDelRaw, idbGet, idbPutRaw } from '../storage/idb';
-import { SYNCED_STORES } from '../storage/keys';
+import { SYNCED_STORES, type SyncedStore } from '../storage/keys';
 import { getSyncConfig, sbReady } from './config';
-import { flushQueue, setApplying } from './queue';
+import { flushQueue } from './queue';
 import { syncResolve } from './resolve';
 import { sbSelect, sbUpsert, type SyncRow } from './supabase';
 
@@ -15,26 +15,27 @@ export function registerSyncHook(h: SyncHook): () => void {
   return () => { const i = hooks.indexOf(h); if(i >= 0) hooks.splice(i, 1); };
 }
 
-export async function syncPull(): Promise<void> {
-  if(!sbReady()) return;
-  setApplying(true);
-  try {
-    for(const table of SYNCED_STORES){
-      let rows: SyncRow<Stamped>[];
-      try { rows = await sbSelect<Stamped>(table); } catch(e){ console.warn('syncPull ' + table, (e as Error).message); continue; }
-      for(const row of rows){
-        const local = await idbGet<Stamped>(table, row.id);
-        const action = syncResolve(local ? (local.updatedAt || 0) : -1, row);
-        if(action === 'put') await idbPutRaw(table, row.data);
-        else if(action === 'delete' && local) await idbDelRaw(table, row.id);
-      }
+/** 받기에 성공한 테이블 목록을 돌려준다 (실패한 테이블은 pushAll 에서 건너뛰기 위함). */
+export async function syncPull(): Promise<SyncedStore[]> {
+  const pulled: SyncedStore[] = [];
+  if(!sbReady()) return pulled;
+  for(const table of SYNCED_STORES){
+    let rows: SyncRow<Stamped>[];
+    try { rows = await sbSelect<Stamped>(table); } catch(e){ console.warn('syncPull ' + table, (e as Error).message); continue; }
+    for(const row of rows){
+      const local = await idbGet<Stamped>(table, row.id);
+      const action = syncResolve(local ? (local.updatedAt || 0) : -1, row);
+      if(action === 'put') await idbPutRaw(table, row.data);
+      else if(action === 'delete' && local) await idbDelRaw(table, row.id);
     }
-  } finally { setApplying(false); }
+    pulled.push(table);
+  }
+  return pulled;
 }
 
-export async function pushAll(): Promise<void> {
+export async function pushAll(tables: readonly SyncedStore[] = SYNCED_STORES): Promise<void> {
   if(!sbReady()) return;
-  for(const table of SYNCED_STORES){
+  for(const table of tables){
     const rows: SyncRow[] = [];
     for(const v of await idbAll<Stamped>(table)){
       if(!v.updatedAt){ v.updatedAt = Date.now(); await idbPutRaw(table, v); }
@@ -51,8 +52,8 @@ export async function autoSync(full: boolean): Promise<void> {
   syncing = true;
   try {
     await flushQueue();
-    await syncPull();
-    if(full) await pushAll();
+    const pulled = await syncPull();
+    if(full) await pushAll(pulled);
     for(const h of hooks) await h();
   } catch(e){ console.warn('autoSync', (e as Error).message); }
   finally { syncing = false; }

@@ -10,17 +10,21 @@ type Call = { url: string; method: string; body: unknown };
 let calls: Call[];
 let tables: Record<string, unknown[]>;
 let failPosts = false;
+let failGet: Set<string>;
+let onGet: ((table: string) => Promise<void>) | undefined;
 
 beforeEach(async () => {
   await resetDbForTests();
   resetQueueForTests();
   setSyncConfigForTests(CFG);
-  calls = []; tables = { vocab: [], videos: [], kv: [] }; failPosts = false;
+  calls = []; tables = { vocab: [], videos: [], kv: [] }; failPosts = false; failGet = new Set(); onGet = undefined;
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET';
     const body = init?.body ? JSON.parse(init.body as string) : undefined;
     calls.push({ url, method, body });
     const table = url.split('/rest/v1/')[1].split('?')[0];
+    if(method === 'GET' && failGet.has(table)) return { ok: false, status: 503, json: async () => ({}) };
+    if(method === 'GET') await onGet?.(table);
     if(method === 'POST' && failPosts) return { ok: false, status: 503, json: async () => ({}) };
     return { ok: true, status: 200, json: async () => (method === 'GET' ? tables[table] : []) };
   }));
@@ -102,4 +106,20 @@ it('autoSync: 등록한 후속 처리를 실행하고, 동기화 코드가 없�
   expect(calls).toEqual([]);
   expect(hook).toHaveBeenCalledTimes(1);
   off();
+});
+
+it('syncPull 중 사용자가 저장한 항목도 큐에 들어간다', async () => {
+  onGet = async (table) => { if(table === 'vocab') await idbPut('videos', { id: 'during' }); };
+  await syncPull();
+  expect(getQueue().some(q => q.row.id === 'during')).toBe(true);
+});
+
+it('autoSync: 받기에 실패한 테이블은 pushAll 에서 올리지 않는다', async () => {
+  await idbPutRaw('vocab', { id: 'a', updatedAt: 1 });
+  await idbPutRaw('videos', { id: 'b', updatedAt: 1 });
+  failGet.add('vocab');
+  await autoSync(true);
+  const posts = calls.filter(c => c.method === 'POST');
+  expect(posts.some(c => c.url.includes('/videos?'))).toBe(true);
+  expect(posts.some(c => c.url.includes('/vocab?'))).toBe(false);
 });
