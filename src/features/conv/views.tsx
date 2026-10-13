@@ -1,12 +1,15 @@
-import { createElement, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { QuizStoreContext } from '../quiz/context';
 import { QuizBody } from '../quiz/QuizScreen';
 import { createQuizStore, exprQuizState } from '../quiz/store';
 import { CATS, FEMOJI, FOLDERS, TOTAL_CARDS, catById, catFolders, catOf, fById, searchFolders, type Folder } from './data';
 import { folderDone, isDone, isMark, useConvStore } from './store';
 
-/** legacy 는 <sm> 태그를 쓰고 CSS 가 그것을 꾸민다 */
-const Sm = ({ children }: { children: ReactNode }) => createElement('sm', null, children);
+/** legacy 는 비표준 <sm> 태그와 `.pmeta sm` 규칙을 쓴다. React 가 모르는 태그라고 경고하므로
+ *  같은 스타일(conv.css 26행)을 직접 준 span 으로 그린다. */
+const Sm = ({ children }: { children: ReactNode }) => (
+  <span style={{ fontSize: '11px', color: 'var(--cv-faint)' }}>{children}</span>
+);
 
 /** legacy ring() */
 export function Ring({ pct, size, sw, color }: { pct: number; size: number; sw: number; color: string }) {
