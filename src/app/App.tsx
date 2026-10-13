@@ -1,6 +1,7 @@
 import { useAppStore } from '../store/app';
 import { SCREENS } from './screens';
 import { TabBar } from './TabBar';
+import { DialogHost } from '../ui/DialogHost';
 import { tabLabel } from './tabs';
 
 export function App() {
@@ -21,6 +22,7 @@ export function App() {
       <main>{def.inMain && section}</main>
       {!def.inMain && section}
       <TabBar />
+      <DialogHost />
     </>
   );
 }
