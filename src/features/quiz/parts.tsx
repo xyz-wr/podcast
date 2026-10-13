@@ -1,8 +1,8 @@
-import type { ReactNode } from 'react';
+import { createElement, type ReactNode } from 'react';
 import { exprWords, qNorm, variants } from '../../core/legacy/quiz-core.js';
 import { speak } from '../../speech/tts';
+import { useQuiz } from './context';
 import { POOL, type Result } from './model';
-import { useQuizStore } from './store';
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -12,7 +12,7 @@ export function markExpression(en: string, expression: string): ReactNode[] {
   if(!words.length) return [en];
   const all = words.flatMap((w: string) => variants(w) as string[]).sort((a, b) => b.length - a.length).map(escapeRe);
   const re = new RegExp('\\b(' + all.join('|') + ')\\b', 'ig');
-  return en.split(re).map((part, i) => (i % 2 ? <mark key={i}>{part}</mark> : part));
+  return en.split(re).map((part, i) => (i % 2 ? createElement('mark', { key: i }, part) : part));
 }
 
 /** legacy diffHTML: 모범 답안에 없는 내 단어를 흐리게 */
@@ -30,15 +30,27 @@ export function SpeakButton({ text }: { text: string }) {
   );
 }
 
+/** legacy headHTML: 표현 모드는 뒤로 가기·표현·문장 수, 그 외는 완료 진도와 완료함 칩 */
 export function Head({ sub }: { sub: string }) {
-  const done = useQuizStore(s => Object.keys(s.qs.completed).length);
-  const go = useQuizStore(s => s.go);
+  const st = useQuiz()();
+  if(st.mode === 'expr' && st.expr){
+    const e = st.expr, n = Math.min(e.cursor + 1, e.queue.length);
+    return (
+      <div className="qz-head">
+        <button className="qz-back" id="qzExprBack" aria-label="뒤로" onClick={st.exit}>‹</button>
+        <div className="qz-h1">{e.title}<span>{e.sub}</span></div>
+        <div className="qz-hbar"><i style={{ width: (n / e.queue.length * 100).toFixed(1) + '%' }} /></div>
+        <span className="qz-hchip">문장 {n} / {e.queue.length}</span>
+      </div>
+    );
+  }
+  const done = Object.keys(st.qs.completed).length;
   const pct = POOL.length ? done / POOL.length * 100 : 0;
   return (
     <div className="qz-head">
       <div className="qz-h1">영작 퀴즈<span>{sub}</span></div>
       <div className="qz-hbar"><i style={{ width: pct.toFixed(2) + '%' }} /></div>
-      <button className="qz-hchip" onClick={() => go('completed')}>완료 {done} / {POOL.length} ›</button>
+      <button className="qz-hchip" onClick={() => st.go('completed')}>완료 {done} / {POOL.length} ›</button>
     </div>
   );
 }

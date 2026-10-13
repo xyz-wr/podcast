@@ -1,21 +1,23 @@
 import { useEffect, useState } from 'react';
+import { useQuiz } from './context';
 import { POOL, TENSE_LABEL, lookup, wrongIds } from './model';
 import { Dots, Head, SpeakButton, Steps, dimExtra, markExpression } from './parts';
-import { activeRound, useQuizStore } from './store';
+import { activeRound, type QuizState } from './store';
 
-const reviewSub = (sub: string) => (useQuizStore.getState().mode === 'review' ? '틀렸던 문장 복습' : sub);
+const subFor = (st: QuizState, sub: string) => (st.mode === 'review' ? '틀렸던 문장 복습' : sub);
 
 export function QuestionView() {
-  const st = useQuizStore();
+  const st = useQuiz()();
   const [text, setText] = useState('');
   const a = activeRound(st);
   const it = lookup(a.queue[a.cursor] ?? '');
   if(!it) return null;
-  const badge = st.mode === 'review' ? '복습' : '라운드 ' + a.round;
+  // 표현 모드에선 라운드가 뜻이 없으니 시제를 보여준다
+  const badge = st.mode === 'expr' ? TENSE_LABEL[it.tense] : st.mode === 'review' ? '복습' : '라운드 ' + a.round;
   const submit = () => st.submit(text);
   return (
     <>
-      <Head sub={reviewSub('한국어를 영어로 써 보세요')} />
+      <Head sub={subFor(st, '한국어를 영어로 써 보세요')} />
       <div className="qz-meta">
         <span className="qz-round">{badge}</span>
         <Dots n={a.cursor} total={a.queue.length} results={a.results} />
@@ -37,13 +39,13 @@ export function QuestionView() {
 }
 
 export function ResultView() {
-  const st = useQuizStore();
+  const st = useQuiz()();
   const cur = st.cur;
   if(!cur) return null;
   const { it, g, ok } = cur;
   return (
     <>
-      <Head sub={reviewSub('채점 결과')} />
+      <Head sub={subFor(st, '채점 결과')} />
       <Steps on={2} />
       <div className={'qz-lis-verdict ' + (ok ? 'ok' : 'no')}>
         {ok ? (cur.corrected ? '✓ 정답 처리했어요' : '✓ 정답이에요') : '✗ 다시 확인해 보세요'}
@@ -70,9 +72,9 @@ export function ResultView() {
 }
 
 export function ListenView() {
-  const st = useQuizStore();
+  const st = useQuiz()();
   const { cur, lis, clearBad } = st;
-  // 틀린 타일은 0.42초 동안만 붉게 (legacy badT)
+  // 틀린 타일은 0.42초 동안만 붉게 (legacy badT). 틀릴 때마다 lis 가 새 객체라 타이머가 다시 시작된다.
   useEffect(() => {
     if(!lis || lis.bad === -1) return;
     const t = setTimeout(clearBad, 420);
@@ -83,7 +85,7 @@ export function ListenView() {
   const remaining = lis.order.filter(i => !lis.picked.includes(i));
   return (
     <>
-      <Head sub={reviewSub('듣고 순서 맞추기')} />
+      <Head sub={subFor(st, '듣고 순서 맞추기')} />
       <Steps on={3} />
       <div className="qz-lis">
         <div className="qz-lis-title">{lis.done ? <b className="ok">✓ 순서를 맞혔어요</b> : '잘 듣고 문장을 완성해 보세요'}</div>
@@ -121,7 +123,7 @@ export function ListenView() {
 }
 
 export function SummaryView() {
-  const st = useQuizStore();
+  const st = useQuiz()();
   const a = activeRound(st);
   const okN = a.results.filter(r => r.ok).length;
   const miss = a.results.filter(r => !r.ok);
@@ -145,7 +147,7 @@ export function SummaryView() {
 }
 
 export function DoneView() {
-  const st = useQuizStore();
+  const st = useQuiz()();
   if(st.mode === 'review') return (
     <>
       <Head sub="복습 완료" />
@@ -162,8 +164,27 @@ export function DoneView() {
   );
 }
 
+/** legacy exprDoneHTML */
+export function ExprDoneView() {
+  const st = useQuiz()();
+  const e = st.expr;
+  if(!e) return null;
+  const okN = e.results.filter(r => r.ok).length;
+  return (
+    <>
+      <Head sub="" />
+      <div className="qz-done">
+        <div className="e">{okN === e.queue.length ? '🎉' : '👏'}</div>
+        <b>{e.queue.length}문장 중 {okN}문장 정답</b>
+        <p>{e.title} 연습을 마쳤어요.</p>
+      </div>
+      <button className="qz-btn fill" id="qzExprEnd" onClick={st.exit}>표현 목록으로</button>
+    </>
+  );
+}
+
 export function CompletedView() {
-  const st = useQuizStore();
+  const st = useQuiz()();
   const ids = Object.keys(st.qs.completed).sort((x, y) => (st.qs.completed[y].wrong || 0) - (st.qs.completed[x].wrong || 0));
   const hard = wrongIds(st.qs);
   const reset = () => { if(window.confirm('퀴즈 완료 기록과 진행 중인 라운드를 모두 지울까요?')) st.resetAll(); };
