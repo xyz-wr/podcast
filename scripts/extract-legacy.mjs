@@ -26,8 +26,6 @@ function jsModule(marker, min, names){
 // 1) 데이터
 const conv = JSON.parse(must(HTML.match(/<script id="conv-data" type="application\/json">([\s\S]*?)<\/script>/), 'conv-data')[1]);
 write('src/data/conv.json', JSON.stringify(conv));
-const diary = JSON.parse(must(HTML.match(/window\.DIARY_DATA=(\{[\s\S]*?\});<\/script>/), 'DIARY_DATA')[1]);
-write('src/data/diary.json', JSON.stringify(diary));
 
 // 2) 순수 로직 (기존 tests/*.mjs 가 쓰던 이름 그대로)
 write('src/core/legacy/quiz-core.js', jsModule('TESTABLE', 4, [
@@ -41,10 +39,13 @@ write('src/core/legacy/voca-core.js', jsModule('VOCA-TESTABLE', 2, [
 ]));
 
 // 3) CSS: id 없는 첫 <style> → base.css, <style id="xxx-style"> → xxx.css
+//    일기·작문은 이관하지 않는다 (2026-10-13 결정).
+const DROPPED = new Set(['diary', 'write']);
 const css = [...HTML.matchAll(/<style(?: id="([\w-]+)")?>([\s\S]*?)<\/style>/g)];
 const names = [];
 for(const [, id, body] of css){
   const name = id ? id.replace(/-style$/, '') : 'base';
+  if(DROPPED.has(name)) continue;
   write(`src/styles/legacy/${name}.css`, `/* 자동 생성: npm run extract — 원본 legacy/index.html */\n${body.trim()}\n`);
   names.push(name);
 }

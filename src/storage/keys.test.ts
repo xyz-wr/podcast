@@ -8,8 +8,8 @@ const LEGACY = fs.readFileSync(path.resolve(process.cwd(), 'legacy/index.html'),
 // 실제 사이트를 교체할 때 기존 데이터를 그대로 읽어야 한다. 이 값이 바뀌면 사용자 기록이 사라진다.
 it('저장소 이름이 기존 앱과 같다', () => {
   expect(LS_KEYS).toEqual({
-    tab: 'elab_tab', voice: 'elab_voice', progress: 'elab_progress_v1', diary: 'eldiary_v1',
-    quiz: 'elab_quiz_v1', write: 'engWriteB1_v1', voca: 'elab_voca_v1',
+    tab: 'elab_tab', voice: 'elab_voice', progress: 'elab_progress_v1',
+    quiz: 'elab_quiz_v1', voca: 'elab_voca_v1',
   });
   expect(IDB_NAME).toBe('tabloEnglishLab');
   expect(IDB_VERSION).toBe(1);

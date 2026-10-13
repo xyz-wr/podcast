@@ -3,10 +3,9 @@ export const LS_KEYS = {
   tab: 'elab_tab',               // 마지막 탭 (JSON 아님, 문자열 그대로)
   voice: 'elab_voice',           // TTS 음성
   progress: 'elab_progress_v1',  // 회화 진도
-  diary: 'eldiary_v1',
   quiz: 'elab_quiz_v1',
-  write: 'engWriteB1_v1',
   voca: 'elab_voca_v1',
+  // eldiary_v1, engWriteB1_v1 은 이관하지 않는 화면(일기·작문)의 기록이다. 읽지도 지우지도 않는다.
 } as const;
 
 export const IDB_NAME = 'tabloEnglishLab';
