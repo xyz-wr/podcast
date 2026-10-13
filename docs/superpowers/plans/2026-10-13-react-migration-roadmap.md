@@ -38,7 +38,10 @@
 | 1 | 기반 작업: 브랜치·worktree, Vite 프로젝트, Netlify 브랜치 배포, 데이터·순수 로직·CSS 추출, 저장소·동기화 계층, 앱 뼈대(탭바) | `2026-10-13-react-migration-phase1.md` | 완료 |
 | 2 | 화면 구조(`<main>` 안/밖, `screen-` id) + 영작 퀴즈(`wquiz`) + TTS 모듈(`elab_voice`) | `2026-10-13-react-migration-phase2.md` | 완료 |
 | 3 | 회화 탭(홈·카테고리·주제·북마크, `elab_progress_v1`) + 퀴즈 표현 모드(세션별 스토어) | `2026-10-13-react-migration-phase3.md` | 완료 |
-| 4 | 학습 탭("내 영상"): 영상 목록·폴더·이어보기, 학습 화면(YouTube 플레이어, 자막 입력·정렬, 구간 반복, 북마크), 단어 담기·상세, `videos`/`vocab`/`settings.folders` | 추후 작성 | StrictMode에서도 플레이어 중복 생성 없음, IndexedDB 기록이 legacy와 같음 |
+| 4a | 학습 탭 목록: 영상·폴더·이어보기 줄·단어 목록, 영상 추가(oEmbed 제목)/이동/삭제, 공용 확인창·입력창·토스트 | `2026-10-13-react-migration-phase4a.md` | 완료 |
+| 4b | 자막 처리: SRT/VTT/일반 텍스트(챕터)/한영 교차/JSON 쌍 파싱, 문장 병합·한국어 정렬(순수 함수 + 테스트), Gemini 공용 클라이언트(`gemini`, `aiErr`)와 AI 보조 정렬, 자막 입력 창 | 추후 작성 | 같은 자막 입력으로 legacy와 같은 `lines` |
+| 4c | 학습 화면: YouTube 플레이어(하나만 만들고 재사용), 속도·구간 반복, 이어보기 저장(일시정지·탭 이동·화면 숨김·페이지 닫기), 북마크(탭/길게 누르기), 자막 표시(챕터·한국어 토글·관용구 묶음·학습 표시) | 추후 작성 | StrictMode에서도 플레이어 중복 생성 없음 |
+| 4d | 단어: 자막 단어 선택·선택 막대·담기(Gemini 표제어 정리, 없으면 Google 번역), 단어 카드의 구간 이동, 단어 상세(뜻 수정, CEFR 예문 생성·피드백·저장, 음성 입력) | 추후 작성 | `vocab` 기록이 legacy와 같음 |
 | 5 | 영상 탭(`VideoApp`, 회화 카테고리를 쓰는 약 480줄 모듈. 세부 내용은 계획 때 확인) | 추후 작성 | |
 | 6 | 보카(가장 큼): 학습 단계, 복습, 캘린더, `voca_v1` kv 병합 동기화 | 추후 작성 | `elab_voca_v1`과 kv 병합 결과가 기존과 같음 |
 | 7 | 더보기: 동기화 설정 UI, Gemini 키(kv `geminiKey`), 백업, 목소리 선택 | 추후 작성 | 테스트 코드로 기기 2대 동기화 확인 |
@@ -58,7 +61,7 @@
 | 동시 flush(타이머 + autoSync)로 오래된 묶음이 나중에 도착할 수 있음 → flush 직렬화. 근본 해결은 서버 쪽 `updated_at` 비교 upsert(트리거/RPC)를 두 앱 공통으로 적용하는 것 | 7 |
 | `repo.idbPut` 타입 강화(동기화 대상은 `id` 필수) | 기능에서 처음 쓸 때 |
 | ~~화면을 `<main>` 안/밖 `<section id="screen-…">`으로~~ | 2 (Task 2) |
-| 탭 id와 화면 id 분리 → 숨은 화면을 이관하지 않기로 해서 필요 없어짐. 학습 탭 안의 하위 화면(`study`, `detail`)은 Phase 4에서 탭 내부 상태로 다룬다 | 4 |
+| 탭 id와 화면 id 분리 → 숨은 화면을 이관하지 않기로 해서 필요 없어짐. 학습 탭 안의 하위 화면(`study`, `detail`)은 학습 스토어의 `screen` 상태로 다룬다 | 4a (완료) |
 | 추출 스크립트: `<style>` 개수 검증, 같은 이름 중복 시 오류 | 다음에 `npm run extract`를 고칠 때 |
 | master에서 기존 앱이 바뀌면 브랜치의 루트 `index.html`과 충돌한다 → 그 변경을 `legacy/index.html`에 적용하고 `npm run extract` 실행 | master를 브랜치에 합칠 때마다 |
 
@@ -82,3 +85,16 @@
 3. `react-migration`을 `master`에 병합하고 푸시한다. Netlify가 실제 사이트에 배포한다.
 4. 실제 사이트에서 기존 기록(보카, 퀴즈, 일기, 영상, 동기화 코드)이 그대로 보이는지 확인한다.
 5. 문제가 있으면 Netlify **Deploys**에서 직전 배포를 "Publish deploy"로 즉시 되돌린다. 저장소 이름을 바꾸지 않았기 때문에 데이터는 그대로 남아 있다.
+
+## Phase 4 조사·리뷰에서 넘어온 할 일
+
+| 항목 | 처리할 Phase |
+|---|---|
+| legacy 학습 탭에서 쓰이지 않는 코드는 옮기지 않는다: 옛 단어 퀴즈(`screen-quiz`, SRS `updateSRS`), 녹음(쓰는 코드 없음), 스트릭 기록(`logActivity`, `settings.activity`), `updateBadges`(대상 요소 없음), 캡처 단어 | 결정됨 |
+| `pausePlayer`·선택 해제가 legacy에선 **모든 탭 이동**과 단어 상세 열기에서 실행된다 → 플레이어 소유자가 앱 수준 탭 이동에 일시정지 훅을 제공해야 한다. 학습 화면 ‹ 뒤로 가기도 일시정지(legacy는 계속 재생되는 버그) | 4c |
+| `#ytPlayer` 노드를 YT가 iframe으로 바꾼다 → React가 그 노드를 다시 그리지 않도록 고정하고, 영상이 바뀌면 `cueVideoById`로 재사용 | 4c |
+| 이어보기 저장은 일시정지·끝·화면 숨김·페이지 닫기에서 2초 이상일 때만, `idbPut`이라 매번 동기화 큐에 들어간다(legacy와 같음) | 4c |
+| Gemini 클라이언트는 학습 탭 전용이 아니라 공용(보카 탭도 `window.gemini` 사용). 키 없음 오류는 더보기로 이동(legacy `aiErr`) | 4b |
+| gemini-2.5-flash의 "생각" 토큰이 `maxOutputTokens`(기본 600)에 포함돼 JSON이 잘릴 수 있다는 의심 → 실제 응답으로 확인 후 필요하면 토큰을 늘리거나 thinking 예산을 0으로 | 4b |
+| 단어 중복 검사는 현재 영상 안에서만, Gemini가 표제어로 바꾼 뒤엔 자막의 "담은 단어" 표시와 중복 검사가 어긋날 수 있다(legacy와 같음) | 4d (그대로 두고 메모) |
+| 백업 내보내기/가져오기는 더보기 화면. legacy 가져오기는 성공해도 `bkModal`이 없어 "파일을 읽지 못했어요"가 뜨는 버그 | 7 |
