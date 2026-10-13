@@ -1,5 +1,8 @@
-# Netlify 자동 배포 설정
-# 빌드 때 index.html(소스)을 publish 폴더로 복사 → 공개 사이트에는 index.html만 나감
+# Netlify 배포 설정 (React 이관 브랜치)
+# Vite로 빌드하고 dist를 배포한다. CONTEXT 환경 변수로 실제 사이트/미리보기를 구분한다.
 [build]
-  command = "mkdir -p _site && cp index.html _site/index.html"
-  publish = "_site"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
