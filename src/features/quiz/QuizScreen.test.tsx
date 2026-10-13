@@ -25,13 +25,16 @@ it('문제 화면: 한국어 문장, 라운드, 진행 표시', () => {
 });
 
 it('오답 제출 → 채점 결과, 모범 답안에 표현 강조', () => {
+  // 표현이 불규칙형으로 바뀐 문장은 legacy 처럼 강조가 없다 → 강조가 있는 문장으로 고정
+  const id = 'driving-on-the-road|0|present';   // "We usually hit the road at dawn …"
+  useQuizStore.setState({ qs: { ...useQuizStore.getState().qs, queue: [id, POOL.find(p => p !== id)!], cursor: 0, results: [] } });
   render(<QuizScreen />);
   const it0 = current();
   fireEvent.change(screen.getByPlaceholderText('영어로 입력하세요'), { target: { value: 'nope' } });
   fireEvent.click(screen.getByRole('button', { name: '확인' }));
   expect(screen.getByText('✗ 다시 확인해 보세요')).toBeInTheDocument();
   expect(document.querySelector('.qz-en')?.textContent).toContain(it0.en);
-  expect(document.querySelectorAll('.qz-en mark').length).toBeGreaterThan(0);
+  expect([...document.querySelectorAll('.qz-en mark')].map(m => m.textContent)).toEqual(['hit', 'road']);
   fireEvent.click(screen.getByRole('button', { name: '사실 맞았어요' }));
   expect(screen.getByText('✓ 정답 처리했어요')).toBeInTheDocument();
 });
