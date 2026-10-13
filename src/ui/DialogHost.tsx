@@ -10,7 +10,7 @@ function TextBody({ d }: { d: Extract<Dialog, { kind: 'text' }> }) {
       <h3 id="textTitle" style={{ textAlign: 'center' }}>{d.title}</h3>
       <input ref={ref} type="text" id="textInput" placeholder={d.placeholder} value={value}
         onChange={e => setValue(e.target.value)}
-        onKeyDown={e => { if(e.key === 'Enter') closeDialog(value.trim()); }} />
+        onKeyDown={e => { if(e.key === 'Enter' && !e.nativeEvent.isComposing) closeDialog(value.trim()); }} />
       <div className="cf-btns" style={{ marginTop: 14 }}>
         <button className="ghost" id="textCancel" onClick={() => closeDialog(null)}>취소</button>
         <button className="secondary" id="textOk" onClick={() => closeDialog(value.trim())}>{d.okLabel}</button>
@@ -36,7 +36,7 @@ export function DialogHost() {
     <>
       <div className={'modal-bg' + (text ? ' show' : '')} id="textModal" style={{ alignItems: 'center' }}
         onClick={e => { if(e.target === e.currentTarget) closeDialog(null); }}>
-        {text && <TextBody key={text.title + text.current} d={text} />}
+        {text && <TextBody key={text.seq} d={text} />}
       </div>
       <div className={'modal-bg' + (confirm ? ' show' : '')} id="confirmModal" style={{ alignItems: 'center' }}
         onClick={e => { if(e.target === e.currentTarget) closeDialog(false); }}>

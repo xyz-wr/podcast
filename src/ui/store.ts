@@ -1,11 +1,11 @@
 import { create } from 'zustand';
 
 interface ConfirmDialog {
-  kind: 'confirm'; title: string; message: string; okLabel: string; icon: string;
+  seq: number; kind: 'confirm'; title: string; message: string; okLabel: string; icon: string;
   resolve: (v: boolean) => void;
 }
 interface TextDialog {
-  kind: 'text'; title: string; current: string; placeholder: string; okLabel: string;
+  seq: number; kind: 'text'; title: string; current: string; placeholder: string; okLabel: string;
   resolve: (v: string | null) => void;
 }
 export type Dialog = ConfirmDialog | TextDialog;
@@ -23,9 +23,12 @@ export function closeDialog(value: boolean | string | null): void {
   else d.resolve(typeof value === 'string' ? value : null);
 }
 
-function open(d: Dialog): void {
+type DistributiveOmit<T, K extends keyof T> = T extends unknown ? Omit<T, K> : never;
+let dialogSeq = 0;
+
+function open(d: DistributiveOmit<Dialog, 'seq'>): void {
   closeDialog(null);   // 앞의 창은 취소로 끝낸다 (확인창이면 false, 입력창이면 null)
-  useUiStore.setState({ dialog: d });
+  useUiStore.setState({ dialog: { ...d, seq: ++dialogSeq } as Dialog });
 }
 
 /** legacy askConfirm(title, message, okLabel, icon) */

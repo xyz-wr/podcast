@@ -21,6 +21,7 @@ interface Data {
   current: Video | null;
   movingVideoId: string | null;
   addOpen: boolean;
+  adding: boolean;
 }
 interface Actions {
   loadAll(): Promise<void>;
@@ -47,8 +48,10 @@ export type LearnState = Data & Actions;
 
 export const initialLearnState = (): Data => ({
   videos: [], vocab: [], folders: [], loaded: false, seg: 'videos', vfilter: 'all',
-  screen: { name: 'library' }, current: null, movingVideoId: null, addOpen: false,
+  screen: { name: 'library' }, current: null, movingVideoId: null, addOpen: false, adding: false,
 });
+
+let loadSeq = 0;
 
 export const useLearnStore = create<LearnState>()((set, get) => {
   /** legacy pruneEmptyFolder: 영상이 빠져나가 비게 된 폴더는 자동 삭제 (영상 제거 때만 호출) */
@@ -65,9 +68,11 @@ export const useLearnStore = create<LearnState>()((set, get) => {
     ...initialLearnState(),
 
     loadAll: async () => {
+      const seq = ++loadSeq;
       const videos = sortVideos(await idbAll<Video>('videos'));
       const vocab = await idbAll<VocabItem>('vocab');
       const folders = await loadFolders();
+      if(seq !== loadSeq) return;   // 더 늦게 시작한 읽기가 있으면 이 결과는 버린다
       set({ videos, vocab, folders, loaded: true });
     },
 
@@ -79,19 +84,25 @@ export const useLearnStore = create<LearnState>()((set, get) => {
     addVideo: async url => {
       const youtubeId = extractVideoId(url);
       if(!youtubeId){ toast('YouTube 주소/ID를 확인해주세요'); return false; }
-      toast('제목 불러오는 중…');
-      const title = (await fetchTitle(youtubeId)) || '새 영상';
-      const now = Date.now();
-      const v: Video = { id: uid(), youtubeId, title, folderId: null, lines: [], createdAt: now, lastStudiedAt: now };
-      await idbPut('videos', v);
-      set({ addOpen: false });
-      await get().loadAll();
-      await get().openVideo(v.id);
-      return true;
+      if(get().adding) return false;
+      set({ adding: true });
+      try {
+        toast('제목 불러오는 중…');
+        const title = (await fetchTitle(youtubeId)) || '새 영상';
+        const now = Date.now();
+        const v: Video = { id: uid(), youtubeId, title, folderId: null, lines: [], createdAt: now, lastStudiedAt: now };
+        await idbPut('videos', v);
+        set({ addOpen: false });
+        await get().loadAll();
+        await get().openVideo(v.id);
+        return true;
+      } finally {
+        set({ adding: false });
+      }
     },
 
     removeResume: async id => {
-      const v = get().videos.find(x => x.id === id);
+      const v = await idbGet<Video>('videos', id);
       if(!v) return;
       const { resume: _drop, ...rest } = v;
       await idbPut('videos', rest);
@@ -134,7 +145,11 @@ export const useLearnStore = create<LearnState>()((set, get) => {
       const f = get().folders.find(x => x.id === id);
       if(!f) return;
       if(!await askConfirm('폴더 삭제', '“' + f.name + '” 폴더를 삭제할까요? 안의 영상은 미분류로 이동해요.', '삭제', '📁')) return;
-      for(const v of get().videos) if(v.folderId === id) await idbPut('videos', { ...v, folderId: null });
+      for(const x of get().videos) {
+        if(x.folderId !== id) continue;
+        const v = await idbGet<Video>('videos', x.id);
+        if(v) await idbPut('videos', { ...v, folderId: null });
+      }
       await saveFolders(get().folders.filter(x => x.id !== id));
       await get().loadAll();
     },
@@ -143,7 +158,8 @@ export const useLearnStore = create<LearnState>()((set, get) => {
     closeFolderPicker: () => set({ movingVideoId: null }),
 
     moveToFolder: async fid => {
-      const v = get().videos.find(x => x.id === get().movingVideoId);
+      const mid = get().movingVideoId;
+      const v = mid ? await idbGet<Video>('videos', mid) : undefined;
       if(!v) return;
       const old = v.folderId;
       await idbPut('videos', { ...v, folderId: fid });
@@ -171,7 +187,9 @@ export const useLearnStore = create<LearnState>()((set, get) => {
       if(!cur) return;
       const title = await askText('영상 제목', cur.title, '', '저장');
       if(!title) return;
-      set({ current: await idbPut('videos', { ...cur, title }) });
+      const fresh = await idbGet<Video>('videos', cur.id);
+      if(!fresh) return;
+      set({ current: await idbPut('videos', { ...fresh, title }) });
     },
 
     backToLibrary: async () => {
@@ -190,4 +208,5 @@ export const useLearnStore = create<LearnState>()((set, get) => {
 });
 
 // legacy: 동기화가 끝나면 loadAll 로 목록을 다시 읽는다
-registerSyncHook(() => useLearnStore.getState().loadAll());
+const offSync = registerSyncHook(() => useLearnStore.getState().loadAll());
+if(import.meta.hot) import.meta.hot.dispose(() => offSync());

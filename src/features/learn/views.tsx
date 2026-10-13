@@ -170,6 +170,7 @@ const closeOnBackdrop = (close: () => void) => (e: MouseEvent) => { if(e.target 
 
 export function AddVideoModal() {
   const { closeAdd, addVideo } = useLearnStore.getState();
+  const adding = useLearnStore(s => s.adding);
   const [url, setUrl] = useState('');
   return (
     <div className="modal-bg show" id="addVidModal" onClick={closeOnBackdrop(closeAdd)}>
@@ -181,7 +182,7 @@ export function AddVideoModal() {
         <input type="text" id="newVidUrl" placeholder="https://youtu.be/… 또는 영상 ID" value={url} autoFocus onChange={e => setUrl(e.target.value)} />
         <div className="row" style={{ marginTop: 12 }}>
           <button className="ghost sm" onClick={closeAdd}>닫기</button>
-          <button className="secondary grow" id="addVidBtn" onClick={() => void addVideo(url)}>영상 만들기</button>
+          <button className="secondary grow" id="addVidBtn" disabled={adding} onClick={() => void addVideo(url)}>영상 만들기</button>
         </div>
       </div>
     </div>

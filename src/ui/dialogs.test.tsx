@@ -69,3 +69,17 @@ it('토스트는 1.8초 뒤 사라지고, 다시 띄우면 시간을 새로 센�
   act(() => { vi.advanceTimersByTime(400); });
   expect(document.querySelector('#toast')).not.toHaveClass('show');
 });
+
+it('같은 제목·값으로 입력창을 다시 열면 입력값이 초기화된다', async () => {
+  render(<DialogHost />);
+  const p1 = askText('같은', '값');
+  await act(async () => {});
+  fireEvent.change(document.querySelector<HTMLInputElement>('#textInput')!, { target: { value: 'xyz' } });
+  expect(document.querySelector<HTMLInputElement>('#textInput')!.value).toBe('xyz');
+  const p2 = askText('같은', '값');
+  await expect(p1).resolves.toBeNull();
+  await act(async () => {});
+  expect(document.querySelector<HTMLInputElement>('#textInput')!.value).toBe('값');
+  closeDialog(null);
+  await p2;
+});

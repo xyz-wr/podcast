@@ -9,6 +9,8 @@ vi.mock('../../ui/store', () => ({
 
 import { getSetting, idbAll, idbGet, idbPutRaw, resetDbForTests } from '../../storage/idb';
 import type { Video, VocabItem } from './model';
+import { SB_DEFAULT_KEY, SB_DEFAULT_URL, setSyncConfigForTests } from '../../sync/config';
+import { getQueue, resetQueueForTests } from '../../sync/queue';
 import { initialLearnState, useLearnStore } from './store';
 
 const st = () => useLearnStore.getState();
@@ -139,4 +141,62 @@ it('단어 삭제는 확인 후에만', async () => {
   await st().delVocab('w1');
   expect(st().vocab).toEqual([]);
   expect(await idbGet('vocab', 'w1')).toBeUndefined();
+});
+
+it('loadAll: 먼저 시작한 읽기가 나중 읽기 결과를 덮어쓰지 않는다', async () => {
+  await idbPutRaw('videos', vid({ id: 'a' }));
+  const p1 = st().loadAll();
+  await idbPutRaw('videos', vid({ id: 'b', lastStudiedAt: 9 }));
+  await st().loadAll();
+  await p1;
+  expect(st().videos.map(v => v.id)).toEqual(['b', 'a']);
+});
+
+it('addVideo: 연달아 두 번 불러도 영상은 하나만 만든다', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ title: 'T' }) })));
+  const a = st().addVideo('dQw4w9WgXcQ');
+  const b = st().addVideo('dQw4w9WgXcQ');
+  expect(await b).toBe(false);
+  expect(await a).toBe(true);
+  expect(await idbAll('videos')).toHaveLength(1);
+  expect(st().adding).toBe(false);
+});
+
+it('오래된 사본을 덮어쓰지 않는다 (이어보기 빼기·이동·제목 변경)', async () => {
+  await idbPutRaw('videos', vid({ id: 'a', resume: { time: 5, at: 1 }, title: 'old' }));
+  await st().loadAll();
+  await idbPutRaw('videos', vid({ id: 'a', resume: { time: 5, at: 1 }, title: 'fresh', lines: [{ idx: 0, time: 0, end: 1, en: 'x', ko: 'y', chapter: '' }] }));
+  await st().removeResume('a');
+  const r = (await idbGet<Video>('videos', 'a'))!;
+  expect(r.title).toBe('fresh');
+  expect(r.lines).toHaveLength(1);
+  expect(r.resume).toBeUndefined();
+});
+
+it('동기화 경로: 폴더는 큐에 안 들어가고 영상·단어 변경·삭제는 들어간다', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => [] })));
+  setSyncConfigForTests({ url: 'https://x.supabase.co', key: 'K', code: 'tablo-test' });
+  try {
+    await idbPutRaw('settings', { key: 'folders', value: '[{"id":"f1","name":"A"}]' });
+    await idbPutRaw('videos', vid({ id: 'a', folderId: 'f1' }));
+    await idbPutRaw('videos', vid({ id: 'b', folderId: 'f1' }));
+    await idbPutRaw('vocab', { id: 'w1', videoId: 'a', term: 'x', note: '', type: 'word', createdAt: 1 });
+    await st().loadAll();
+    resetQueueForTests();
+
+    ui.text = '새';
+    await st().createFolder();
+    expect(getQueue()).toEqual([]);
+
+    st().openFolderPicker('a');
+    await st().moveToFolder(null);
+    expect(getQueue().find(q => q.table === 'videos')).toMatchObject({ table: 'videos', row: { id: 'a', deleted: false } });
+
+    await st().deleteVideo('a');
+    expect(getQueue().find(q => q.table === 'videos' && q.row.id === 'a')).toMatchObject({ row: { deleted: true } });
+    expect(getQueue().find(q => q.table === 'vocab' && q.row.id === 'w1')).toMatchObject({ row: { deleted: true } });
+  } finally {
+    resetQueueForTests();
+    setSyncConfigForTests({ url: SB_DEFAULT_URL, key: SB_DEFAULT_KEY, code: '' });
+  }
 });
