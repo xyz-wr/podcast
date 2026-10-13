@@ -3097,6 +3097,12 @@ let quizTimer = null;
 let calMonth = 0, calSel = '', calAll = false;   // 리포트 달력
 const ACT = Object.create(null);
 
+// GA: 보카 하위 탭 = 가상 페이지(/voca/fill …), 단계 완료 = 별도 이벤트(fill_complete …)
+const VK_PAGE = {home:'홈', fill:'채우기', out:'꺼내기', quiz:'퀴즈', report:'리포트'};
+function gaPush(o){ (window.dataLayer = window.dataLayer || []).push(o); }
+function gaTab(t){ gaPush({event:'virtual_pageview', page_path:'/voca/' + t, page_title:'보카 · ' + (VK_PAGE[t] || t)}); }
+function goTab(t){ if(view.tab !== t) gaTab(t); view = {tab:t, sub:null, q:''}; }
+
 function root(){ return document.getElementById('vkRoot'); }
 function draw(){
   const r = root();
@@ -3248,7 +3254,7 @@ function homeHTML(){
   '</div>' +
   '<div class="vk-card vk-set"><div class="vk-lab">학습 설정</div>' +
     '<div class="vk-set-r"><span>문장 레벨</span><div>' + chips('lvl', LEVELS, function(v){ return v; }) + '</div></div>' +
-    '<div class="vk-set-r"><span>하루 새 표현</span><div>' + chips('daily', [5, 10, 20], function(v){ return v + '개'; }) + '</div></div>' +
+    '<div class="vk-set-r"><span>하루 새 표현</span><div>' + chips('daily', [1, 5, 10, 20], function(v){ return v + '개'; }) + '</div></div>' +
     '<div class="vk-set-r"><span>하루 목표</span><div>' + chips('goal', [10, 20, 35, 60], function(v){ return v + '분'; }) + '</div></div>' +
     syncRowHTML() +
   '</div>';
@@ -3377,7 +3383,11 @@ function startFill(fid, extra){
   top0();
 }
 function nextFill(){
-  if(ses.i >= ses.q.length){ ses.phase = 'done'; draw(); return; }
+  if(ses.i >= ses.q.length){
+    ses.phase = 'done';
+    if(!ses.practice) gaPush({event:'fill_complete', vk_count:ses.q.length});
+    draw(); return;
+  }
   const key = ses.q[ses.i], card = CARD[key], prev = st.srs[key];
   const avoid = prev ? prev.sk : '';
   const s = pickSentence(card, avoid);
@@ -3674,6 +3684,7 @@ ACT.misNext = function(){
   st.conv[mis.f.id] = {best: Math.max(prev ? prev.best : 0, mis.cleared), n: mis.items.length, at: Date.now()};
   save();
   mis.phase = 'done';
+  gaPush({event:'out_complete', vk_out:'conv', vk_count:mis.items.length});
   mis.log.push({who:'coach', html:'🎉 <b>' + esc(mis.f.titleKo) + '</b> 미션 끝! <b>' + mis.cleared + ' / ' + mis.items.length + '</b> 통과 · +' + mis.xp + ' XP' +
     '<small>문장으로 꺼낸 표현은 오래 기억돼요. 틀린 미션은 리포트의 오답 노트에 있어요.</small>'});
   draw();
@@ -3785,7 +3796,7 @@ function moveLis(d){
   clearTimeout(lis.badT);
   if(d > 0 && lis.heard[lis.i]){ logItem(lis.items[lis.i].card.key, 'l', lis.solved[lis.i] ? true : null); addXp(3); save(); }
   lis.i += d; lis.said = null; lis.showKo = false;
-  if(lis.i >= lis.items.length){ lis.done = true; lis.scores = lis.scores.filter(function(x){ return x != null; }); draw(); return; }
+  if(lis.i >= lis.items.length){ lis.done = true; gaPush({event:'out_complete', vk_out:'listen', vk_count:lis.items.length}); lis.scores = lis.scores.filter(function(x){ return x != null; }); draw(); return; }
   newOrder();
   draw(); playLis();
 }
@@ -3837,6 +3848,7 @@ function finishQuiz(){
   clearInterval(quizTimer);
   if(!qz || qz.done) return;
   qz.done = true;
+  gaPush({event:'quiz_complete', vk_score:qz.score});
   st.quiz.plays++;
   if(qz.score > st.quiz.best){ st.quiz.best = qz.score; qz.best = true; }
   save();
@@ -4232,7 +4244,7 @@ ACT.testMark = function(el){
 ACT.testLevel = function(el){ st.set.lvl = el.dataset.v; st.setAt = Date.now(); save(); el.remove(); toast('학습 레벨을 ' + st.set.lvl + '(으)로 바꿨어요'); };
 
 /* ── 공용 동작 ── */
-ACT.tab = function(el){ view = {tab:el.dataset.v, sub:null, q:''}; draw(); top0(); };
+ACT.tab = function(el){ goTab(el.dataset.v); draw(); top0(); };
 ACT.set = function(el){ const k = el.dataset.k; st.set[k] = k === 'lvl' ? el.dataset.v : +el.dataset.v; st.setAt = Date.now(); save(); draw(); };
 ACT.say = function(el){ speak(el.dataset.t, 1); };
 ACT.startFill = function(el){ startFill(el.dataset.v || null); };
@@ -4251,7 +4263,7 @@ function exitSession(){
   mode = null; ses = null; mis = null; lis = null; qz = null; lt = null;
 }
 ACT.exit = function(){ exitSession(); draw(); top0(); };
-ACT.exitTo = function(el){ exitSession(); view = {tab:el.dataset.v, sub:null, q:''}; draw(); top0(); };
+ACT.exitTo = function(el){ exitSession(); goTab(el.dataset.v); draw(); top0(); };
 
 function onClick(e){
   const el = e.target.closest('[data-act]');
