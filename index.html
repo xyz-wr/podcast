@@ -4797,7 +4797,7 @@ function statsDur(sec){sec=Math.round(sec||0);if(sec<60)return sec+'초';const m
 function statsDelta(cur,prev,fmt){if(!prev)return '<span class="st-flat">이전 기간 없음</span>';
   const d=cur-prev;if(Math.abs(d)<1e-9)return '<span class="st-flat">변화 없음</span>';
   return '<span class="'+(d>0?'st-up':'st-down')+'">'+(d>0?'+':'−')+(fmt?fmt(Math.abs(d)):Math.round(Math.abs(d)/prev*100)+'%')+'</span>';}
-function statsSegHTML(d){return '<div class="st-seg">'+[7,30,90].map(n=>'<button class="'+(n===statsDays?'on':'')+'" onclick="statsSetDays('+n+')">'+n+'일</button>').join('')+
+function statsSegHTML(d){return '<div class="st-seg">'+[1,7,30,90].map(n=>'<button class="'+(n===statsDays?'on':'')+'" onclick="statsSetDays('+n+')">'+n+'일</button>').join('')+
   '<button onclick="renderStats(true)" aria-label="새로고침">↻</button>'+
   (d?'<span class="st-live"><i class="'+(d.realtime.activeUsers?'on':'')+'"></i>지금 '+d.realtime.activeUsers+'명</span>':'')+'</div>';}
 function statsHTML(d){
@@ -4831,7 +4831,7 @@ function statsHTML(d){
   const mmax=Math.max(1,...mons.map(m=>m.avg));
   h+='<div class="panel"><h2>월별 1인 평균 참여 시간</h2>'+(mons.length?'<div class="st-cols">'+mons.map(m=>'<div class="st-col" title="'+m.users+'명"><b>'+(mons.length>6?(m.avg/60).toFixed(1)+'분':statsDur(m.avg))+'</b><div style="height:'+Math.max(2,m.avg/mmax*80)+'%"></div><span>'+(+m.ym.slice(4))+'월</span></div>').join('')+'</div>':'<p class="st-note">데이터가 없어요.</p>')+'</div>';
   const at=new Date(d.generatedAt);
-  return h+'<div class="st-foot">어제까지의 확정 수치 · 로컬 테스트 접속 제외 · '+at.toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})+' 기준</div>';}
+  return h+'<div class="st-foot">'+(d.days===1?'어제 하루의':'어제까지의')+' 확정 수치 · 로컬 테스트 접속 제외 · '+at.toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})+' 기준</div>';}
 
 /* ============ library ============ */
 async function loadAll(){videos=(await idbAll('videos')).sort((a,b)=>(b.lastStudiedAt||b.createdAt)-(a.lastStudiedAt||a.createdAt));vocab=await idbAll('vocab');

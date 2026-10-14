@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: 'GA_PROPERTY_ID / GA_SERVICE_ACCOUNT secret 이 비어 있어요' }), { status: 500, headers });
   }
   const asked = Number(new URL(req.url).searchParams.get('days'));
-  const days = [7, 30, 90].includes(asked) ? asked : 7;
+  const days = [1, 7, 30, 90].includes(asked) ? asked : 7;
   try {
     let hit = cache.get(days);
     if (!hit || Date.now() - hit.at > CACHE_MS) {
