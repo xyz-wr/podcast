@@ -12,7 +12,7 @@ const CORS = {
 const CACHE_MS = 5 * 60 * 1000;   // GA 할당량 보호: 같은 인스턴스에서 5분간 재사용
 
 let token = { v: '', exp: 0 };
-let cache = { at: 0, body: '' };
+const cache = new Map<number, { at: number; body: string }>();
 
 function b64url(data: ArrayBuffer | string): string {
   const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : new Uint8Array(data);
@@ -68,29 +68,66 @@ async function ga(method: string, body: unknown): Promise<Row[]> {
   });
 }
 
-async function collect() {
-  const [realtime, week, pages] = await Promise.all([
+// 로컬 테스트 접속은 통계에서 뺀다 (실시간 API 는 hostName 을 지원하지 않아 제외 불가)
+const NOT_LOCAL = {
+  notExpression: { filter: { fieldName: 'hostName', inListFilter: { values: ['localhost', '127.0.0.1'] } } },
+};
+const STEP_EVENTS = ['fill_complete', 'out_complete', 'quiz_complete'];
+
+async function collect(days: number) {
+  const cur = { startDate: `${days}daysAgo`, endDate: 'yesterday' };
+  const prev = { startDate: `${days * 2}daysAgo`, endDate: `${days + 1}daysAgo` };
+  const [realtime, summary, pages, steps, monthly] = await Promise.all([
     // 최근 30분 (오늘 "지금" 수치)
     ga('runRealtimeReport', { metrics: [{ name: 'activeUsers' }] }),
-    // 최근 7일 확정치 (어제까지)
+    // 기간 요약 + 직전 같은 길이 기간 (증감 비교용). 어제까지의 확정치만 쓴다
     ga('runReport', {
-      dateRanges: [{ startDate: '7daysAgo', endDate: 'yesterday' }],
+      dateRanges: [{ ...cur, name: 'cur' }, { ...prev, name: 'prev' }],
       metrics: [{ name: 'activeUsers' }, { name: 'userEngagementDuration' }, { name: 'screenPageViews' }],
+      dimensionFilter: NOT_LOCAL,
     }),
-    // 탭(가상 페이지)별 조회수 · 참여 시간
+    // 탭(가상 페이지)별 조회수 · 참여 시간 · 사용자
     ga('runReport', {
-      dateRanges: [{ startDate: '7daysAgo', endDate: 'yesterday' }],
+      dateRanges: [cur],
       dimensions: [{ name: 'pagePath' }, { name: 'pageTitle' }],
       metrics: [{ name: 'screenPageViews' }, { name: 'userEngagementDuration' }, { name: 'activeUsers' }],
+      dimensionFilter: NOT_LOCAL,
       orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }],
       limit: 30,
     }),
+    // 보카 단계 완료 이벤트별 사용자 수 (순서는 반영하지 않음 — 정확한 유입경로는 GA 탐색에서)
+    ga('runReport', {
+      dateRanges: [cur],
+      dimensions: [{ name: 'eventName' }],
+      metrics: [{ name: 'activeUsers' }, { name: 'eventCount' }],
+      dimensionFilter: { andGroup: { expressions: [
+        { filter: { fieldName: 'eventName', inListFilter: { values: STEP_EVENTS } } },
+        NOT_LOCAL,
+      ] } },
+    }),
+    // 최근 12개월 월별 사용자 · 참여 시간
+    ga('runReport', {
+      dateRanges: [{ startDate: '365daysAgo', endDate: 'yesterday' }],
+      dimensions: [{ name: 'yearMonth' }],
+      metrics: [{ name: 'activeUsers' }, { name: 'userEngagementDuration' }],
+      dimensionFilter: NOT_LOCAL,
+      orderBys: [{ dimension: { dimensionName: 'yearMonth' } }],
+    }),
   ]);
+  const zero = { activeUsers: 0, userEngagementDuration: 0, screenPageViews: 0 };
+  const pick = (name: string) => {
+    const r = summary.find((x) => x.dateRange === name);
+    return r ? { activeUsers: r.activeUsers, userEngagementDuration: r.userEngagementDuration, screenPageViews: r.screenPageViews } : zero;
+  };
   return {
     generatedAt: new Date().toISOString(),
+    days,
     realtime: { activeUsers: realtime[0]?.activeUsers ?? 0 },
-    week: week[0] ?? { activeUsers: 0, userEngagementDuration: 0, screenPageViews: 0 },
+    week: pick('cur'),   // 예전 응답과 이름을 맞춰 둔다 (값은 선택한 기간)
+    prev: pick('prev'),
     pages,
+    steps,
+    monthly,
   };
 }
 
@@ -100,9 +137,15 @@ Deno.serve(async (req) => {
   if (!PROPERTY || !SA.client_email) {
     return new Response(JSON.stringify({ error: 'GA_PROPERTY_ID / GA_SERVICE_ACCOUNT secret 이 비어 있어요' }), { status: 500, headers });
   }
+  const asked = Number(new URL(req.url).searchParams.get('days'));
+  const days = [7, 30, 90].includes(asked) ? asked : 7;
   try {
-    if (!cache.body || Date.now() - cache.at > CACHE_MS) cache = { at: Date.now(), body: JSON.stringify(await collect()) };
-    return new Response(cache.body, { headers });
+    let hit = cache.get(days);
+    if (!hit || Date.now() - hit.at > CACHE_MS) {
+      hit = { at: Date.now(), body: JSON.stringify(await collect(days)) };
+      cache.set(days, hit);
+    }
+    return new Response(hit.body, { headers });
   } catch (e) {
     return new Response(JSON.stringify({ error: String((e as Error).message ?? e) }), { status: 502, headers });
   }

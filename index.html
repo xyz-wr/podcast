@@ -376,6 +376,13 @@ function gaPage(path,title){
     <div id="streakBody"></div>
   </section>
 
+  <!-- ===== 앱 통계 (더보기 맨 아래 링크로만 들어옴) ===== -->
+  <section id="screen-stats" class="screen">
+    <div class="topbar"><div class="grow"><div class="eyebrow">Google Analytics</div><h1 class="serif">앱 통계</h1></div>
+      <button class="iconbtn" onclick="tabTo('settings')" aria-label="더보기로 돌아가기">✕</button></div>
+    <div id="statsBody"></div>
+  </section>
+
   <!-- ===== SETTINGS (더보기) ===== -->
   <section id="screen-settings" class="screen">
     <div class="topbar"><div class="grow"><div class="eyebrow">Personal study notebook</div><h1 class="serif">설정</h1></div></div>
@@ -426,7 +433,46 @@ function gaPage(path,title){
       </div>
       <div id="syncStatus" style="font-size:12px;color:var(--ink-soft);margin-top:8px;"></div>
     </div>
+    <p style="text-align:center;margin:4px 0 18px;"><a href="#" onclick="tabTo('stats');return false;" style="font-size:12px;color:var(--ink-faint);">앱 통계 보기</a></p>
   </section>
+
+<style id="stats-style">
+#screen-stats .st-seg{display:flex;gap:6px;align-items:center;margin:0 14px 12px;}
+#screen-stats .st-seg button{font:inherit;font-size:12px;padding:6px 12px;border-radius:var(--pill);border:1px solid var(--paper-line);background:var(--card);color:var(--ink-soft);cursor:pointer;}
+#screen-stats .st-seg button.on{background:var(--brand-tint);border-color:var(--brand-soft);color:var(--brand-deep);font-weight:600;}
+#screen-stats .st-live{margin-left:auto;font-size:12px;color:var(--ink-soft);display:flex;align-items:center;gap:6px;}
+#screen-stats .st-live i{width:8px;height:8px;border-radius:50%;background:var(--ink-mute);display:inline-block;}
+#screen-stats .st-live i.on{background:var(--brand);}
+#screen-stats .st-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 14px 14px;}
+#screen-stats .st-kpi{background:var(--card);border:1px solid var(--paper-line);border-radius:12px;padding:10px;}
+#screen-stats .st-kpi small{display:block;font-size:11px;color:var(--ink-soft);}
+#screen-stats .st-kpi b{display:block;font-size:19px;font-weight:600;margin:2px 0;white-space:nowrap;}
+#screen-stats .st-up{font-size:11px;color:var(--brand-deep);}
+#screen-stats .st-down{font-size:11px;color:var(--danger);}
+#screen-stats .st-flat{font-size:11px;color:var(--ink-faint);}
+#screen-stats .st-row{display:grid;grid-template-columns:92px minmax(0,1fr) 72px;gap:8px;align-items:center;font-size:12px;margin:6px 0;}
+#screen-stats .st-row>span:first-child{color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#screen-stats .st-row>span:last-child{text-align:right;white-space:nowrap;}
+#screen-stats .st-track{background:var(--paper);border-radius:4px;height:14px;position:relative;overflow:hidden;}
+#screen-stats .st-bar{position:absolute;left:0;top:0;bottom:0;border-radius:0 4px 4px 0;background:var(--brand);}
+#screen-stats .st-bar.in{background:var(--brand-soft);}
+#screen-stats .st-drop{font-size:11px;color:var(--ink-faint);margin-left:4px;}
+#screen-stats .st-drop.worst{color:var(--danger);font-weight:600;}
+#screen-stats .st-note{font-size:11px;color:var(--ink-faint);line-height:1.5;margin:8px 0 0;}
+#screen-stats .st-alert{font-size:12px;color:var(--danger);background:#FDECE8;border-radius:10px;padding:8px 10px;margin-top:10px;}
+#screen-stats .st-legend{display:flex;gap:12px;font-size:11px;color:var(--ink-soft);margin-bottom:4px;}
+#screen-stats .st-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--brand);margin-right:4px;vertical-align:-1px;}
+#screen-stats .st-legend i.in{background:var(--brand-soft);}
+#screen-stats .st-cols{display:flex;align-items:flex-end;gap:6px;height:120px;padding-top:16px;}
+#screen-stats .st-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;font-size:10px;color:var(--ink-faint);min-width:0;}
+#screen-stats .st-col b{font-size:10px;font-weight:600;color:var(--ink-soft);margin-bottom:2px;white-space:nowrap;}
+#screen-stats .st-col div{width:100%;max-width:26px;background:var(--brand);border-radius:4px 4px 0 0;min-height:2px;}
+#screen-stats .st-col span{margin-top:4px;white-space:nowrap;}
+#screen-stats .st-msg{margin:30px 14px;text-align:center;font-size:13px;color:var(--ink-soft);}
+#screen-stats .st-msg.err{color:var(--danger);}
+#screen-stats .st-msg small{display:block;margin-top:6px;color:var(--ink-faint);word-break:break-all;}
+#screen-stats .st-foot{font-size:11px;color:var(--ink-faint);text-align:center;margin:0 14px 18px;}
+</style>
 
 <style id="conv-style">
 #screen-conv{
@@ -4713,7 +4759,7 @@ function clearBookmark(){if(!currentVideo||!currentVideo.bookmark)return;delete 
 /* ============ navigation ============ */
 function showScreen(name){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById('screen-'+name).classList.add('active');window.scrollTo(0,0);}
 const TAB_LS='elab_tab';
-const TAB_NAMES={voca:'보카',conv:'회화',wquiz:'퀴즈',learn:'학습',video:'영상',settings:'더보기',improve:'개선',diary:'일기',write:'작문',streak:'스트릭'};
+const TAB_NAMES={voca:'보카',conv:'회화',wquiz:'퀴즈',learn:'학습',video:'영상',settings:'더보기',improve:'개선',diary:'일기',write:'작문',streak:'스트릭',stats:'통계'};
 function tabTo(s){try{localStorage.setItem(TAB_LS,s);}catch(e){}
   gaPage('/'+s,TAB_NAMES[s]||s);   // GA: 탭 = 가상 페이지
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.s===s));clearSelection();
@@ -4727,7 +4773,65 @@ function tabTo(s){try{localStorage.setItem(TAB_LS,s);}catch(e){}
   else if(s==='write'){showScreen('write');WriteApp.render();}
   else if(s==='video'){showScreen('video');VideoApp.render();}
   else if(s==='streak'){showScreen('streak');renderStreak();}
+  else if(s==='stats'){showScreen('stats');renderStats();}
   else if(s==='settings'){showScreen('settings');renderSettings();}}
+
+/* ============ 앱 통계 (GA4 → Supabase Edge Function ga-stats) ============ */
+// 앱 전체 사용자의 집계 수치다(개인 학습 기록 아님). 서비스 계정 키는 함수 Secret 에만 있다.
+function statsURL(){return SB_DEFAULT_URL+'/functions/v1/ga-stats';}   // SB_DEFAULT_URL 은 아래에서 선언됨 → 호출 시점에 읽는다
+const STATS_STEPS=[['fill','① 채우기','fill_complete'],['out','② 꺼내기','out_complete'],['quiz','퀴즈','quiz_complete'],['report','리포트','']];
+let statsDays=7;const statsData={};
+async function renderStats(force){const el=document.getElementById('statsBody');if(!el)return;
+  const days=statsDays;
+  if(statsData[days]&&!force){el.innerHTML=statsHTML(statsData[days]);return;}
+  el.innerHTML=statsSegHTML(null)+'<div class="st-msg">불러오는 중…</div>';
+  try{const r=await fetch(statsURL()+'?days='+days);const j=await r.json();
+    if(!r.ok||j.error)throw new Error(j.error||('HTTP '+r.status));
+    statsData[days]=j;
+  }catch(e){if(days===statsDays)el.innerHTML=statsSegHTML(null)+'<div class="st-msg err">통계를 불러오지 못했어요<small>'+esc(String(e.message||e))+'</small></div>';return;}
+  if(days===statsDays)el.innerHTML=statsHTML(statsData[days]);}
+function statsSetDays(n){statsDays=n;renderStats();}
+function statsDur(sec){sec=Math.round(sec||0);if(sec<60)return sec+'초';const m=Math.floor(sec/60);
+  if(m<60)return m+'분 '+(sec%60)+'초';return Math.floor(m/60)+'시간 '+(m%60)+'분';}
+// 직전 같은 길이 기간 대비 증감. fmt 가 있으면 차이를 그 형식으로, 없으면 % 로
+function statsDelta(cur,prev,fmt){if(!prev)return '<span class="st-flat">이전 기간 없음</span>';
+  const d=cur-prev;if(Math.abs(d)<1e-9)return '<span class="st-flat">변화 없음</span>';
+  return '<span class="'+(d>0?'st-up':'st-down')+'">'+(d>0?'+':'−')+(fmt?fmt(Math.abs(d)):Math.round(Math.abs(d)/prev*100)+'%')+'</span>';}
+function statsSegHTML(d){return '<div class="st-seg">'+[7,30,90].map(n=>'<button class="'+(n===statsDays?'on':'')+'" onclick="statsSetDays('+n+')">'+n+'일</button>').join('')+
+  '<button onclick="renderStats(true)" aria-label="새로고침">↻</button>'+
+  (d?'<span class="st-live"><i class="'+(d.realtime.activeUsers?'on':'')+'"></i>지금 '+d.realtime.activeUsers+'명</span>':'')+'</div>';}
+function statsHTML(d){
+  const w=d.week||{},p=d.prev||{},pages=d.pages||[],steps=d.steps||[],monthly=d.monthly||[];
+  const avg=w.activeUsers?w.userEngagementDuration/w.activeUsers:0,pavg=p.activeUsers?p.userEngagementDuration/p.activeUsers:0;
+  let h=statsSegHTML(d)+'<div class="st-kpis">'+
+    '<div class="st-kpi"><small>활성 사용자</small><b>'+(w.activeUsers||0)+'명</b>'+statsDelta(w.activeUsers||0,p.activeUsers)+'</div>'+
+    '<div class="st-kpi"><small>1인 평균 참여</small><b>'+statsDur(avg)+'</b>'+statsDelta(avg,pavg,statsDur)+'</div>'+
+    '<div class="st-kpi"><small>조회수</small><b>'+(w.screenPageViews||0)+'</b>'+statsDelta(w.screenPageViews||0,p.screenPageViews)+'</div></div>';
+  // 보카 학습 흐름: 탭에 들어온 사용자(연한 막대) vs 단계를 끝낸 사용자(진한 막대). 리포트는 들어온 것 = 끝낸 것
+  const pageUsers=path=>{const r=pages.find(x=>x.pagePath===path);return r?r.activeUsers:0;};
+  const done=ev=>{const r=steps.find(x=>x.eventName===ev);return r?r.activeUsers:0;};
+  const rows=STATS_STEPS.map(([k,label,ev])=>({label,inn:pageUsers('/voca/'+k),done:ev?done(ev):pageUsers('/voca/'+k)}));
+  const max=Math.max(1,...rows.map(r=>Math.max(r.inn,r.done)));
+  const drops=rows.map((r,i)=>i&&rows[i-1].done?Math.round((1-r.done/rows[i-1].done)*100):null);
+  let worst=-1;drops.forEach((x,i)=>{if(x!=null&&x>0&&(worst<0||x>drops[worst]))worst=i;});
+  h+='<div class="panel"><h2>보카 학습 흐름</h2><div class="st-legend"><span><i class="in"></i>탭에 들어온 사용자</span><span><i></i>단계를 끝낸 사용자</span></div>'+
+    rows.map((r,i)=>'<div class="st-row"><span>'+r.label+'</span><div class="st-track"><div class="st-bar in" style="width:'+(r.inn/max*100)+'%"></div><div class="st-bar" style="width:'+(r.done/max*100)+'%"></div></div>'+
+      '<span><b>'+r.done+'</b>/'+r.inn+(drops[i]!=null?'<span class="st-drop'+(i===worst?' worst':'')+'">'+(drops[i]>0?'−':'+')+Math.abs(drops[i])+'%</span>':'')+'</span></div>').join('');
+  if(worst>0)h+='<div class="st-alert">이탈이 가장 많은 구간: '+rows[worst-1].label+' → '+rows[worst].label+' ('+drops[worst]+'% 이탈)</div>';
+  if(!steps.length)h+='<p class="st-note">단계 완료 이벤트가 아직 없어요. GTM에 완료 이벤트 태그를 게시하면 다음 날부터 쌓여요.</p>';
+  h+='<p class="st-note">단계별 사용자 수만 비교해요(순서는 반영 안 함). 정확한 유입경로는 GA4 탐색 → 유입경로 탐색에서 볼 수 있어요.</p></div>';
+  // 탭별 체류: 조회 1회당 평균 참여 시간
+  const tabs=pages.filter(x=>x.screenPageViews>0).map(x=>({label:x.pageTitle==='Personal study notebook'?'첫 화면 '+x.pagePath:x.pageTitle,per:x.userEngagementDuration/x.screenPageViews}))
+    .sort((a,b)=>b.per-a.per).slice(0,10);
+  const tmax=Math.max(1,...tabs.map(t=>t.per));
+  h+='<div class="panel"><h2>탭별 체류 시간</h2>'+(tabs.length?tabs.map(t=>'<div class="st-row"><span title="'+esc(t.label)+'">'+esc(t.label)+'</span><div class="st-track"><div class="st-bar" style="width:'+(t.per/tmax*100)+'%"></div></div><span>'+statsDur(t.per)+'</span></div>').join(''):'<p class="st-note">데이터가 없어요.</p>')+
+    '<p class="st-note">조회 1회당 평균 참여 시간(화면이 앞에 떠 있던 시간)이에요.</p></div>';
+  // 월별 1인 평균 참여 시간
+  const mons=monthly.map(m=>({ym:String(m.yearMonth),avg:m.activeUsers?m.userEngagementDuration/m.activeUsers:0,users:m.activeUsers}));
+  const mmax=Math.max(1,...mons.map(m=>m.avg));
+  h+='<div class="panel"><h2>월별 1인 평균 참여 시간</h2>'+(mons.length?'<div class="st-cols">'+mons.map(m=>'<div class="st-col" title="'+m.users+'명"><b>'+(mons.length>6?(m.avg/60).toFixed(1)+'분':statsDur(m.avg))+'</b><div style="height:'+Math.max(2,m.avg/mmax*80)+'%"></div><span>'+(+m.ym.slice(4))+'월</span></div>').join('')+'</div>':'<p class="st-note">데이터가 없어요.</p>')+'</div>';
+  const at=new Date(d.generatedAt);
+  return h+'<div class="st-foot">어제까지의 확정 수치 · 로컬 테스트 접속 제외 · '+at.toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})+' 기준</div>';}
 
 /* ============ library ============ */
 async function loadAll(){videos=(await idbAll('videos')).sort((a,b)=>(b.lastStudiedAt||b.createdAt)-(a.lastStudiedAt||a.createdAt));vocab=await idbAll('vocab');
