@@ -4832,11 +4832,12 @@ function statsHTML(d){
   const pageUsers=path=>{const r=pages.find(x=>x.pagePath===path);return r?r.activeUsers:0;};
   const done=ev=>{const r=steps.find(x=>x.eventName===ev);return r?r.activeUsers:0;};
   const rows=STATS_STEPS.map(([k,label,ev])=>({label,inn:pageUsers('/voca/'+k),done:ev?done(ev):pageUsers('/voca/'+k)}));
-  const max=Math.max(1,...rows.map(r=>Math.max(r.inn,r.done)));
+  // 막대 = 줄마다 완료율: 연한 막대(들어온 사용자)를 100%로 두고 진한 막대는 끝낸 ÷ 들어온
+  const pct=r=>r.inn?Math.min(100,r.done/r.inn*100):(r.done?100:0);
   const drops=rows.map((r,i)=>i&&rows[i-1].done?Math.round((1-r.done/rows[i-1].done)*100):null);
   let worst=-1;drops.forEach((x,i)=>{if(x!=null&&x>0&&(worst<0||x>drops[worst]))worst=i;});
-  h+='<div class="panel"><h2>보카 학습 흐름</h2><div class="st-legend"><span><i class="in"></i>탭에 들어온 사용자</span><span><i></i>단계를 끝낸 사용자</span></div>'+
-    rows.map((r,i)=>'<div class="st-row"><span>'+r.label+'</span><div class="st-track"><div class="st-bar in" style="width:'+(r.inn/max*100)+'%"></div><div class="st-bar" style="width:'+(r.done/max*100)+'%"></div></div>'+
+  h+='<div class="panel"><h2>보카 학습 흐름</h2><div class="st-legend"><span><i class="in"></i>탭에 들어온 사용자</span><span><i></i>단계를 끝낸 비율</span></div>'+
+    rows.map((r,i)=>'<div class="st-row"><span>'+r.label+'</span><div class="st-track"><div class="st-bar in" style="width:'+(r.inn||r.done?100:0)+'%"></div><div class="st-bar" style="width:'+pct(r)+'%"></div></div>'+
       '<span><b>'+r.done+'</b>/'+r.inn+(drops[i]!=null?'<span class="st-drop'+(i===worst?' worst':'')+'">'+(drops[i]>0?'−':'+')+Math.abs(drops[i])+'%</span>':'')+'</span></div>').join('');
   if(worst>0)h+='<div class="st-alert">이탈이 가장 많은 구간: '+rows[worst-1].label+' → '+rows[worst].label+' ('+drops[worst]+'% 이탈)</div>';
   if(!steps.length)h+='<p class="st-note">단계 완료 이벤트가 아직 없어요. GTM에 완료 이벤트 태그를 게시하면 다음 날부터 쌓여요.</p>';
