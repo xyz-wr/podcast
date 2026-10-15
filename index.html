@@ -3160,11 +3160,27 @@ const VK_PAGE = {home:'홈', fill:'채우기', out:'꺼내기', quiz:'퀴즈', r
 function gaPush(o){ (window.dataLayer = window.dataLayer || []).push(o); }
 function gaTab(t){ window.gaPage('/voca/' + t, '보카 · ' + (VK_PAGE[t] || t)); }
 function goTab(t){ if(view.tab !== t) gaTab(t); view = {tab:t, sub:null, q:''}; }
+// 새로고침해도 보던 하위 탭·폴더·꺼내기 구분으로 돌아온다 (학습 세션 중간은 저장하지 않는다)
+const VIEW_LS = 'elab_voca_view';
+(function restoreView(){
+  try{
+    const v = JSON.parse(localStorage.getItem(VIEW_LS) || 'null');
+    if(!v || !VK_PAGE[v.tab]) return;
+    view.tab = v.tab;
+    if(v.sub && v.sub.t === 'folder' && FOLDERS.some(function(f){ return f.id === v.sub.fid; })) view.sub = {t:'folder', fid:v.sub.fid};
+    if(v.outSeg === 'conv' || v.outSeg === 'listen') outSeg = v.outSeg;
+  }catch(e){}
+})();
+function saveView(){
+  const sub = view.sub && view.sub.t === 'folder' ? view.sub : view.sub && view.sub.from && view.sub.from.t === 'folder' ? view.sub.from : null;
+  try{ localStorage.setItem(VIEW_LS, JSON.stringify({tab:view.tab, sub:sub, outSeg:outSeg})); }catch(e){}
+}
 
 function root(){ return document.getElementById('vkRoot'); }
 function draw(){
   const r = root();
   if(!r) return;
+  saveView();
   let html;
   if(mode === 'fill') html = fillSessionHTML();
   else if(mode === 'mission') html = missionHTML();
@@ -4766,7 +4782,7 @@ function tabTo(s){try{localStorage.setItem(TAB_LS,s);}catch(e){}
   gaPage('/'+s,TAB_NAMES[s]||s);   // GA: 탭 = 가상 페이지
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.s===s));clearSelection();
   pausePlayer();
-  if(s==='learn'){showScreen('library');learnSeg==='words'?renderLearnVocab():renderLibrary();}
+  if(s==='learn'){showScreen('library');learnSegTo(learnSeg);}
   else if(s==='conv'){showScreen('conv');ConvApp.render();}
   else if(s==='voca'){showScreen('voca');VocaApp.render();}
   else if(s==='improve'){showScreen('improve');renderImproveVocab();}
@@ -5107,7 +5123,7 @@ function vcardEl(v,showVid){if(showVid===undefined)showVid=true;
     ${vidLine}
     <div class="vmeta">${jump}<span class="del" data-id="${v.id}">삭제</span></div>`;
   return c;}
-let learnSeg='videos', learnVFilter='all', improveSeg='all', improveGrammarCat=null;
+let learnSeg=(function(){try{return localStorage.getItem('elab_learn_seg')==='words'?'words':'videos';}catch(e){return 'videos';}})(), learnVFilter='all', improveSeg='all', improveGrammarCat=null;
 function bindVocabGrid(grid,origin){
   grid.querySelectorAll('.vsrc').forEach(s=>s.onclick=()=>{if(s.dataset.vid&&videos.some(x=>x.id===s.dataset.vid))openVideo(s.dataset.vid);});
   grid.querySelectorAll('.vterm').forEach(t=>t.onclick=()=>openVocabDetail(t.dataset.id,origin));
@@ -5123,7 +5139,7 @@ function renderLearnVocab(){
   empty.style.display=list.length?'none':'block';grid.innerHTML='';
   list.forEach(v=>grid.appendChild(vcardEl(v,true)));bindVocabGrid(grid,'learn');}
 function setLearnVFilter(k){learnVFilter=k;renderLearnVocab();}
-function learnSegTo(v){learnSeg=v;
+function learnSegTo(v){learnSeg=v;try{localStorage.setItem('elab_learn_seg',v);}catch(e){}
   document.querySelectorAll('#learnSeg span').forEach(s=>s.classList.toggle('on',s.dataset.v===v));
   document.getElementById('learnVideos').style.display=v==='videos'?'':'none';
   document.getElementById('learnWords').style.display=v==='words'?'':'none';
