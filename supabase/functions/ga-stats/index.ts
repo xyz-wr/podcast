@@ -116,21 +116,24 @@ async function collect(days: number) {
       dimensionFilter: NOT_LOCAL,
       orderBys: [{ dimension: { dimensionName: 'yearMonth' } }],
     }),
-    // 오늘 보기: 방금 끝낸 단계는 GA 처리 전이라 runReport 에 아직 없다 → 실시간(최근 30분)에서도 센다
+    // 오늘 보기: 방금 끝낸 단계는 GA 처리 전이라 runReport 에 아직 없다 → 실시간(최근 30분)에서도 센다.
+    // 실시간 API 는 eventName 과 activeUsers 를 함께 조회할 수 없어 eventCount 만 받는다.
+    // 이 조회가 실패해도 통계 전체는 보여 준다.
     live
       ? ga('runRealtimeReport', {
         dimensions: [{ name: 'eventName' }],
-        metrics: [{ name: 'activeUsers' }, { name: 'eventCount' }],
+        metrics: [{ name: 'eventCount' }],
         dimensionFilter: { filter: { fieldName: 'eventName', inListFilter: { values: STEP_EVENTS } } },
-      })
+      }).catch(() => [] as Row[])
       : Promise.resolve([] as Row[]),
   ]);
-  // 처리된 값과 실시간 값은 같은 사용자를 겹쳐 셀 수 있어 더하지 않고 큰 쪽을 쓴다 (하한값)
+  // 실시간에 완료 이벤트가 있으면 최소 1명이 끝낸 것 → 처리된 사용자 수와 비교해 큰 쪽 (하한값)
   const mergedSteps = !live ? steps : STEP_EVENTS.flatMap((ev) => {
     const a = steps.find((x) => x.eventName === ev), b = rtSteps.find((x) => x.eventName === ev);
     if (!a && !b) return [];
     const n = (r: Row | undefined, k: string) => Number(r?.[k] ?? 0);
-    return [{ eventName: ev, activeUsers: Math.max(n(a, 'activeUsers'), n(b, 'activeUsers')), eventCount: Math.max(n(a, 'eventCount'), n(b, 'eventCount')) }];
+    const rtEvents = n(b, 'eventCount');
+    return [{ eventName: ev, activeUsers: Math.max(n(a, 'activeUsers'), rtEvents > 0 ? 1 : 0), eventCount: Math.max(n(a, 'eventCount'), rtEvents) }];
   });
   const zero = { activeUsers: 0, userEngagementDuration: 0, screenPageViews: 0 };
   const pick = (name: string) => {
