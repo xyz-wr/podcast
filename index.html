@@ -4799,13 +4799,14 @@ function tabTo(s){try{localStorage.setItem(TAB_LS,s);}catch(e){}
 function statsURL(){return SB_DEFAULT_URL+'/functions/v1/ga-stats';}   // SB_DEFAULT_URL 은 아래에서 선언됨 → 호출 시점에 읽는다
 const STATS_STEPS=[['fill','① 채우기','fill_complete'],['out','② 꺼내기','out_complete'],['quiz','퀴즈','quiz_complete'],['report','리포트','']];
 let statsDays=7;const statsData={};
+let statsHasLive=false;   // 함수가 '1일 = 오늘'(live)을 지원하면 버튼을 '오늘'로 표시 (배포 전 함수는 어제 하루치)
 async function renderStats(force){const el=document.getElementById('statsBody');if(!el)return;
   const days=statsDays;
   if(statsData[days]&&!force){el.innerHTML=statsHTML(statsData[days]);return;}
   el.innerHTML=statsSegHTML(null)+'<div class="st-msg">불러오는 중…</div>';
   try{const r=await fetch(statsURL()+'?days='+days);const j=await r.json();
     if(!r.ok||j.error)throw new Error(j.error||('HTTP '+r.status));
-    statsData[days]=j;
+    statsData[days]=j;if('live' in j)statsHasLive=true;
   }catch(e){if(days===statsDays)el.innerHTML=statsSegHTML(null)+'<div class="st-msg err">통계를 불러오지 못했어요<small>'+esc(String(e.message||e))+'</small></div>';return;}
   if(days===statsDays)el.innerHTML=statsHTML(statsData[days]);}
 function statsSetDays(n){statsDays=n;renderStats();}
@@ -4815,16 +4816,18 @@ function statsDur(sec){sec=Math.round(sec||0);if(sec<60)return sec+'초';const m
 function statsDelta(cur,prev,fmt){if(!prev)return '<span class="st-flat">이전 기간 없음</span>';
   const d=cur-prev;if(Math.abs(d)<1e-9)return '<span class="st-flat">변화 없음</span>';
   return '<span class="'+(d>0?'st-up':'st-down')+'">'+(d>0?'+':'−')+(fmt?fmt(Math.abs(d)):Math.round(Math.abs(d)/prev*100)+'%')+'</span>';}
-function statsSegHTML(d){return '<div class="st-seg">'+[1,7,30,90].map(n=>'<button class="'+(n===statsDays?'on':'')+'" onclick="statsSetDays('+n+')">'+n+'일</button>').join('')+
+function statsSegHTML(d){return '<div class="st-seg">'+[1,7,30,90].map(n=>'<button class="'+(n===statsDays?'on':'')+'" onclick="statsSetDays('+n+')">'+(n===1&&statsHasLive?'오늘':n+'일')+'</button>').join('')+
   '<button onclick="renderStats(true)" aria-label="새로고침">↻</button>'+
   (d?'<span class="st-live"><i class="'+(d.realtime.activeUsers?'on':'')+'"></i>지금 '+d.realtime.activeUsers+'명</span>':'')+'</div>';}
 function statsHTML(d){
   const w=d.week||{},p=d.prev||{},pages=d.pages||[],steps=d.steps||[],monthly=d.monthly||[];
   const avg=w.activeUsers?w.userEngagementDuration/w.activeUsers:0,pavg=p.activeUsers?p.userEngagementDuration/p.activeUsers:0;
+  // 오늘 보기는 GA 처리 중인 값이라 직전 기간과 비교하지 않는다
+  const delta=d.live?()=>'<span class="st-flat">집계 중</span>':statsDelta;
   let h=statsSegHTML(d)+'<div class="st-kpis">'+
-    '<div class="st-kpi"><small>활성 사용자</small><b>'+(w.activeUsers||0)+'명</b>'+statsDelta(w.activeUsers||0,p.activeUsers)+'</div>'+
-    '<div class="st-kpi"><small>1인 평균 참여</small><b>'+statsDur(avg)+'</b>'+statsDelta(avg,pavg,statsDur)+'</div>'+
-    '<div class="st-kpi"><small>조회수</small><b>'+(w.screenPageViews||0)+'</b>'+statsDelta(w.screenPageViews||0,p.screenPageViews)+'</div></div>';
+    '<div class="st-kpi"><small>활성 사용자</small><b>'+(w.activeUsers||0)+'명</b>'+delta(w.activeUsers||0,p.activeUsers)+'</div>'+
+    '<div class="st-kpi"><small>1인 평균 참여</small><b>'+statsDur(avg)+'</b>'+delta(avg,pavg,statsDur)+'</div>'+
+    '<div class="st-kpi"><small>조회수</small><b>'+(w.screenPageViews||0)+'</b>'+delta(w.screenPageViews||0,p.screenPageViews)+'</div></div>';
   // 보카 학습 흐름: 탭에 들어온 사용자(연한 막대) vs 단계를 끝낸 사용자(진한 막대). 리포트는 들어온 것 = 끝낸 것
   const pageUsers=path=>{const r=pages.find(x=>x.pagePath===path);return r?r.activeUsers:0;};
   const done=ev=>{const r=steps.find(x=>x.eventName===ev);return r?r.activeUsers:0;};
@@ -4849,7 +4852,7 @@ function statsHTML(d){
   const mmax=Math.max(1,...mons.map(m=>m.avg));
   h+='<div class="panel"><h2>월별 1인 평균 참여 시간</h2>'+(mons.length?'<div class="st-cols">'+mons.map(m=>'<div class="st-col" title="'+m.users+'명"><b>'+(mons.length>6?(m.avg/60).toFixed(1)+'분':statsDur(m.avg))+'</b><div style="height:'+Math.max(2,m.avg/mmax*80)+'%"></div><span>'+(+m.ym.slice(4))+'월</span></div>').join('')+'</div>':'<p class="st-note">데이터가 없어요.</p>')+'</div>';
   const at=new Date(d.generatedAt);
-  return h+'<div class="st-foot">'+(d.days===1?'어제 하루의':'어제까지의')+' 확정 수치 · 로컬 테스트 접속 제외 · '+at.toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})+' 기준</div>';}
+  return h+'<div class="st-foot">'+(d.live?'오늘 집계 중인 수치(GA 처리 지연으로 나중에 늘어날 수 있음)':d.days===1?'어제 하루의 확정 수치':'어제까지의 확정 수치')+' · 로컬 테스트 접속 제외 · '+at.toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})+' 기준</div>';}
 
 /* ============ library ============ */
 async function loadAll(){videos=(await idbAll('videos')).sort((a,b)=>(b.lastStudiedAt||b.createdAt)-(a.lastStudiedAt||a.createdAt));vocab=await idbAll('vocab');

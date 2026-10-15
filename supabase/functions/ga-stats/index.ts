@@ -75,14 +75,17 @@ const NOT_LOCAL = {
 const STEP_EVENTS = ['fill_complete', 'out_complete', 'quiz_complete'];
 
 async function collect(days: number) {
-  const cur = { startDate: `${days}daysAgo`, endDate: 'yesterday' };
+  // 1일 = 오늘(집계 중, GA 처리가 끝나지 않아 나중에 늘어날 수 있음) → 직전 기간 비교는 하지 않는다
+  // 7·30·90일 = 어제까지의 확정치 + 직전 같은 길이 기간과 비교
+  const live = days === 1;
+  const cur = live ? { startDate: 'today', endDate: 'today' } : { startDate: `${days}daysAgo`, endDate: 'yesterday' };
   const prev = { startDate: `${days * 2}daysAgo`, endDate: `${days + 1}daysAgo` };
   const [realtime, summary, pages, steps, monthly] = await Promise.all([
     // 최근 30분 (오늘 "지금" 수치)
     ga('runRealtimeReport', { metrics: [{ name: 'activeUsers' }] }),
-    // 기간 요약 + 직전 같은 길이 기간 (증감 비교용). 어제까지의 확정치만 쓴다
+    // 기간 요약 + 직전 같은 길이 기간 (증감 비교용, 오늘 보기에서는 생략)
     ga('runReport', {
-      dateRanges: [{ ...cur, name: 'cur' }, { ...prev, name: 'prev' }],
+      dateRanges: live ? [{ ...cur, name: 'cur' }] : [{ ...cur, name: 'cur' }, { ...prev, name: 'prev' }],
       metrics: [{ name: 'activeUsers' }, { name: 'userEngagementDuration' }, { name: 'screenPageViews' }],
       dimensionFilter: NOT_LOCAL,
     }),
@@ -116,15 +119,17 @@ async function collect(days: number) {
   ]);
   const zero = { activeUsers: 0, userEngagementDuration: 0, screenPageViews: 0 };
   const pick = (name: string) => {
-    const r = summary.find((x) => x.dateRange === name);
+    // 기간이 하나면 GA 가 dateRange 열을 붙이지 않는다 → 첫 행이 곧 cur
+    const r = live ? (name === 'cur' ? summary[0] : undefined) : summary.find((x) => x.dateRange === name);
     return r ? { activeUsers: r.activeUsers, userEngagementDuration: r.userEngagementDuration, screenPageViews: r.screenPageViews } : zero;
   };
   return {
     generatedAt: new Date().toISOString(),
     days,
+    live,
     realtime: { activeUsers: realtime[0]?.activeUsers ?? 0 },
     week: pick('cur'),   // 예전 응답과 이름을 맞춰 둔다 (값은 선택한 기간)
-    prev: pick('prev'),
+    prev: live ? null : pick('prev'),
     pages,
     steps,
     monthly,
