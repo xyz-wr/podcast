@@ -2760,14 +2760,18 @@ function vkReview(rec, ok, now, opts){
     else if(o.hinted) r.s = Math.max(1, rec ? rec.s : 1);   // 힌트를 봤으면 단계 유지
     else r.s = rec ? Math.min(VK_STEPS.length - 1, rec.s + 1) : VK_KNOWN_STEP;  // 처음 보고 맞히면 이미 아는 표현
   } else { r.ng++; r.s = 0; }
-  r.due = now + VK_STEPS[r.s];
+  // 5분 단계는 정확한 시각, 1일 이상은 N번째 다음 학습일 04:00에 한꺼번에 열린다
+  r.due = r.s ? vkAddDays(vkDayStart(now), Math.round(VK_STEPS[r.s] / VK_DAY)) : now + VK_STEPS[r.s];
   return r;
 }
 
 function vkPad(n){ return (n < 10 ? '0' : '') + n; }
-function vkDay(ts){ const d = new Date(ts); return d.getFullYear() + '-' + vkPad(d.getMonth() + 1) + '-' + vkPad(d.getDate()); }
+// 학습일은 오전 4시에 바뀐다: 00:00~03:59는 전날로 친다
+const VK_DAY_START_H = 4;
+function vkDayStart(ts){ const d = new Date(ts - VK_DAY_START_H * 3600000); d.setHours(VK_DAY_START_H, 0, 0, 0); return d.getTime(); }
+function vkDay(ts){ const d = new Date(ts - VK_DAY_START_H * 3600000); return d.getFullYear() + '-' + vkPad(d.getMonth() + 1) + '-' + vkPad(d.getDate()); }
 function vkAddDays(ts, n){ const d = new Date(ts); d.setDate(d.getDate() + n); return d.getTime(); }
-function vkWeekStart(ts){ const d = new Date(ts); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return d.getTime(); }
+function vkWeekStart(ts){ const d = new Date(vkDayStart(ts)); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return d.getTime(); }
 // 오늘(아직 안 했으면 어제)부터 거꾸로 이어진 학습일 수
 function vkStreak(days, now){
   let t = now, n = 0;
@@ -3281,8 +3285,6 @@ function homeHTML(){
   return '' +
   '<div class="vk-hero">' +
     '<div class="vk-eyebrow">VOCA · 단어로 말하기</div>' +
-    '<h1>영어 실력은<br>결국 <em>단어</em></h1>' +
-    '<p>아는 표현이 늘어야 말이 나와요. 먼저 <b>채우고</b>, 문장으로 <b>꺼내세요</b>.</p>' +
     '<div class="vk-known"><div class="vk-known-n"><b>' + known + '</b><span> / ' + total + ' 아는 표현</span></div>' +
     '<div class="vk-hbar"><i style="width:' + (known / total * 100).toFixed(1) + '%"></i></div></div>' +
   '</div>' +
@@ -3333,7 +3335,7 @@ function fillTabHTML(){
   if(view.sub && view.sub.t === 'folder') return folderHTML(view.sub.fid);
   if(view.sub && view.sub.t === 'card') return cardDetailHTML(view.sub.key);
   const now = Date.now(), due = dueKeys(now).length, nl = newLeftToday();
-  const endTomorrow = vkAddDays(new Date(now).setHours(0, 0, 0, 0), 2);
+  const endTomorrow = vkAddDays(vkDayStart(now), 2);
   let tmr = 0, week = 0;
   for(const k in st.srs){
     const d = st.srs[k].due;
@@ -4056,7 +4058,7 @@ function reportHTML(){
   for(let i = 6; i >= 0; i--){
     const t = vkAddDays(now, -i), k = vkDay(t), r = st.log[k];
     const m = r ? Math.round(r.sec / 60) : 0;
-    week.push({v:m, label:i ? WD[new Date(t).getDay()] : '오늘', today:!i, tip:(+k.slice(5, 7)) + '/' + (+k.slice(8)) + ' · ' + m + '분'});
+    week.push({v:m, label:i ? WD[new Date(k + 'T00:00:00').getDay()] : '오늘', today:!i, tip:(+k.slice(5, 7)) + '/' + (+k.slice(8)) + ' · ' + m + '분'});
   }
   const avg = Math.round(week.reduce(function(a, b){ return a + b.v; }, 0) / 7);
   const dist = stageDist(), DN = ['새 표현', '학습 중', '아는 표현', '장기 기억'];

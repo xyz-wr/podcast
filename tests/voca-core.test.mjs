@@ -13,7 +13,7 @@ function loadVoca(){
   if(blocks < 2) throw new Error(`VOCA-TESTABLE 블록을 ${blocks}개만 찾았습니다 (2개 이상 필요)`);
   const names = ['vkBlank','vkParseExpr','vkNorm','vkSameAnswer','vkHintOf','vkGrade','vkReview','VK_STEPS','VK_STEP_KO',
     'VK_KNOWN_STEP','vkDay','vkAddDays','vkWeekStart','vkStreak','vkShadow','vkShuffle','VK_DAY','vkTileWords',
-    'vkDayItems','vkHeat','vkMonth','vkMergeState'];
+    'vkDayItems','vkHeat','vkMonth','vkMergeState','vkDayStart','VK_DAY_START_H'];
   return new Function(src + '\nreturn {' + names.join(',') + '};')();
 }
 const V = loadVoca();
@@ -103,10 +103,11 @@ test('vkGrade: 축약형·어형만 달라도 완벽', () => {
 });
 
 test('vkReview: 새 표현을 처음에 맞히면 3일 단계', () => {
-  const r = V.vkReview(null, true, 1000, {});
+  const now = new Date(2026, 9, 14, 15).getTime();
+  const r = V.vkReview(null, true, now, {});
   assert.equal(r.s, V.VK_KNOWN_STEP);
   assert.equal(V.VK_STEP_KO[r.s], '3일');
-  assert.equal(r.due, 1000 + 3 * V.VK_DAY);
+  assert.equal(r.due, new Date(2026, 9, 17, 4).getTime());
 });
 
 test('vkReview: 틀리면 5분 뒤, 같은 세션에서 다시 맞히면 1일', () => {
@@ -137,10 +138,44 @@ test('vkStreak: 오늘 안 했으면 어제부터 센다', () => {
   assert.equal(V.vkStreak(days, now), 3);
 });
 
-test('vkWeekStart: 월요일 0시', () => {
+test('vkWeekStart: 월요일 04시', () => {
   const ws = new Date(V.vkWeekStart(new Date(2026, 9, 3, 15).getTime()));   // 2026-10-03 토요일
   assert.equal(ws.getDay(), 1);
+  assert.equal(ws.getHours(), 4);
   assert.equal(V.vkDay(ws.getTime()), '2026-09-28');
+  // 월요일 새벽 2시는 아직 일요일 학습일 → 직전 주
+  assert.equal(V.vkWeekStart(new Date(2026, 8, 28, 2).getTime()), new Date(2026, 8, 21, 4).getTime());
+});
+
+test('vkDay: 학습일은 오전 4시에 바뀐다', () => {
+  assert.equal(V.VK_DAY_START_H, 4);
+  assert.equal(V.vkDay(new Date(2026, 9, 15, 3, 59).getTime()), '2026-10-14');
+  assert.equal(V.vkDay(new Date(2026, 9, 15, 4, 0).getTime()), '2026-10-15');
+  assert.equal(V.vkDay(new Date(2026, 9, 1, 2).getTime()), '2026-09-30');   // 월 경계
+});
+
+test('vkDayStart: 그 학습일의 04:00', () => {
+  assert.equal(V.vkDayStart(new Date(2026, 9, 15, 2).getTime()), new Date(2026, 9, 14, 4).getTime());
+  assert.equal(V.vkDayStart(new Date(2026, 9, 15, 15).getTime()), new Date(2026, 9, 15, 4).getTime());
+});
+
+test('vkReview: 1일 이상 단계는 N번째 다음 학습일 04:00에 열린다', () => {
+  const night = new Date(2026, 9, 14, 23).getTime(), dawn = new Date(2026, 9, 15, 2).getTime();
+  const r1 = V.vkReview({s: 0, due: 0, n: 1, ok: 0, ng: 1}, true, night, {});   // 5분 → 1일
+  assert.equal(V.VK_STEP_KO[r1.s], '1일');
+  assert.equal(r1.due, new Date(2026, 9, 15, 4).getTime());
+  const r2 = V.vkReview({s: 0, due: 0, n: 1, ok: 0, ng: 1}, true, dawn, {});    // 새벽 2시 = 전날 학습일
+  assert.equal(r2.due, new Date(2026, 9, 15, 4).getTime());
+  const r3 = V.vkReview({s: 1, due: 0, n: 2, ok: 1, ng: 1}, true, night, {});   // 1일 → 3일
+  assert.equal(V.VK_STEP_KO[r3.s], '3일');
+  assert.equal(r3.due, new Date(2026, 9, 17, 4).getTime());
+});
+
+test('vkReview: 틀리면 5분 뒤 정확한 시각', () => {
+  const now = new Date(2026, 9, 14, 23, 10).getTime();
+  const r = V.vkReview({s: 3, due: 0, n: 5, ok: 4, ng: 1}, false, now, {});
+  assert.equal(r.s, 0);
+  assert.equal(r.due, now + 5 * 60 * 1000);
 });
 
 test('vkTileWords: 문장부호는 떼고 축약·하이픈은 한 타일로', () => {
