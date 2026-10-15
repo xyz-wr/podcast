@@ -4828,21 +4828,21 @@ function statsHTML(d){
     '<div class="st-kpi"><small>활성 사용자</small><b>'+(w.activeUsers||0)+'명</b>'+delta(w.activeUsers||0,p.activeUsers)+'</div>'+
     '<div class="st-kpi"><small>1인 평균 참여</small><b>'+statsDur(avg)+'</b>'+delta(avg,pavg,statsDur)+'</div>'+
     '<div class="st-kpi"><small>조회수</small><b>'+(w.screenPageViews||0)+'</b>'+delta(w.screenPageViews||0,p.screenPageViews)+'</div></div>';
-  // 보카 학습 흐름: 탭에 들어온 사용자(연한 막대) vs 단계를 끝낸 사용자(진한 막대). 리포트는 들어온 것 = 끝낸 것
-  const pageUsers=path=>{const r=pages.find(x=>x.pagePath===path);return r?r.activeUsers:0;};
-  const done=ev=>{const r=steps.find(x=>x.eventName===ev);return r?r.activeUsers:0;};
+  // 보카 학습 흐름: 탭에 들어온 횟수(조회수, 연한 막대) 대비 단계를 끝낸 횟수(완료 이벤트 수, 진한 막대). 리포트는 들어온 것 = 끝낸 것
+  const pageViews=path=>{const r=pages.find(x=>x.pagePath===path);return r?r.screenPageViews:0;};
+  const done=ev=>{const r=steps.find(x=>x.eventName===ev);return r?r.eventCount:0;};
   // 오늘 보기의 완료 수는 실시간 값이 섞여 처리 전인 조회수보다 먼저 늘 수 있다 → 들어온 수는 끝낸 수 이상으로 맞춘다
-  const rows=STATS_STEPS.map(([k,label,ev])=>{const inn=pageUsers('/voca/'+k),dn=ev?done(ev):inn;return {label,inn:Math.max(inn,dn),done:dn};});
-  // 막대 = 줄마다 완료율: 연한 막대(들어온 사용자)를 100%로 두고 진한 막대는 끝낸 ÷ 들어온
+  const rows=STATS_STEPS.map(([k,label,ev])=>{const inn=pageViews('/voca/'+k),dn=ev?done(ev):inn;return {label,inn:Math.max(inn,dn),done:dn};});
+  // 막대 = 줄마다 완료율: 연한 막대(들어온 횟수)를 100%로 두고 진한 막대는 끝낸 ÷ 들어온
   const pct=r=>r.inn?Math.min(100,r.done/r.inn*100):(r.done?100:0);
   const drops=rows.map((r,i)=>i&&rows[i-1].done?Math.round((1-r.done/rows[i-1].done)*100):null);
   let worst=-1;drops.forEach((x,i)=>{if(x!=null&&x>0&&(worst<0||x>drops[worst]))worst=i;});
-  h+='<div class="panel"><h2>보카 학습 흐름</h2><div class="st-legend"><span><i class="in"></i>탭에 들어온 사용자</span><span><i></i>단계를 끝낸 비율</span></div>'+
+  h+='<div class="panel"><h2>보카 학습 흐름</h2><div class="st-legend"><span><i class="in"></i>탭에 들어온 횟수</span><span><i></i>단계를 끝낸 비율</span></div>'+
     rows.map((r,i)=>'<div class="st-row"><span>'+r.label+'</span><div class="st-track"><div class="st-bar in" style="width:'+(r.inn||r.done?100:0)+'%"></div><div class="st-bar" style="width:'+pct(r)+'%"></div></div>'+
-      '<span><b>'+r.done+'</b>/'+r.inn+(drops[i]!=null?'<span class="st-drop'+(i===worst?' worst':'')+'">'+(drops[i]>0?'−':'+')+Math.abs(drops[i])+'%</span>':'')+'</span></div>').join('');
+      '<span><b>'+r.done+'</b>/'+r.inn+' · '+Math.round(pct(r))+'%'+(drops[i]!=null?'<span class="st-drop'+(i===worst?' worst':'')+'">'+(drops[i]>0?'−':'+')+Math.abs(drops[i])+'%</span>':'')+'</span></div>').join('');
   if(worst>0)h+='<div class="st-alert">이탈이 가장 많은 구간: '+rows[worst-1].label+' → '+rows[worst].label+' ('+drops[worst]+'% 이탈)</div>';
   if(!steps.length)h+='<p class="st-note">단계 완료 이벤트가 아직 없어요. GTM에 완료 이벤트 태그를 게시하면 다음 날부터 쌓여요.</p>';
-  h+='<p class="st-note">단계별 사용자 수만 비교해요(순서는 반영 안 함). 정확한 유입경로는 GA4 탐색 → 유입경로 탐색에서 볼 수 있어요.</p></div>';
+  h+='<p class="st-note">완료 횟수 ÷ 탭에 들어온 횟수예요. 같은 탭에 다시 들어오거나 새로고침해도 들어온 횟수로 세요(순서는 반영 안 함). 정확한 유입경로는 GA4 탐색 → 유입경로 탐색에서 볼 수 있어요.</p></div>';
   // 탭별 체류: 조회 1회당 평균 참여 시간
   const tabs=pages.filter(x=>x.screenPageViews>0).map(x=>({label:x.pageTitle==='Personal study notebook'?'첫 화면 '+x.pagePath:x.pageTitle,per:x.userEngagementDuration/x.screenPageViews}))
     .sort((a,b)=>b.per-a.per).slice(0,10);
