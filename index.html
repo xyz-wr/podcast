@@ -4831,7 +4831,8 @@ function statsHTML(d){
   // 보카 학습 흐름: 탭에 들어온 사용자(연한 막대) vs 단계를 끝낸 사용자(진한 막대). 리포트는 들어온 것 = 끝낸 것
   const pageUsers=path=>{const r=pages.find(x=>x.pagePath===path);return r?r.activeUsers:0;};
   const done=ev=>{const r=steps.find(x=>x.eventName===ev);return r?r.activeUsers:0;};
-  const rows=STATS_STEPS.map(([k,label,ev])=>({label,inn:pageUsers('/voca/'+k),done:ev?done(ev):pageUsers('/voca/'+k)}));
+  // 오늘 보기의 완료 수는 실시간 값이 섞여 처리 전인 조회수보다 먼저 늘 수 있다 → 들어온 수는 끝낸 수 이상으로 맞춘다
+  const rows=STATS_STEPS.map(([k,label,ev])=>{const inn=pageUsers('/voca/'+k),dn=ev?done(ev):inn;return {label,inn:Math.max(inn,dn),done:dn};});
   // 막대 = 줄마다 완료율: 연한 막대(들어온 사용자)를 100%로 두고 진한 막대는 끝낸 ÷ 들어온
   const pct=r=>r.inn?Math.min(100,r.done/r.inn*100):(r.done?100:0);
   const drops=rows.map((r,i)=>i&&rows[i-1].done?Math.round((1-r.done/rows[i-1].done)*100):null);

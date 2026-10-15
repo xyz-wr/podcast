@@ -80,7 +80,7 @@ async function collect(days: number) {
   const live = days === 1;
   const cur = live ? { startDate: 'today', endDate: 'today' } : { startDate: `${days}daysAgo`, endDate: 'yesterday' };
   const prev = { startDate: `${days * 2}daysAgo`, endDate: `${days + 1}daysAgo` };
-  const [realtime, summary, pages, steps, monthly] = await Promise.all([
+  const [realtime, summary, pages, steps, monthly, rtSteps] = await Promise.all([
     // 최근 30분 (오늘 "지금" 수치)
     ga('runRealtimeReport', { metrics: [{ name: 'activeUsers' }] }),
     // 기간 요약 + 직전 같은 길이 기간 (증감 비교용, 오늘 보기에서는 생략)
@@ -116,7 +116,22 @@ async function collect(days: number) {
       dimensionFilter: NOT_LOCAL,
       orderBys: [{ dimension: { dimensionName: 'yearMonth' } }],
     }),
+    // 오늘 보기: 방금 끝낸 단계는 GA 처리 전이라 runReport 에 아직 없다 → 실시간(최근 30분)에서도 센다
+    live
+      ? ga('runRealtimeReport', {
+        dimensions: [{ name: 'eventName' }],
+        metrics: [{ name: 'activeUsers' }, { name: 'eventCount' }],
+        dimensionFilter: { filter: { fieldName: 'eventName', inListFilter: { values: STEP_EVENTS } } },
+      })
+      : Promise.resolve([] as Row[]),
   ]);
+  // 처리된 값과 실시간 값은 같은 사용자를 겹쳐 셀 수 있어 더하지 않고 큰 쪽을 쓴다 (하한값)
+  const mergedSteps = !live ? steps : STEP_EVENTS.flatMap((ev) => {
+    const a = steps.find((x) => x.eventName === ev), b = rtSteps.find((x) => x.eventName === ev);
+    if (!a && !b) return [];
+    const n = (r: Row | undefined, k: string) => Number(r?.[k] ?? 0);
+    return [{ eventName: ev, activeUsers: Math.max(n(a, 'activeUsers'), n(b, 'activeUsers')), eventCount: Math.max(n(a, 'eventCount'), n(b, 'eventCount')) }];
+  });
   const zero = { activeUsers: 0, userEngagementDuration: 0, screenPageViews: 0 };
   const pick = (name: string) => {
     // 기간이 하나면 GA 가 dateRange 열을 붙이지 않는다 → 첫 행이 곧 cur
@@ -131,7 +146,7 @@ async function collect(days: number) {
     week: pick('cur'),   // 예전 응답과 이름을 맞춰 둔다 (값은 선택한 기간)
     prev: live ? null : pick('prev'),
     pages,
-    steps,
+    steps: mergedSteps,
     monthly,
   };
 }
@@ -146,7 +161,8 @@ Deno.serve(async (req) => {
   const days = [1, 7, 30, 90].includes(asked) ? asked : 7;
   try {
     let hit = cache.get(days);
-    if (!hit || Date.now() - hit.at > CACHE_MS) {
+    // 오늘 보기는 실시간 값을 섞으므로 1분만 재사용한다
+    if (!hit || Date.now() - hit.at > (days === 1 ? 60_000 : CACHE_MS)) {
       hit = { at: Date.now(), body: JSON.stringify(await collect(days)) };
       cache.set(days, hit);
     }
