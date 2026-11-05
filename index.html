@@ -393,7 +393,7 @@ function gaPage(path,title){
     </div>
     <div class="panel">
       <h2>영어 발음 목소리</h2>
-      <p style="font-size:12px;color:var(--ink-soft);line-height:1.55;margin:0 0 8px;">회화·퀴즈의 ▶ 버튼이 쓰는 목소리예요. 품질이 좋은 순으로 정렬되며, 선택은 이 기기에 저장돼요.</p>
+      <p style="font-size:12px;color:var(--ink-soft);line-height:1.55;margin:0 0 8px;">회화의 ▶ 버튼이 쓰는 목소리예요. 품질이 좋은 순으로 정렬되며, 선택은 이 기기에 저장돼요.</p>
       <select id="voiceSelect" style="width:100%;font-family:inherit;font-size:13px;color:var(--ink-soft);background:var(--card);border:1px solid var(--paper-line);border-radius:10px;padding:9px 10px;"></select>
       <div class="row" style="margin-top:10px;"><button class="secondary grow" id="voiceTest">미리 듣기</button></div>
       <div id="voiceStatus" style="font-size:12px;color:var(--ink-faint);margin-top:8px;"></div>
@@ -1127,10 +1127,6 @@ return { render:function(){ if(!view)view={name:'list'}; draw(); }, reset:functi
 .qzui .qz-footer{margin-top:24px;text-align:center;}
 .qzui .qz-footer button{background:none;border:none;color:var(--qz-ft);font-size:12.5px;text-decoration:underline;}
 </style>
-
-<section id="screen-wquiz" class="screen">
-  <div class="qz qzui" id="qzRoot"></div>
-</section>
 
 <script id="quiz-module">
 (function(){
@@ -2189,6 +2185,27 @@ return {render:function(){draw();}};
 #screen-voca .vk-ex-i.cur{border-color:var(--vk-gs2);background:#FAFEFC;}
 #screen-voca .vk-ex-en{font-size:14px;line-height:1.55;}
 #screen-voca .vk-ex-ko{font-size:12.5px;color:var(--vk-sf);margin-top:2px;word-break:keep-all;}
+/* 단어별 영작 (예문 카드 안) */
+#screen-voca .vk-ex-i{flex-wrap:wrap;}
+#screen-voca .vk-wbtn{flex:none;background:var(--vk-sur);border:1px solid var(--vk-ln2);border-radius:8px;padding:3px 7px;font-size:13px;line-height:1.2;color:var(--vk-sf);}
+#screen-voca .vk-wbtn.on{background:var(--vk-gs);border-color:var(--vk-gs2);color:var(--vk-gd);}
+#screen-voca .vk-wb{flex-basis:100%;margin-top:8px;padding-top:10px;border-top:1px dashed var(--vk-ln2);}
+#screen-voca .vk-wb-ko{font-size:14px;font-weight:600;color:var(--vk-ink);word-break:keep-all;line-height:1.5;}
+#screen-voca .vk-wb-slots{display:flex;flex-wrap:wrap;gap:5px;margin:10px 0;}
+#screen-voca .vk-wbs{display:inline-block;min-width:28px;text-align:center;padding:4px 8px;border-radius:8px;font-size:13.5px;line-height:1.3;border:1px solid var(--vk-ln2);background:var(--vk-sur);color:var(--vk-ft);}
+#screen-voca .vk-wbs.cur{border-color:var(--vk-g);background:var(--vk-gs);color:var(--vk-gd);font-weight:700;box-shadow:0 0 0 2px var(--vk-gs2);}
+#screen-voca .vk-wbs.on{background:#fff;border-color:var(--vk-gs2);color:var(--vk-ink);font-weight:700;}
+#screen-voca .vk-wb-chips{justify-content:flex-start;gap:6px;}
+#screen-voca .vk-wbc{padding:8px 12px;font-size:14.5px;font-weight:700;}
+#screen-voca .vk-wbc.in{opacity:.35;}
+#screen-voca .vk-wb-act{display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap;}
+#screen-voca .vk-wb-act button{padding:7px 12px;font-size:12.5px;}
+#screen-voca .vk-wb-stat{flex:1;font-size:12px;color:var(--vk-ft);}
+#screen-voca .vk-wb-done{font-size:13px;font-weight:700;color:var(--vk-gd);margin-top:2px;}
+#screen-voca .vk-wb-pairs{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
+#screen-voca .vk-wbp{display:inline-flex;flex-direction:column;align-items:center;padding:4px 8px;border-radius:8px;background:var(--vk-sur);font-size:11.5px;color:var(--vk-sf);line-height:1.3;}
+#screen-voca .vk-wbp b{font-size:13px;color:var(--vk-ink);}
+#screen-voca .vk-wb-note{font-size:11.5px;color:var(--vk-ft);margin-top:8px;}
 
 /* 세션 머리 */
 #screen-voca .vk-shead{display:flex;align-items:center;gap:10px;padding:14px 0 8px;}
@@ -2893,6 +2910,19 @@ function vkMergeState(a, b){
   }).sort(function(x, y){ return String(x.day).localeCompare(String(y.day)); }).slice(-30);
   return out;
 }
+// ── 단어별 영작: 문장 → 단어 토큰 [{a:앞 부호, w:단어, z:뒤 부호}] ──
+// 축약형(We'll)·소유격(everyone's)·하이픈(well-known)은 한 단어. 부호만 있는 토큰은 앞 단어 뒤에 붙인다.
+function vkWbWords(en){
+  const out = [];
+  String(en == null ? '' : en).trim().split(/\s+/).forEach(function(tok){
+    if(!tok) return;
+    const m = tok.match(/^([^A-Za-z0-9]*)(.*?)([^A-Za-z0-9]*)$/);
+    if(!m[2]){ if(out.length) out[out.length - 1].z += ' ' + tok; return; }
+    out.push({a:m[1], w:m[2], z:m[3]});
+  });
+  return out;
+}
+function vkWbSame(a, b){ return String(a).toLowerCase() === String(b).toLowerCase(); }
 /* VOCA-TESTABLE-END */
 
 /* ── 데이터 ── */
@@ -3422,12 +3452,122 @@ function examplesHTML(card, curSk){
     const ss = all.filter(function(s){ return s.lvl === g[0]; });
     if(!ss.length) return '';
     return '<div class="vk-ex-g"><div class="vk-ex-h">' + g[1] + '</div>' + ss.map(function(s){
-      return '<div class="vk-ex-i' + (s.sk === curSk ? ' cur' : '') + '">' +
-        '<button class="vk-say" data-act="say" data-t="' + esc(s.en) + '" aria-label="듣기">🔊</button><div>' +
+      const id = card.key + '#' + s.sk, open = !!(wb && wb.id === id);
+      return '<div class="vk-ex-i' + (s.sk === curSk ? ' cur' : '') + '" data-wb="' + esc(id) + '">' +
+        '<button class="vk-say" data-act="say" data-t="' + esc(s.en) + '" aria-label="듣기">🔊</button><div class="grow">' +
         '<div class="vk-ex-en">' + (s.tense !== 'example' ? '<span class="vk-tchip">' + TKO[s.tense] + '</span>' : '') + markedEn(card, s) + '</div>' +
-        '<div class="vk-ex-ko">' + esc(s.ko) + '</div></div></div>';
+        '<div class="vk-ex-ko">' + esc(s.ko) + '</div></div>' +
+        '<button class="vk-wbtn' + (open ? ' on' : '') + '" data-act="wbOpen" data-k="' + esc(card.key) + '" data-sk="' + esc(s.sk) + '" title="단어별 영작" aria-label="단어별 영작">✍</button>' +
+        (open ? '<div class="vk-wb">' + wbPanelHTML() + '</div>' : '') + '</div>';
     }).join('') + '</div>';
   }).join('') + '</div>';
+}
+
+/* ── 단어별 영작: 한국어 문장을 보고 영어 단어를 하나씩 골라 문장을 완성한다 ──
+   AI 키가 있으면 카드(13문장)당 1번 Gemini 로 단어마다 한국어 뜻을 만들어 칸에 힌트로 보여 주고 로컬에 캐시한다. */
+const WB_LS = 'elab_voca_gloss_v1';
+let wb = null;                 // {id, key, sk, en, ko, words, chips, pos, miss, hint, done, gloss, loading, noAi}
+let glossCache = null;         // {cardKey: {sk: [한국어 뜻, ...]}}
+const glossBusy = Object.create(null);
+function glossAll(){
+  if(!glossCache){ try{ glossCache = JSON.parse(localStorage.getItem(WB_LS) || '{}') || {}; }catch(e){ glossCache = {}; } }
+  return glossCache;
+}
+function glossOf(key, sk, n){
+  const g = glossAll()[key], a = g && g[sk];
+  return Array.isArray(a) && a.length === n ? a : null;
+}
+function wbOpen(key, sk){
+  const card = CARD[key]; if(!card) return;
+  const s = sentencesOf(card).filter(function(x){ return x.sk === sk; })[0]; if(!s) return;
+  const words = vkWbWords(s.en);
+  let chips = vkShuffle(words.map(function(w, i){ return {i:i, w:w.w, used:false}; }));
+  if(chips.length > 1 && chips.every(function(c, j){ return c.i === j; })) chips = chips.reverse();
+  wb = {id:key + '#' + sk, key:key, sk:sk, en:s.en, ko:s.ko, words:words, chips:chips,
+        pos:0, miss:0, hint:0, done:!words.length, gloss:glossOf(key, sk, words.length), loading:false, noAi:false};
+  if(!wb.gloss){ if(aiOn()) fetchGloss(card); else wb.noAi = true; }
+}
+function wbItemEl(){ return wb && root() ? root().querySelector('.vk-ex-i[data-wb="' + wb.id + '"]') : null; }
+function wbDraw(){
+  const it = wbItemEl();
+  if(!it){ draw(); return; }
+  let el = it.querySelector('.vk-wb');
+  if(!el){ el = document.createElement('div'); el.className = 'vk-wb'; it.appendChild(el); }
+  const b = it.querySelector('.vk-wbtn'); if(b) b.classList.add('on');
+  el.innerHTML = wbPanelHTML();
+}
+function wbClose(){
+  const it = wbItemEl();
+  wb = null;
+  if(!it){ draw(); return; }
+  const el = it.querySelector('.vk-wb'); if(el) el.remove();
+  const b = it.querySelector('.vk-wbtn'); if(b) b.classList.remove('on');
+}
+function wbPanelHTML(){
+  if(!wb) return '';
+  const g = wb.gloss;
+  let h = '<div class="vk-wb-ko">' + esc(wb.ko) + '</div>';
+  h += '<div class="vk-wb-slots">' + wb.words.map(function(w, i){
+    const on = i < wb.pos;
+    const txt = on ? esc(w.a + w.w + w.z) : g ? esc(g[i] || '?') : '·'.repeat(Math.min(6, Math.max(2, w.w.length)));
+    return '<span class="vk-wbs' + (on ? ' on' : i === wb.pos ? ' cur' : '') + '">' + txt + '</span>';
+  }).join('') + '</div>';
+  if(wb.done){
+    h += '<div class="vk-wb-done">✅ 완성! ' + (wb.miss ? '실수 ' + wb.miss + '번' : '실수 없이') + (wb.hint ? ' · 힌트 ' + wb.hint + '번' : '') + '</div>';
+    if(g) h += '<div class="vk-wb-pairs">' + wb.words.map(function(w, i){
+      return '<span class="vk-wbp"><b>' + esc(w.w) + '</b>' + esc(g[i] || '') + '</span>';
+    }).join('') + '</div>';
+    h += '<div class="vk-wb-act"><button class="ghost" data-act="say" data-t="' + esc(wb.en) + '">🔊 듣기</button>' +
+      '<button data-act="wbRetry">다시</button><button class="ghost" data-act="wbClose">닫기</button></div>';
+  }else{
+    h += '<div class="vk-tiles vk-wb-chips">' + wb.chips.map(function(c, j){
+      return '<button class="vk-tile vk-wbc' + (c.used ? ' in' : '') + '" data-act="wbPick" data-j="' + j + '"' + (c.used ? ' disabled' : '') + '>' + esc(c.w) + '</button>';
+    }).join('') + '</div>';
+    h += '<div class="vk-wb-act"><span class="vk-wb-stat">' + wb.pos + ' / ' + wb.words.length + (wb.miss ? ' · 실수 ' + wb.miss : '') + '</span>' +
+      '<button class="ghost" data-act="wbHint">힌트</button><button class="ghost" data-act="wbClose">닫기</button></div>';
+  }
+  if(!g){
+    if(wb.loading) h += '<div class="vk-wb-note">AI가 단어마다 한국어 뜻을 준비하고 있어요…</div>';
+    else if(wb.noAi) h += '<div class="vk-wb-note">⚙ 더보기에서 AI 키를 넣으면 칸마다 한국어 뜻이 보여요</div>';
+  }
+  return h;
+}
+function wbFill(j){
+  const c = wb.chips[j]; c.used = true; wb.pos++;
+  if(wb.pos >= wb.words.length){
+    wb.done = true;
+    gaPush({event:'voca_wordbuild_complete', vk_miss:wb.miss, vk_hint:wb.hint});
+    speak(wb.en, 1);
+  }
+  wbDraw();
+}
+// 카드의 13문장을 한 번에: 단어 수와 같은 길이의 한국어 뜻 배열을 받아 캐시한다
+function fetchGloss(card){
+  const key = card.key;
+  if(glossBusy[key]) return;
+  glossBusy[key] = true;
+  if(wb && wb.key === key) wb.loading = true;
+  const ss = sentencesOf(card);
+  const input = ss.map(function(s){ return {id:s.sk, words:vkWbWords(s.en).map(function(w){ return w.w; })}; });
+  const prompt = '영어 문장을 단어별로 배열해 뒀어. 각 단어가 그 문장 안에서 뜻하는 한국어를 아주 짧게(1~6글자) 적어 줘. ' +
+    '관사·전치사·조동사 같은 기능어는 "(관사)", "~에", "~할 것" 처럼 역할로 적어. ' +
+    '반드시 입력의 words 배열과 같은 길이의 배열을 돌려줘. 출력은 JSON 객체 하나로, 키는 id, 값은 한국어 문자열 배열이야.\n' +
+    '표현: ' + card.c.expression + ' (' + card.c.meaningKo + ')\n' + JSON.stringify(input);
+  withTimeout(window.gemini(prompt, true, 4000), 25000).then(function(raw){
+    let j = {}; try{ j = JSON.parse(raw) || {}; }catch(e){}
+    const got = {};
+    ss.forEach(function(s){
+      const a = j[s.sk], n = vkWbWords(s.en).length;
+      if(Array.isArray(a) && a.length === n) got[s.sk] = a.map(function(x){ return String(x == null ? '' : x).slice(0, 12); });
+    });
+    if(Object.keys(got).length){
+      glossAll()[key] = got;
+      try{ localStorage.setItem(WB_LS, JSON.stringify(glossAll())); }catch(e){}
+    }
+  }).catch(function(e){ console.warn('gloss', e && e.message); }).then(function(){
+    delete glossBusy[key];
+    if(wb && wb.key === key){ wb.loading = false; wb.gloss = glossOf(key, wb.sk, wb.words.length); wbDraw(); }
+  });
 }
 
 // 채우기 세션: 복습 2장마다 새 표현 1장
@@ -4319,6 +4459,33 @@ ACT.testLevel = function(el){ st.set.lvl = el.dataset.v; st.setAt = Date.now(); 
 ACT.tab = function(el){ goTab(el.dataset.v); draw(); top0(); };
 ACT.set = function(el){ const k = el.dataset.k; st.set[k] = k === 'lvl' ? el.dataset.v : +el.dataset.v; st.setAt = Date.now(); save(); draw(); };
 ACT.say = function(el){ speak(el.dataset.t, 1); };
+ACT.wbOpen = function(el){
+  const id = el.dataset.k + '#' + el.dataset.sk;
+  if(wb && wb.id === id){ wbClose(); return; }
+  if(wb) wbClose();
+  wbOpen(el.dataset.k, el.dataset.sk);
+  if(wb) wbDraw();
+};
+ACT.wbPick = function(el){
+  if(!wb || wb.done) return;
+  const j = +el.dataset.j, c = wb.chips[j];
+  if(!c || c.used) return;
+  if(vkWbSame(c.w, wb.words[wb.pos].w)){ wbFill(j); return; }
+  wb.miss++;
+  el.classList.remove('bad'); void el.offsetWidth; el.classList.add('bad');
+  const stat = el.closest('.vk-wb') && el.closest('.vk-wb').querySelector('.vk-wb-stat');
+  if(stat) stat.textContent = wb.pos + ' / ' + wb.words.length + ' · 실수 ' + wb.miss;
+};
+ACT.wbHint = function(){
+  if(!wb || wb.done) return;
+  const want = wb.words[wb.pos].w;
+  const j = wb.chips.findIndex(function(c){ return !c.used && vkWbSame(c.w, want); });
+  if(j < 0) return;
+  wb.hint++;
+  wbFill(j);
+};
+ACT.wbRetry = function(){ if(!wb) return; wbOpen(wb.key, wb.sk); wbDraw(); };
+ACT.wbClose = function(){ wbClose(); };
 ACT.startFill = function(el){ startFill(el.dataset.v || null); };
 ACT.startMission = function(el){ startMission(el.dataset.v); };
 ACT.startListen = function(el){ startListen(el.dataset.v || null); };
@@ -4400,10 +4567,9 @@ return {render: function(){ lastAct = Date.now(); draw(); }, sync: syncVoca};
 </script>
 
 <nav id="tabbar">
-  <div class="tab" data-s="voca" onclick="tabTo('voca')"><div class="ico">🔤</div><div class="lab">보카</div></div>
+  <div class="tab active" data-s="voca" onclick="tabTo('voca')"><div class="ico">🔤</div><div class="lab">보카</div></div>
   <div class="tab" data-s="conv" onclick="tabTo('conv')"><div class="ico">💬</div><div class="lab">회화</div></div>
-  <div class="tab" data-s="wquiz" onclick="tabTo('wquiz')"><div class="ico">🎯</div><div class="lab">퀴즈</div></div>
-  <div class="tab active" data-s="learn" onclick="tabTo('learn')"><div class="ico">▶</div><div class="lab">학습</div></div>
+  <div class="tab" data-s="learn" onclick="tabTo('learn')"><div class="ico">▶</div><div class="lab">학습</div></div>
   <div class="tab" data-s="video" onclick="tabTo('video')"><div class="ico">🎥</div><div class="lab">영상</div></div>
   <div class="tab" data-s="settings" onclick="tabTo('settings')"><div class="ico">⚙</div><div class="lab">더보기</div></div>
 </nav>
@@ -4777,7 +4943,7 @@ function clearBookmark(){if(!currentVideo||!currentVideo.bookmark)return;delete 
 /* ============ navigation ============ */
 function showScreen(name){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById('screen-'+name).classList.add('active');window.scrollTo(0,0);}
 const TAB_LS='elab_tab';
-const TAB_NAMES={voca:'보카',conv:'회화',wquiz:'퀴즈',learn:'학습',video:'영상',settings:'더보기',improve:'개선',diary:'일기',write:'작문',streak:'스트릭',stats:'통계'};
+const TAB_NAMES={voca:'보카',conv:'회화',learn:'학습',video:'영상',settings:'더보기',improve:'개선',diary:'일기',write:'작문',streak:'스트릭',stats:'통계'};
 function tabTo(s){try{localStorage.setItem(TAB_LS,s);}catch(e){}
   gaPage('/'+s,TAB_NAMES[s]||s);   // GA: 탭 = 가상 페이지
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.s===s));clearSelection();
@@ -4787,7 +4953,6 @@ function tabTo(s){try{localStorage.setItem(TAB_LS,s);}catch(e){}
   else if(s==='voca'){showScreen('voca');VocaApp.render();}
   else if(s==='improve'){showScreen('improve');renderImproveVocab();}
   else if(s==='diary'){showScreen('diary');DiaryApp.render();}
-  else if(s==='wquiz'){showScreen('wquiz');QuizApp.render();}
   else if(s==='write'){showScreen('write');WriteApp.render();}
   else if(s==='video'){showScreen('video');VideoApp.render();}
   else if(s==='streak'){showScreen('streak');renderStreak();}
@@ -5878,9 +6043,9 @@ function renderStreak(){const el=document.getElementById('streakBody');
   const capIn=document.getElementById('capInput');
   if(capIn)capIn.onchange=e=>{onCaptureFiles(e.target.files);e.target.value='';};})();
 (function restoreTab(){
-  var t='wquiz';
+  var t='voca';
   try{var v=localStorage.getItem('elab_tab');if(v)t=v;}catch(e){}
-  if(!TAB_NAMES[t])t='wquiz';   // 탭바에 없는 화면(앱 통계 등)도 tabTo가 아는 화면이면 그대로 복원
+  if(!TAB_NAMES[t])t='voca';   // 탭바에 없는 화면(앱 통계 등)도 tabTo가 아는 화면이면 그대로 복원
   tabTo(t);
 })();   // 앱 열 때 자동: 받아오기 + 내 데이터 올리기 (버튼 불필요)
 document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('show');}));

@@ -13,7 +13,7 @@ function loadVoca(){
   if(blocks < 2) throw new Error(`VOCA-TESTABLE 블록을 ${blocks}개만 찾았습니다 (2개 이상 필요)`);
   const names = ['vkBlank','vkParseExpr','vkNorm','vkSameAnswer','vkHintOf','vkGrade','vkReview','VK_STEPS','VK_STEP_KO',
     'VK_KNOWN_STEP','vkDay','vkAddDays','vkWeekStart','vkStreak','vkShadow','vkShuffle','VK_DAY','vkTileWords',
-    'vkDayItems','vkHeat','vkMonth','vkMergeState','vkDayStart','VK_DAY_START_H'];
+    'vkDayItems','vkHeat','vkMonth','vkMergeState','vkDayStart','VK_DAY_START_H','vkWbWords','vkWbSame'];
   return new Function(src + '\nreturn {' + names.join(',') + '};')();
 }
 const V = loadVoca();
@@ -266,4 +266,34 @@ test('vkShadow: 말한 단어만 맞음 표시', () => {
   const r = V.vkShadow('We hit the road early.', 'we hit the road');
   assert.deepEqual(r.parts.map(p => p.ok), [true, true, true, true, false]);
   assert.equal(r.score, 4 / 5);
+});
+
+// ── 단어별 영작 (한국어 → 영어 단어 하나씩) ──
+test('vkWbWords: 공백 단위로 나누고 문장부호는 단어에서 뗀다', () => {
+  assert.deepEqual(V.vkWbWords("Let's hit the road right after breakfast."), [
+    {a:'', w:"Let's", z:''}, {a:'', w:'hit', z:''}, {a:'', w:'the', z:''}, {a:'', w:'road', z:''},
+    {a:'', w:'right', z:''}, {a:'', w:'after', z:''}, {a:'', w:'breakfast', z:'.'}
+  ]);
+});
+
+test('vkWbWords: 축약형·소유격은 한 단어, 쉼표·따옴표는 앞뒤 부호로', () => {
+  const t = V.vkWbWords(`"We're hitting the road now," everyone's excited!`);
+  assert.deepEqual(t.map(x => x.w), ["We're", 'hitting', 'the', 'road', 'now', "everyone's", 'excited']);
+  assert.equal(t[0].a, '"');
+  assert.equal(t[4].z, ',"');
+  assert.equal(t[6].z, '!');
+});
+
+test('vkWbWords: 부호만 있는 토큰은 앞 단어 뒤에 붙고, 하이픈 단어는 유지', () => {
+  const t = V.vkWbWords('It was well-known - really.');
+  assert.deepEqual(t.map(x => x.w), ['It', 'was', 'well-known', 'really']);
+  assert.equal(t[2].z, ' -');
+  assert.equal(t[3].z, '.');
+  assert.deepEqual(V.vkWbWords('   '), []);
+});
+
+test('vkWbSame: 대소문자만 다르면 같은 단어', () => {
+  assert.ok(V.vkWbSame('The', 'the'));
+  assert.ok(V.vkWbSame("We'll", "we'll"));
+  assert.ok(!V.vkWbSame('road', 'roads'));
 });
