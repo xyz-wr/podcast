@@ -2185,26 +2185,23 @@ return {render:function(){draw();}};
 #screen-voca .vk-ex-i.cur{border-color:var(--vk-gs2);background:#FAFEFC;}
 #screen-voca .vk-ex-en{font-size:14px;line-height:1.55;}
 #screen-voca .vk-ex-ko{font-size:12.5px;color:var(--vk-sf);margin-top:2px;word-break:keep-all;}
-/* 단어별 영작 (예문 카드 안) */
+/* 예문 영작 (예문 카드 안): 한국어를 보고 영어 문장을 직접 쓴다. 답을 확인하기 전엔 영어 예문을 가린다 */
 #screen-voca .vk-ex-i{flex-wrap:wrap;}
+#screen-voca .vk-ex-i.wb-hide > .vk-say,#screen-voca .vk-ex-i.wb-hide > .grow{display:none;}
+#screen-voca .vk-ex-i.wb-hide > .vk-wbtn{margin-left:auto;}
 #screen-voca .vk-wbtn{flex:none;background:var(--vk-sur);border:1px solid var(--vk-ln2);border-radius:8px;padding:3px 7px;font-size:13px;line-height:1.2;color:var(--vk-sf);}
 #screen-voca .vk-wbtn.on{background:var(--vk-gs);border-color:var(--vk-gs2);color:var(--vk-gd);}
 #screen-voca .vk-wb{flex-basis:100%;margin-top:8px;padding-top:10px;border-top:1px dashed var(--vk-ln2);}
-#screen-voca .vk-wb-ko{font-size:14px;font-weight:600;color:var(--vk-ink);word-break:keep-all;line-height:1.5;}
-#screen-voca .vk-wb-slots{display:flex;flex-wrap:wrap;gap:5px;margin:10px 0;}
-#screen-voca .vk-wbs{display:inline-block;min-width:28px;text-align:center;padding:4px 8px;border-radius:8px;font-size:13.5px;line-height:1.3;border:1px solid var(--vk-ln2);background:var(--vk-sur);color:var(--vk-ft);}
-#screen-voca .vk-wbs.cur{border-color:var(--vk-g);background:var(--vk-gs);color:var(--vk-gd);font-weight:700;box-shadow:0 0 0 2px var(--vk-gs2);}
-#screen-voca .vk-wbs.on{background:#fff;border-color:var(--vk-gs2);color:var(--vk-ink);font-weight:700;}
-#screen-voca .vk-wb-chips{justify-content:flex-start;gap:6px;}
-#screen-voca .vk-wbc{padding:8px 12px;font-size:14.5px;font-weight:700;}
-#screen-voca .vk-wbc.in{opacity:.35;}
+#screen-voca .vk-ex-i.wb-hide .vk-wb{margin-top:4px;}
+#screen-voca .vk-wb-ko{font-size:15px;font-weight:700;color:var(--vk-ink);word-break:keep-all;line-height:1.5;}
+#screen-voca .vk-wb-in{display:block;width:100%;box-sizing:border-box;margin-top:10px;padding:10px 12px;border:1px solid var(--vk-ln2);border-radius:10px;font:inherit;font-size:15px;line-height:1.5;resize:none;outline:none;background:#fff;color:var(--vk-ink);}
+#screen-voca .vk-wb-in:focus{border-color:var(--vk-g);box-shadow:0 0 0 2px var(--vk-gs2);}
 #screen-voca .vk-wb-act{display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap;}
-#screen-voca .vk-wb-act button{padding:7px 12px;font-size:12.5px;}
-#screen-voca .vk-wb-stat{flex:1;font-size:12px;color:var(--vk-ft);}
-#screen-voca .vk-wb-done{font-size:13px;font-weight:700;color:var(--vk-gd);margin-top:2px;}
-#screen-voca .vk-wb-pairs{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
-#screen-voca .vk-wbp{display:inline-flex;flex-direction:column;align-items:center;padding:4px 8px;border-radius:8px;background:var(--vk-sur);font-size:11.5px;color:var(--vk-sf);line-height:1.3;}
-#screen-voca .vk-wbp b{font-size:13px;color:var(--vk-ink);}
+#screen-voca .vk-wb-act button{padding:9px 12px;font-size:13px;}
+#screen-voca .vk-wb-act .vk-mic{width:40px;height:40px;padding:0;}
+#screen-voca .vk-wb-fb{margin-top:10px;border-radius:12px;padding:10px 12px;background:#fff;border:1px solid var(--vk-ln);font-size:14px;line-height:1.55;word-break:keep-all;}
+#screen-voca .vk-wb-fb.ok{background:var(--vk-gs);border-color:var(--vk-gs2);}
+#screen-voca .vk-wb-fb.no{background:#FFFAF0;border-color:#F3DDB0;}
 #screen-voca .vk-wb-note{font-size:11.5px;color:var(--vk-ft);margin-top:8px;}
 
 /* 세션 머리 */
@@ -2910,19 +2907,6 @@ function vkMergeState(a, b){
   }).sort(function(x, y){ return String(x.day).localeCompare(String(y.day)); }).slice(-30);
   return out;
 }
-// ── 단어별 영작: 문장 → 단어 토큰 [{a:앞 부호, w:단어, z:뒤 부호}] ──
-// 축약형(We'll)·소유격(everyone's)·하이픈(well-known)은 한 단어. 부호만 있는 토큰은 앞 단어 뒤에 붙인다.
-function vkWbWords(en){
-  const out = [];
-  String(en == null ? '' : en).trim().split(/\s+/).forEach(function(tok){
-    if(!tok) return;
-    const m = tok.match(/^([^A-Za-z0-9]*)(.*?)([^A-Za-z0-9]*)$/);
-    if(!m[2]){ if(out.length) out[out.length - 1].z += ' ' + tok; return; }
-    out.push({a:m[1], w:m[2], z:m[3]});
-  });
-  return out;
-}
-function vkWbSame(a, b){ return String(a).toLowerCase() === String(b).toLowerCase(); }
 /* VOCA-TESTABLE-END */
 
 /* ── 데이터 ── */
@@ -3453,121 +3437,103 @@ function examplesHTML(card, curSk){
     if(!ss.length) return '';
     return '<div class="vk-ex-g"><div class="vk-ex-h">' + g[1] + '</div>' + ss.map(function(s){
       const id = card.key + '#' + s.sk, open = !!(wb && wb.id === id);
-      return '<div class="vk-ex-i' + (s.sk === curSk ? ' cur' : '') + '" data-wb="' + esc(id) + '">' +
+      return '<div class="vk-ex-i' + (s.sk === curSk ? ' cur' : '') + (open && !wbShown() ? ' wb-hide' : '') + '" data-wb="' + esc(id) + '">' +
         '<button class="vk-say" data-act="say" data-t="' + esc(s.en) + '" aria-label="듣기">🔊</button><div class="grow">' +
         '<div class="vk-ex-en">' + (s.tense !== 'example' ? '<span class="vk-tchip">' + TKO[s.tense] + '</span>' : '') + markedEn(card, s) + '</div>' +
         '<div class="vk-ex-ko">' + esc(s.ko) + '</div></div>' +
-        '<button class="vk-wbtn' + (open ? ' on' : '') + '" data-act="wbOpen" data-k="' + esc(card.key) + '" data-sk="' + esc(s.sk) + '" title="단어별 영작" aria-label="단어별 영작">✍</button>' +
+        '<button class="vk-wbtn' + (open ? ' on' : '') + '" data-act="wbOpen" data-k="' + esc(card.key) + '" data-sk="' + esc(s.sk) + '" title="영작하기" aria-label="영작하기">✍</button>' +
         (open ? '<div class="vk-wb">' + wbPanelHTML() + '</div>' : '') + '</div>';
     }).join('') + '</div>';
   }).join('') + '</div>';
 }
 
-/* ── 단어별 영작: 한국어 문장을 보고 영어 단어를 하나씩 골라 문장을 완성한다 ──
-   AI 키가 있으면 카드(13문장)당 1번 Gemini 로 단어마다 한국어 뜻을 만들어 칸에 힌트로 보여 주고 로컬에 캐시한다. */
-const WB_LS = 'elab_voca_gloss_v1';
-let wb = null;                 // {id, key, sk, en, ko, words, chips, pos, miss, hint, done, gloss, loading, noAi}
-let glossCache = null;         // {cardKey: {sk: [한국어 뜻, ...]}}
-const glossBusy = Object.create(null);
-function glossAll(){
-  if(!glossCache){ try{ glossCache = JSON.parse(localStorage.getItem(WB_LS) || '{}') || {}; }catch(e){ glossCache = {}; } }
-  return glossCache;
-}
-function glossOf(key, sk, n){
-  const g = glossAll()[key], a = g && g[sk];
-  return Array.isArray(a) && a.length === n ? a : null;
-}
+/* ── 예문 영작: 한국어 예문을 보고 영어 문장을 직접 써서 모범 답안과 비교한다 ──
+   채점은 회화 미션과 같다 (AI 키가 있으면 Gemini 교정, 없으면 로컬: 표현 사용 + 내용어 80%). */
+let wb = null;                 // {id, key, sk, it:{card, s}, text, res, busy, reveal}
+let wbAiNote = false;
 function wbOpen(key, sk){
   const card = CARD[key]; if(!card) return;
   const s = sentencesOf(card).filter(function(x){ return x.sk === sk; })[0]; if(!s) return;
-  const words = vkWbWords(s.en);
-  let chips = vkShuffle(words.map(function(w, i){ return {i:i, w:w.w, used:false}; }));
-  if(chips.length > 1 && chips.every(function(c, j){ return c.i === j; })) chips = chips.reverse();
-  wb = {id:key + '#' + sk, key:key, sk:sk, en:s.en, ko:s.ko, words:words, chips:chips,
-        pos:0, miss:0, hint:0, done:!words.length, gloss:glossOf(key, sk, words.length), loading:false, noAi:false};
-  if(!wb.gloss){ if(aiOn()) fetchGloss(card); else wb.noAi = true; }
+  wb = {id:key + '#' + sk, key:key, sk:sk, it:{card:card, s:s}, text:'', res:null, busy:false, reveal:false};
 }
+function wbShown(){ return !wb || !!wb.res || wb.reveal; }   // 답을 확인한 뒤에만 영어 예문을 보여 준다
 function wbItemEl(){ return wb && root() ? root().querySelector('.vk-ex-i[data-wb="' + wb.id + '"]') : null; }
 function wbDraw(){
   const it = wbItemEl();
   if(!it){ draw(); return; }
   let el = it.querySelector('.vk-wb');
   if(!el){ el = document.createElement('div'); el.className = 'vk-wb'; it.appendChild(el); }
+  it.classList.toggle('wb-hide', !wbShown());
   const b = it.querySelector('.vk-wbtn'); if(b) b.classList.add('on');
   el.innerHTML = wbPanelHTML();
+  const inp = el.querySelector('#vkWbIn'); if(inp && !wb.busy) inp.focus();
 }
 function wbClose(){
+  stopListen();
   const it = wbItemEl();
   wb = null;
   if(!it){ draw(); return; }
+  it.classList.remove('wb-hide');
   const el = it.querySelector('.vk-wb'); if(el) el.remove();
   const b = it.querySelector('.vk-wbtn'); if(b) b.classList.remove('on');
 }
+function wbModelRow(it, missing){
+  return '<div class="vk-fb-row"><span>모범</span><div>' + modelHTML(it, missing || []) +
+    ' <button class="vk-say" data-act="say" data-t="' + esc(it.s.en) + '" aria-label="듣기">🔊</button></div></div>';
+}
 function wbPanelHTML(){
   if(!wb) return '';
-  const g = wb.gloss;
-  let h = '<div class="vk-wb-ko">' + esc(wb.ko) + '</div>';
-  h += '<div class="vk-wb-slots">' + wb.words.map(function(w, i){
-    const on = i < wb.pos;
-    const txt = on ? esc(w.a + w.w + w.z) : g ? esc(g[i] || '?') : '·'.repeat(Math.min(6, Math.max(2, w.w.length)));
-    return '<span class="vk-wbs' + (on ? ' on' : i === wb.pos ? ' cur' : '') + '">' + txt + '</span>';
-  }).join('') + '</div>';
-  if(wb.done){
-    h += '<div class="vk-wb-done">✅ 완성! ' + (wb.miss ? '실수 ' + wb.miss + '번' : '실수 없이') + (wb.hint ? ' · 힌트 ' + wb.hint + '번' : '') + '</div>';
-    if(g) h += '<div class="vk-wb-pairs">' + wb.words.map(function(w, i){
-      return '<span class="vk-wbp"><b>' + esc(w.w) + '</b>' + esc(g[i] || '') + '</span>';
-    }).join('') + '</div>';
-    h += '<div class="vk-wb-act"><button class="ghost" data-act="say" data-t="' + esc(wb.en) + '">🔊 듣기</button>' +
-      '<button data-act="wbRetry">다시</button><button class="ghost" data-act="wbClose">닫기</button></div>';
-  }else{
-    h += '<div class="vk-tiles vk-wb-chips">' + wb.chips.map(function(c, j){
-      return '<button class="vk-tile vk-wbc' + (c.used ? ' in' : '') + '" data-act="wbPick" data-j="' + j + '"' + (c.used ? ' disabled' : '') + '>' + esc(c.w) + '</button>';
-    }).join('') + '</div>';
-    h += '<div class="vk-wb-act"><span class="vk-wb-stat">' + wb.pos + ' / ' + wb.words.length + (wb.miss ? ' · 실수 ' + wb.miss : '') + '</span>' +
-      '<button class="ghost" data-act="wbHint">힌트</button><button class="ghost" data-act="wbClose">닫기</button></div>';
-  }
-  if(!g){
-    if(wb.loading) h += '<div class="vk-wb-note">AI가 단어마다 한국어 뜻을 준비하고 있어요…</div>';
-    else if(wb.noAi) h += '<div class="vk-wb-note">⚙ 더보기에서 AI 키를 넣으면 칸마다 한국어 뜻이 보여요</div>';
+  const it = wb.it;
+  let h = '<div class="vk-wb-ko">' + esc(it.s.ko) + '</div>';
+  if(wb.res){
+    const r = wb.res, g = r.g;
+    const head = r.perfect ? '✅ 완벽해요!' : r.ok ? '👍 통과! 모범 답안과 비교해 보세요' : '🔧 조금만 고쳐 볼까요?';
+    let body = '<div class="vk-fb-row"><span>내 답</span><div>' + esc(wb.text) + '</div></div>';
+    if(r.by === 'ai'){
+      if(r.tip) body += '<div class="vk-fb-tip">💡 ' + esc(r.tip) + '</div>';
+      if(r.corrected && vkNorm(r.corrected) !== vkNorm(wb.text)) body += '<div class="vk-fb-row"><span>교정</span><div>' + esc(r.corrected) + '</div></div>';
+    } else if(!r.perfect){
+      const tips = [];
+      if(!g.hasExpr) tips.push('표현 쓰기: <b>' + esc(exprShort(it.card.c.expression)) + '</b>');
+      if(g.missing.length) tips.push('빠진 단어: <b>' + esc(g.missing.slice(0, 4).join(', ')) + '</b>' + (g.missing.length > 4 ? ' 외 ' + (g.missing.length - 4) + '개' : ''));
+      if(g.extra.length && g.extra.length <= 4) tips.push('빼도 되는 단어: ' + esc(g.extra.join(', ')));
+      if(tips.length) body += '<ul class="vk-fb-tips">' + tips.map(function(t){ return '<li>' + t + '</li>'; }).join('') + '</ul>';
+    }
+    body += wbModelRow(it, r.by === 'local' ? g.missing : []);
+    const by = r.by === 'ai' ? '🤖 AI 코치 교정 · Gemini' : '📏 로컬 채점 · 모범답안 비교' + (r.note ? ' — ' + esc(r.note) : '');
+    h += '<div class="vk-wb-fb ' + (r.ok ? 'ok' : 'no') + '"><div class="vk-fb-h">' + head + '</div>' + body + '<div class="vk-fb-by">' + by + '</div></div>';
+    h += '<div class="vk-wb-act"><button data-act="wbRetry">다시 쓰기</button><button class="ghost" data-act="wbClose">닫기</button></div>';
+  } else if(wb.reveal){
+    h += '<div class="vk-wb-fb">' + wbModelRow(it, []) + '</div>';
+    h += '<div class="vk-wb-act"><button data-act="wbRetry">직접 써 보기</button><button class="ghost" data-act="wbClose">닫기</button></div>';
+  } else {
+    h += '<textarea id="vkWbIn" class="vk-wb-in" rows="2" placeholder="이 문장을 영어로 써 보세요" autocomplete="off" autocapitalize="sentences" autocorrect="off" spellcheck="false" enterkeyhint="send"' + (wb.busy ? ' disabled' : '') + '>' + esc(wb.text) + '</textarea>';
+    h += '<div class="vk-wb-act">' + (SR ? '<button class="vk-mic" data-act="wbMic" aria-label="말하기">🎤</button>' : '') +
+      '<button class="grow" data-act="wbCheck"' + (wb.busy ? ' disabled' : '') + '>' + (wb.busy ? 'AI가 확인 중…' : '확인') + '</button>' +
+      '<button class="ghost" data-act="wbReveal">답 보기</button><button class="ghost" data-act="wbClose">닫기</button></div>';
   }
   return h;
 }
-function wbFill(j){
-  const c = wb.chips[j]; c.used = true; wb.pos++;
-  if(wb.pos >= wb.words.length){
-    wb.done = true;
-    gaPush({event:'voca_wordbuild_complete', vk_miss:wb.miss, vk_hint:wb.hint});
-    speak(wb.en, 1);
+async function wbGrade(it, text){
+  const g = vkGrade(text, it.card.c.expression, it.s.en);
+  if(g.perfect) return {ok:true, perfect:true, by:'local', g:g};
+  if(!aiOn()){
+    const note = wbAiNote ? '' : '⚙ 더보기 탭에 Gemini 키를 넣으면 AI 코치가 문장을 직접 고쳐줘요';
+    wbAiNote = true;
+    return {ok:g.ok, perfect:false, by:'local', g:g, note:note};
   }
-  wbDraw();
-}
-// 카드의 13문장을 한 번에: 단어 수와 같은 길이의 한국어 뜻 배열을 받아 캐시한다
-function fetchGloss(card){
-  const key = card.key;
-  if(glossBusy[key]) return;
-  glossBusy[key] = true;
-  if(wb && wb.key === key) wb.loading = true;
-  const ss = sentencesOf(card);
-  const input = ss.map(function(s){ return {id:s.sk, words:vkWbWords(s.en).map(function(w){ return w.w; })}; });
-  const prompt = '영어 문장을 단어별로 배열해 뒀어. 각 단어가 그 문장 안에서 뜻하는 한국어를 아주 짧게(1~6글자) 적어 줘. ' +
-    '관사·전치사·조동사 같은 기능어는 "(관사)", "~에", "~할 것" 처럼 역할로 적어. ' +
-    '반드시 입력의 words 배열과 같은 길이의 배열을 돌려줘. 출력은 JSON 객체 하나로, 키는 id, 값은 한국어 문자열 배열이야.\n' +
-    '표현: ' + card.c.expression + ' (' + card.c.meaningKo + ')\n' + JSON.stringify(input);
-  withTimeout(window.gemini(prompt, true, 4000), 25000).then(function(raw){
-    let j = {}; try{ j = JSON.parse(raw) || {}; }catch(e){}
-    const got = {};
-    ss.forEach(function(s){
-      const a = j[s.sk], n = vkWbWords(s.en).length;
-      if(Array.isArray(a) && a.length === n) got[s.sk] = a.map(function(x){ return String(x == null ? '' : x).slice(0, 12); });
-    });
-    if(Object.keys(got).length){
-      glossAll()[key] = got;
-      try{ localStorage.setItem(WB_LS, JSON.stringify(glossAll())); }catch(e){}
-    }
-  }).catch(function(e){ console.warn('gloss', e && e.message); }).then(function(){
-    delete glossBusy[key];
-    if(wb && wb.key === key){ wb.loading = false; wb.gloss = glossOf(key, wb.sk, wb.words.length); wbDraw(); }
-  });
+  try{
+    const ai = await withTimeout(aiGrade(it, text), 15000);
+    const ok = ai.verdict !== 'fix' && g.hasExpr;      // 목표 표현을 안 썼으면 통과가 아니다
+    let tip = ai.tip;
+    if(ai.verdict !== 'fix' && !g.hasExpr) tip = '목표 표현 ' + exprShort(it.card.c.expression) + ' 을(를) 넣어서 다시 써 보세요';
+    return {ok:ok, perfect: ok && ai.verdict === 'perfect', by:'ai', g:g, corrected:ai.corrected, tip:tip};
+  }catch(e){
+    const m = String(e && e.message || e);
+    const note = m === 'TIMEOUT' ? 'AI 응답이 늦어서 로컬 채점으로 확인했어요' :
+      m.indexOf('429') === 0 ? 'AI 무료 한도를 넘어 로컬 채점으로 확인했어요' : 'AI 교정을 쓸 수 없어 로컬 채점으로 확인했어요';
+    return {ok:g.ok, perfect:false, by:'local', g:g, note:note};
+  }
 }
 
 // 채우기 세션: 복습 2장마다 새 표현 1장
@@ -4466,24 +4432,25 @@ ACT.wbOpen = function(el){
   wbOpen(el.dataset.k, el.dataset.sk);
   if(wb) wbDraw();
 };
-ACT.wbPick = function(el){
-  if(!wb || wb.done) return;
-  const j = +el.dataset.j, c = wb.chips[j];
-  if(!c || c.used) return;
-  if(vkWbSame(c.w, wb.words[wb.pos].w)){ wbFill(j); return; }
-  wb.miss++;
-  el.classList.remove('bad'); void el.offsetWidth; el.classList.add('bad');
-  const stat = el.closest('.vk-wb') && el.closest('.vk-wb').querySelector('.vk-wb-stat');
-  if(stat) stat.textContent = wb.pos + ' / ' + wb.words.length + ' · 실수 ' + wb.miss;
+ACT.wbCheck = async function(){
+  if(!wb || wb.busy || wb.res) return;
+  const inp = document.getElementById('vkWbIn');
+  const text = (inp && inp.value || '').trim();
+  if(!text){ toast('영어로 써 보거나 🎤로 말해 보세요'); return; }
+  stopListen();
+  const w = wb;
+  w.text = text; w.busy = true; wbDraw();
+  const res = await wbGrade(w.it, text);
+  if(wb !== w) return;                  // 기다리는 동안 닫았거나 다른 예문을 열었으면 버린다
+  w.busy = false; w.res = res;
+  gaPush({event:'voca_example_write', vk_ok: res.ok ? 1 : 0});
+  wbDraw();
 };
-ACT.wbHint = function(){
-  if(!wb || wb.done) return;
-  const want = wb.words[wb.pos].w;
-  const j = wb.chips.findIndex(function(c){ return !c.used && vkWbSame(c.w, want); });
-  if(j < 0) return;
-  wb.hint++;
-  wbFill(j);
+ACT.wbMic = function(){
+  if(recog){ stopListen(); return; }
+  listen(function(t){ const inp = document.getElementById('vkWbIn'); if(inp) inp.value = t; });
 };
+ACT.wbReveal = function(){ if(!wb) return; wb.reveal = true; wbDraw(); };
 ACT.wbRetry = function(){ if(!wb) return; wbOpen(wb.key, wb.sk); wbDraw(); };
 ACT.wbClose = function(){ wbClose(); };
 ACT.startFill = function(el){ startFill(el.dataset.v || null); };
@@ -4514,6 +4481,7 @@ function onKey(e){
   if(e.key !== 'Enter' || e.isComposing) return;
   const t = e.target;
   if(t.id === 'vkMisIn'){ e.preventDefault(); ACT.misSend(); return; }
+  if(t.id === 'vkWbIn'){ e.preventDefault(); ACT.wbCheck(); return; }
   if(t.classList && t.classList.contains('vk-in')){
     e.preventDefault();
     const ins = Array.prototype.slice.call(root().querySelectorAll('.vk-in'));
