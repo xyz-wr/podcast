@@ -2185,24 +2185,18 @@ return {render:function(){draw();}};
 #screen-voca .vk-ex-i.cur{border-color:var(--vk-gs2);background:#FAFEFC;}
 #screen-voca .vk-ex-en{font-size:14px;line-height:1.55;}
 #screen-voca .vk-ex-ko{font-size:12.5px;color:var(--vk-sf);margin-top:2px;word-break:keep-all;}
-/* 예문 영작 (예문 카드 안): 한국어를 보고 영어 문장을 직접 쓴다. 답을 확인하기 전엔 영어 예문을 가린다 */
-#screen-voca .vk-ex-i{flex-wrap:wrap;}
-#screen-voca .vk-ex-i.wb-hide > .vk-say,#screen-voca .vk-ex-i.wb-hide > .grow{display:none;}
-#screen-voca .vk-ex-i.wb-hide > .vk-wbtn{margin-left:auto;}
-#screen-voca .vk-wbtn{flex:none;background:var(--vk-sur);border:1px solid var(--vk-ln2);border-radius:8px;padding:3px 7px;font-size:13px;line-height:1.2;color:var(--vk-sf);}
-#screen-voca .vk-wbtn.on{background:var(--vk-gs);border-color:var(--vk-gs2);color:var(--vk-gd);}
-#screen-voca .vk-wb{flex-basis:100%;margin-top:8px;padding-top:10px;border-top:1px dashed var(--vk-ln2);}
-#screen-voca .vk-ex-i.wb-hide .vk-wb{margin-top:4px;}
-#screen-voca .vk-wb-ko{font-size:15px;font-weight:700;color:var(--vk-ink);word-break:keep-all;line-height:1.5;}
-#screen-voca .vk-wb-in{display:block;width:100%;box-sizing:border-box;margin-top:10px;padding:10px 12px;border:1px solid var(--vk-ln2);border-radius:10px;font:inherit;font-size:15px;line-height:1.5;resize:none;outline:none;background:#fff;color:var(--vk-ink);}
-#screen-voca .vk-wb-in:focus{border-color:var(--vk-g);box-shadow:0 0 0 2px var(--vk-gs2);}
-#screen-voca .vk-wb-act{display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap;}
-#screen-voca .vk-wb-act button{padding:9px 12px;font-size:13px;}
-#screen-voca .vk-wb-act .vk-mic{width:40px;height:40px;padding:0;}
-#screen-voca .vk-wb-fb{margin-top:10px;border-radius:12px;padding:10px 12px;background:#fff;border:1px solid var(--vk-ln);font-size:14px;line-height:1.55;word-break:keep-all;}
-#screen-voca .vk-wb-fb.ok{background:var(--vk-gs);border-color:var(--vk-gs2);}
-#screen-voca .vk-wb-fb.no{background:#FFFAF0;border-color:#F3DDB0;}
-#screen-voca .vk-wb-note{font-size:11.5px;color:var(--vk-ft);margin-top:8px;}
+/* ③ 영작 탭 */
+#screen-voca .vk-wr-in{display:block;width:100%;box-sizing:border-box;margin:12px 0 0;padding:12px 14px;border:1px solid var(--vk-ln2);border-radius:14px;font:inherit;font-size:16px;line-height:1.5;resize:none;outline:none;background:#fff;color:var(--vk-ink);}
+#screen-voca .vk-wr-in:focus{border-color:var(--vk-g);box-shadow:0 0 0 2px var(--vk-gs2);}
+#screen-voca .vk-actions .vk-mic{width:46px;height:46px;padding:0;}
+#screen-voca .vk-wr-fb{margin-top:12px;border-radius:14px;padding:12px 14px;background:#fff;border:1px solid var(--vk-ln);font-size:14px;line-height:1.55;word-break:keep-all;}
+#screen-voca .vk-wr-fb.ok{background:var(--vk-gs);border-color:var(--vk-gs2);}
+#screen-voca .vk-wr-fb.no{background:#FFFAF0;border-color:#F3DDB0;}
+#screen-voca .vk-wr-res{background:#fff;border:1px solid var(--vk-ln);border-left:4px solid var(--vk-g);border-radius:12px;padding:10px 12px;margin-bottom:6px;font-size:13.5px;line-height:1.5;word-break:keep-all;}
+#screen-voca .vk-wr-res.no{border-left-color:var(--vk-am);}
+#screen-voca .vk-wr-res-ko{font-weight:700;}
+#screen-voca .vk-wr-res-en{color:var(--vk-sf);}
+#screen-voca .vk-wr-res-my{font-size:12.5px;color:var(--vk-ft);margin-top:2px;}
 
 /* 세션 머리 */
 #screen-voca .vk-shead{display:flex;align-items:center;gap:10px;padding:14px 0 8px;}
@@ -3159,7 +3153,7 @@ async function gradeMission(it, text){
 function exprShort(e){ return String(e).replace(/[.?!]+$/, ''); }
 
 /* ── 화면 상태 ── */
-const NAV = [['home','홈'], ['fill','① 채우기'], ['out','② 꺼내기'], ['quiz','퀴즈'], ['report','리포트']];
+const NAV = [['home','홈'], ['fill','① 채우기'], ['out','② 꺼내기'], ['write','③ 영작'], ['quiz','퀴즈'], ['report','리포트']];
 let view = {tab:'home', sub:null, q:''};
 let mode = null;            // fill | mission | listen | quiz | test — 전체 화면 세션
 let ses = null, mis = null, lis = null, qz = null, lt = null;
@@ -3170,7 +3164,7 @@ let calMonth = 0, calSel = '', calAll = false;   // 리포트 달력
 const ACT = Object.create(null);
 
 // GA: 보카 하위 탭 = 가상 페이지(/voca/fill …), 단계 완료 = 별도 이벤트(fill_complete …)
-const VK_PAGE = {home:'홈', fill:'채우기', out:'꺼내기', quiz:'퀴즈', report:'리포트'};
+const VK_PAGE = {home:'홈', fill:'채우기', out:'꺼내기', write:'영작', quiz:'퀴즈', report:'리포트'};
 function gaPush(o){ (window.dataLayer = window.dataLayer || []).push(o); }
 function gaTab(t){ window.gaPage('/voca/' + t, '보카 · ' + (VK_PAGE[t] || t)); }
 function goTab(t){ if(view.tab !== t) gaTab(t); view = {tab:t, sub:null, q:''}; }
@@ -3201,8 +3195,9 @@ function draw(){
   else if(mode === 'listen') html = listenHTML();
   else if(mode === 'quiz') html = quizHTML();
   else if(mode === 'test') html = testHTML();
+  else if(mode === 'write') html = writeSessionHTML();
   else {
-    const body = view.tab === 'fill' ? fillTabHTML() : view.tab === 'out' ? outTabHTML() :
+    const body = view.tab === 'fill' ? fillTabHTML() : view.tab === 'out' ? outTabHTML() : view.tab === 'write' ? writeTabHTML() :
       view.tab === 'quiz' ? quizTabHTML() : view.tab === 'report' ? reportHTML() : homeHTML();
     html = navHTML() + body;
   }
@@ -3215,6 +3210,7 @@ function afterDraw(){
     const inp = root().querySelector('.vk-in');
     if(inp && !coarse) inp.focus();
   }
+  if(mode === 'write'){ const wi = document.getElementById('vkWrIn'); if(wi && !coarse) wi.focus(); }
   if(mode === 'mission'){
     window.scrollTo(0, document.body.scrollHeight);
     const mi = document.getElementById('vkMisIn');
@@ -3414,8 +3410,9 @@ function folderHTML(fid){
   const cards = f.cards.map(function(c, i){ return CARD[f.id + '|' + i]; });
   return '<div class="vk-subhead"><button class="vk-back" data-act="back">‹</button><div><b>' + ficon(f) + ' ' + esc(f.titleKo) + '</b>' +
     '<small>' + knownCount(f.id) + ' / ' + f.cards.length + ' 아는 표현</small></div></div>' +
+    (view.tab === 'write' ? '<p class="vk-tip" style="margin:0 0 10px">표현을 고르면 예문 영작을 시작해요</p>' :
     '<div class="vk-row2"><button class="grow" data-act="startFill" data-v="' + f.id + '">이 주제 채우기</button>' +
-    '<button class="secondary grow" data-act="startMission" data-v="' + f.id + '">이 상황 회화</button></div>' +
+    '<button class="secondary grow" data-act="startMission" data-v="' + f.id + '">이 상황 회화</button></div>') +
     '<div class="vk-list">' + cards.map(cardRowHTML).join('') + '</div>';
 }
 function cardDetailHTML(key){
@@ -3436,90 +3433,108 @@ function examplesHTML(card, curSk){
     const ss = all.filter(function(s){ return s.lvl === g[0]; });
     if(!ss.length) return '';
     return '<div class="vk-ex-g"><div class="vk-ex-h">' + g[1] + '</div>' + ss.map(function(s){
-      const id = card.key + '#' + s.sk, open = !!(wb && wb.id === id);
-      return '<div class="vk-ex-i' + (s.sk === curSk ? ' cur' : '') + (open && !wbShown() ? ' wb-hide' : '') + '" data-wb="' + esc(id) + '">' +
-        '<button class="vk-say" data-act="say" data-t="' + esc(s.en) + '" aria-label="듣기">🔊</button><div class="grow">' +
+      return '<div class="vk-ex-i' + (s.sk === curSk ? ' cur' : '') + '">' +
+        '<button class="vk-say" data-act="say" data-t="' + esc(s.en) + '" aria-label="듣기">🔊</button><div>' +
         '<div class="vk-ex-en">' + (s.tense !== 'example' ? '<span class="vk-tchip">' + TKO[s.tense] + '</span>' : '') + markedEn(card, s) + '</div>' +
-        '<div class="vk-ex-ko">' + esc(s.ko) + '</div></div>' +
-        '<button class="vk-wbtn' + (open ? ' on' : '') + '" data-act="wbOpen" data-k="' + esc(card.key) + '" data-sk="' + esc(s.sk) + '" title="영작하기" aria-label="영작하기">✍</button>' +
-        (open ? '<div class="vk-wb">' + wbPanelHTML() + '</div>' : '') + '</div>';
+        '<div class="vk-ex-ko">' + esc(s.ko) + '</div></div></div>';
     }).join('') + '</div>';
   }).join('') + '</div>';
 }
 
-/* ── 예문 영작: 한국어 예문을 보고 영어 문장을 직접 써서 모범 답안과 비교한다 ──
+/* ── ③ 영작 탭: 표현을 고르면 그 표현의 예문을 한국어로 보여 주고 영어 문장을 직접 쓴다 ──
    채점은 회화 미션과 같다 (AI 키가 있으면 Gemini 교정, 없으면 로컬: 표현 사용 + 내용어 80%). */
-let wb = null;                 // {id, key, sk, it:{card, s}, text, res, busy, reveal}
-let wbAiNote = false;
-function wbOpen(key, sk){
+let wr = null;                 // {card, items:[s], i, text, res, busy, reveal, results:[], done}
+let wrLvl = 'all';             // all | A2 | B1 | B2 — 풀 예문 범위
+let wrAiNote = false;
+function writeTabHTML(){
+  if(view.sub && view.sub.t === 'folder') return folderHTML(view.sub.fid);
+  return '' +
+  '<div class="vk-card"><div class="vk-lab">③ 예문 영작</div>' +
+    '<p class="vk-note" style="margin-top:0">표현을 하나 고르면 그 표현의 예문을 <b>한국어로만</b> 보여 줘요. 영어로 직접 써 보고 모범 답안과 비교하세요.</p>' +
+    '<div class="vk-lab" style="margin-top:12px">예문 범위</div>' +
+    '<div class="vk-seg" style="margin-bottom:0">' + [['all', '전체 13'], ['A2', 'A2 · 5'], ['B1', 'B1 · 5'], ['B2', 'B2 · 5']].map(function(o){
+      return '<button class="' + (wrLvl === o[0] ? 'on' : '') + '" data-act="wrLvl" data-v="' + o[0] + '">' + o[1] + '</button>';
+    }).join('') + '</div>' +
+  '</div>' +
+  '<div class="vk-sec-h">표현 고르기 <small>' + CARDS.length + '개 표현 · ' + FOLDERS.length + '개 주제</small></div>' +
+  '<div class="vk-search"><input id="vkSearch" type="search" placeholder="표현·뜻 검색 (예: hit the road, 출발)" value="' + esc(view.q) + '"></div>' +
+  '<div id="vkFolderList">' + folderListHTML() + '</div>';
+}
+function startWrite(key){
   const card = CARD[key]; if(!card) return;
-  const s = sentencesOf(card).filter(function(x){ return x.sk === sk; })[0]; if(!s) return;
-  wb = {id:key + '#' + sk, key:key, sk:sk, it:{card:card, s:s}, text:'', res:null, busy:false, reveal:false};
+  const items = wrLvl === 'all' ? sentencesOf(card) : sentencesOf(card, wrLvl);
+  if(!items.length) return;
+  wr = {card:card, items:items, i:0, text:'', res:null, busy:false, reveal:false, tries:0, results:[], xp:0, done:false};
+  mode = 'write';
+  gaPush({event:'write_start', vk_lvl:wrLvl});
+  draw(); top0();
 }
-function wbShown(){ return !wb || !!wb.res || wb.reveal; }   // 답을 확인한 뒤에만 영어 예문을 보여 준다
-function wbItemEl(){ return wb && root() ? root().querySelector('.vk-ex-i[data-wb="' + wb.id + '"]') : null; }
-function wbDraw(){
-  const it = wbItemEl();
-  if(!it){ draw(); return; }
-  let el = it.querySelector('.vk-wb');
-  if(!el){ el = document.createElement('div'); el.className = 'vk-wb'; it.appendChild(el); }
-  it.classList.toggle('wb-hide', !wbShown());
-  const b = it.querySelector('.vk-wbtn'); if(b) b.classList.add('on');
-  el.innerHTML = wbPanelHTML();
-  const inp = el.querySelector('#vkWbIn'); if(inp && !wb.busy) inp.focus();
+function wrItem(){ return {card:wr.card, s:wr.items[wr.i]}; }
+function writeSessionHTML(){
+  if(wr.done) return writeDoneHTML();
+  const it = wrItem(), s = it.s, card = it.card, last = wr.i === wr.items.length - 1;
+  let h = sessHead('③ 영작 · ' + esc(exprShort(card.c.expression)), wr.i + 1, wr.items.length);
+  h += '<div class="vk-card vk-qcard"><span class="vk-tag">' + esc(exprShort(card.c.expression)) + '</span><span class="vk-topic">' + ficon(card.f) + ' ' + esc(card.f.titleKo) + '</span>' +
+    '<div class="vk-mean">' + esc(s.ko) + '</div>' +
+    '<div class="vk-qko">' + esc(card.c.meaningKo) + '</div>' +
+    '<div class="vk-qmeta">' + (s.tense !== 'example' ? '<span class="vk-tchip">' + TKO[s.tense] + '</span>' + s.lvl : '대표 예문') + '</div></div>';
+  if(!wr.res && !wr.reveal){
+    h += '<textarea id="vkWrIn" class="vk-wr-in" rows="3" placeholder="이 문장을 영어로 써 보세요" autocomplete="off" autocapitalize="sentences" autocorrect="off" spellcheck="false" enterkeyhint="send"' + (wr.busy ? ' disabled' : '') + '>' + esc(wr.text) + '</textarea>';
+    h += '<div class="vk-actions">' + (SR ? '<button class="vk-mic" data-act="wrMic" aria-label="말하기">🎤</button>' : '') +
+      '<button class="ghost" data-act="wrReveal">답 보기</button>' +
+      '<button class="grow" data-act="wrCheck"' + (wr.busy ? ' disabled' : '') + '>' + (wr.busy ? 'AI가 확인 중…' : '확인') + '</button></div>' +
+      '<p class="vk-tip">Enter로 확인 · 표현을 꼭 넣어서 써 보세요</p>';
+    return h;
+  }
+  if(wr.res) h += wrFeedbackHTML(it, wr.text, wr.res);
+  else h += '<div class="vk-wr-fb"><div class="vk-fb-h">👀 모범 답안</div>' + wrModelRow(it, []) + '</div>';
+  h += '<div class="vk-actions"><button class="ghost" data-act="wrRetry">다시 쓰기</button>' +
+    '<button class="grow" data-act="wrNext">' + (last ? '결과 보기' : '다음 →') + '</button></div>' +
+    '<p class="vk-tip">Enter로 다음</p>';
+  return h;
 }
-function wbClose(){
-  stopListen();
-  const it = wbItemEl();
-  wb = null;
-  if(!it){ draw(); return; }
-  it.classList.remove('wb-hide');
-  const el = it.querySelector('.vk-wb'); if(el) el.remove();
-  const b = it.querySelector('.vk-wbtn'); if(b) b.classList.remove('on');
-}
-function wbModelRow(it, missing){
+function wrModelRow(it, missing){
   return '<div class="vk-fb-row"><span>모범</span><div>' + modelHTML(it, missing || []) +
     ' <button class="vk-say" data-act="say" data-t="' + esc(it.s.en) + '" aria-label="듣기">🔊</button></div></div>';
 }
-function wbPanelHTML(){
-  if(!wb) return '';
-  const it = wb.it;
-  let h = '<div class="vk-wb-ko">' + esc(it.s.ko) + '</div>';
-  if(wb.res){
-    const r = wb.res, g = r.g;
-    const head = r.perfect ? '✅ 완벽해요!' : r.ok ? '👍 통과! 모범 답안과 비교해 보세요' : '🔧 조금만 고쳐 볼까요?';
-    let body = '<div class="vk-fb-row"><span>내 답</span><div>' + esc(wb.text) + '</div></div>';
-    if(r.by === 'ai'){
-      if(r.tip) body += '<div class="vk-fb-tip">💡 ' + esc(r.tip) + '</div>';
-      if(r.corrected && vkNorm(r.corrected) !== vkNorm(wb.text)) body += '<div class="vk-fb-row"><span>교정</span><div>' + esc(r.corrected) + '</div></div>';
-    } else if(!r.perfect){
-      const tips = [];
-      if(!g.hasExpr) tips.push('표현 쓰기: <b>' + esc(exprShort(it.card.c.expression)) + '</b>');
-      if(g.missing.length) tips.push('빠진 단어: <b>' + esc(g.missing.slice(0, 4).join(', ')) + '</b>' + (g.missing.length > 4 ? ' 외 ' + (g.missing.length - 4) + '개' : ''));
-      if(g.extra.length && g.extra.length <= 4) tips.push('빼도 되는 단어: ' + esc(g.extra.join(', ')));
-      if(tips.length) body += '<ul class="vk-fb-tips">' + tips.map(function(t){ return '<li>' + t + '</li>'; }).join('') + '</ul>';
-    }
-    body += wbModelRow(it, r.by === 'local' ? g.missing : []);
-    const by = r.by === 'ai' ? '🤖 AI 코치 교정 · Gemini' : '📏 로컬 채점 · 모범답안 비교' + (r.note ? ' — ' + esc(r.note) : '');
-    h += '<div class="vk-wb-fb ' + (r.ok ? 'ok' : 'no') + '"><div class="vk-fb-h">' + head + '</div>' + body + '<div class="vk-fb-by">' + by + '</div></div>';
-    h += '<div class="vk-wb-act"><button data-act="wbRetry">다시 쓰기</button><button class="ghost" data-act="wbClose">닫기</button></div>';
-  } else if(wb.reveal){
-    h += '<div class="vk-wb-fb">' + wbModelRow(it, []) + '</div>';
-    h += '<div class="vk-wb-act"><button data-act="wbRetry">직접 써 보기</button><button class="ghost" data-act="wbClose">닫기</button></div>';
-  } else {
-    h += '<textarea id="vkWbIn" class="vk-wb-in" rows="2" placeholder="이 문장을 영어로 써 보세요" autocomplete="off" autocapitalize="sentences" autocorrect="off" spellcheck="false" enterkeyhint="send"' + (wb.busy ? ' disabled' : '') + '>' + esc(wb.text) + '</textarea>';
-    h += '<div class="vk-wb-act">' + (SR ? '<button class="vk-mic" data-act="wbMic" aria-label="말하기">🎤</button>' : '') +
-      '<button class="grow" data-act="wbCheck"' + (wb.busy ? ' disabled' : '') + '>' + (wb.busy ? 'AI가 확인 중…' : '확인') + '</button>' +
-      '<button class="ghost" data-act="wbReveal">답 보기</button><button class="ghost" data-act="wbClose">닫기</button></div>';
+function wrFeedbackHTML(it, text, r){
+  const g = r.g;
+  const head = r.perfect ? '✅ 완벽해요!' : r.ok ? '👍 통과! 모범 답안과 비교해 보세요' : '🔧 조금만 고쳐 볼까요?';
+  let body = '<div class="vk-fb-row"><span>내 답</span><div>' + esc(text) + '</div></div>';
+  if(r.by === 'ai'){
+    if(r.tip) body += '<div class="vk-fb-tip">💡 ' + esc(r.tip) + '</div>';
+    if(r.corrected && vkNorm(r.corrected) !== vkNorm(text)) body += '<div class="vk-fb-row"><span>교정</span><div>' + esc(r.corrected) + '</div></div>';
+  } else if(!r.perfect){
+    const tips = [];
+    if(!g.hasExpr) tips.push('표현 쓰기: <b>' + esc(exprShort(it.card.c.expression)) + '</b>');
+    if(g.missing.length) tips.push('빠진 단어: <b>' + esc(g.missing.slice(0, 4).join(', ')) + '</b>' + (g.missing.length > 4 ? ' 외 ' + (g.missing.length - 4) + '개' : ''));
+    if(g.extra.length && g.extra.length <= 4) tips.push('빼도 되는 단어: ' + esc(g.extra.join(', ')));
+    if(tips.length) body += '<ul class="vk-fb-tips">' + tips.map(function(t){ return '<li>' + t + '</li>'; }).join('') + '</ul>';
   }
-  return h;
+  body += wrModelRow(it, r.by === 'local' ? g.missing : []);
+  const by = r.by === 'ai' ? '🤖 AI 코치 교정 · Gemini' : '📏 로컬 채점 · 모범답안 비교' + (r.note ? ' — ' + esc(r.note) : '');
+  return '<div class="vk-wr-fb ' + (r.ok ? 'ok' : 'no') + '"><div class="vk-fb-h">' + head + '</div>' + body + '<div class="vk-fb-by">' + by + '</div></div>';
 }
-async function wbGrade(it, text){
+function writeDoneHTML(){
+  const card = wr.card, n = wr.results.length, okN = wr.results.filter(function(r){ return r.ok; }).length;
+  return sessHead('③ 영작 · ' + esc(exprShort(card.c.expression)), n + 1, n, '완료') +
+    '<div class="vk-card vk-done"><div class="vk-done-ico">✍️</div><h2>' + esc(exprShort(card.c.expression)) + ' 영작 완료!</h2>' +
+    '<div class="vk-done-n"><div><b>' + okN + ' / ' + n + '</b><small>통과한 예문</small></div>' +
+    '<div><b>' + (n ? Math.round(okN / n * 100) : 0) + '%</b><small>첫 시도 통과율</small></div>' +
+    '<div><b>+' + wr.xp + '</b><small>XP</small></div></div></div>' +
+    '<div class="vk-list">' + wr.results.map(function(r){
+      return '<div class="vk-wr-res ' + (r.ok ? 'ok' : 'no') + '"><div class="vk-wr-res-ko">' + (r.ok ? '✅' : r.skipped ? '👀' : '🔧') + ' ' + esc(r.s.ko) + '</div>' +
+        '<div class="vk-wr-res-en">' + esc(r.s.en) + ' <button class="vk-say" data-act="say" data-t="' + esc(r.s.en) + '" aria-label="듣기">🔊</button></div>' +
+        (r.text && vkNorm(r.text) !== vkNorm(r.s.en) ? '<div class="vk-wr-res-my">내 답: ' + esc(r.text) + '</div>' : '') + '</div>';
+    }).join('') + '</div>' +
+    '<div class="vk-actions"><button class="ghost grow" data-act="exit">다른 표현 고르기</button><button class="grow" data-act="wrStart" data-v="' + card.key + '">다시 쓰기</button></div>';
+}
+async function wrGrade(it, text){
   const g = vkGrade(text, it.card.c.expression, it.s.en);
   if(g.perfect) return {ok:true, perfect:true, by:'local', g:g};
   if(!aiOn()){
-    const note = wbAiNote ? '' : '⚙ 더보기 탭에 Gemini 키를 넣으면 AI 코치가 문장을 직접 고쳐줘요';
-    wbAiNote = true;
+    const note = wrAiNote ? '' : '⚙ 더보기 탭에 Gemini 키를 넣으면 AI 코치가 문장을 직접 고쳐줘요';
+    wrAiNote = true;
     return {ok:g.ok, perfect:false, by:'local', g:g, note:note};
   }
   try{
@@ -4425,34 +4440,45 @@ ACT.testLevel = function(el){ st.set.lvl = el.dataset.v; st.setAt = Date.now(); 
 ACT.tab = function(el){ goTab(el.dataset.v); draw(); top0(); };
 ACT.set = function(el){ const k = el.dataset.k; st.set[k] = k === 'lvl' ? el.dataset.v : +el.dataset.v; st.setAt = Date.now(); save(); draw(); };
 ACT.say = function(el){ speak(el.dataset.t, 1); };
-ACT.wbOpen = function(el){
-  const id = el.dataset.k + '#' + el.dataset.sk;
-  if(wb && wb.id === id){ wbClose(); return; }
-  if(wb) wbClose();
-  wbOpen(el.dataset.k, el.dataset.sk);
-  if(wb) wbDraw();
-};
-ACT.wbCheck = async function(){
-  if(!wb || wb.busy || wb.res) return;
-  const inp = document.getElementById('vkWbIn');
+ACT.wrLvl = function(el){ wrLvl = el.dataset.v; draw(); };
+ACT.wrStart = function(el){ startWrite(el.dataset.v); };
+ACT.wrCheck = async function(){
+  if(!wr || wr.busy || wr.res || wr.done) return;
+  const inp = document.getElementById('vkWrIn');
   const text = (inp && inp.value || '').trim();
   if(!text){ toast('영어로 써 보거나 🎤로 말해 보세요'); return; }
   stopListen();
-  const w = wb;
-  w.text = text; w.busy = true; wbDraw();
-  const res = await wbGrade(w.it, text);
-  if(wb !== w) return;                  // 기다리는 동안 닫았거나 다른 예문을 열었으면 버린다
+  const w = wr, it = wrItem();
+  w.text = text; w.busy = true; draw();
+  const res = await wrGrade(it, text);
+  if(wr !== w) return;                  // 기다리는 동안 나갔으면 버린다
   w.busy = false; w.res = res;
-  gaPush({event:'voca_example_write', vk_ok: res.ok ? 1 : 0});
-  wbDraw();
+  const first = w.tries === 0;
+  w.tries++;
+  if(first){
+    if(res.ok){ addXp(5); w.xp += 5; }
+    w.results.push({s:it.s, text:text, ok:res.ok});
+    save();
+  }
+  gaPush({event:'write_check', vk_ok: res.ok ? 1 : 0});
+  draw();
 };
-ACT.wbMic = function(){
+ACT.wrMic = function(){
   if(recog){ stopListen(); return; }
-  listen(function(t){ const inp = document.getElementById('vkWbIn'); if(inp) inp.value = t; });
+  listen(function(t){ const inp = document.getElementById('vkWrIn'); if(inp) inp.value = t; });
 };
-ACT.wbReveal = function(){ if(!wb) return; wb.reveal = true; wbDraw(); };
-ACT.wbRetry = function(){ if(!wb) return; wbOpen(wb.key, wb.sk); wbDraw(); };
-ACT.wbClose = function(){ wbClose(); };
+ACT.wrReveal = function(){
+  if(!wr || wr.busy) return;
+  if(wr.tries === 0){ wr.results.push({s:wrItem().s, text:'', ok:false, skipped:true}); wr.tries++; }
+  wr.reveal = true; draw();
+};
+ACT.wrRetry = function(){ if(!wr) return; wr.res = null; wr.reveal = false; draw(); };
+ACT.wrNext = function(){
+  if(!wr || (!wr.res && !wr.reveal)) return;
+  if(wr.i >= wr.items.length - 1){ wr.done = true; gaPush({event:'write_complete', vk_n:wr.results.length}); }
+  else { wr.i++; wr.text = ''; wr.res = null; wr.reveal = false; wr.tries = 0; }
+  draw(); top0();
+};
 ACT.startFill = function(el){ startFill(el.dataset.v || null); };
 ACT.startMission = function(el){ startMission(el.dataset.v); };
 ACT.startListen = function(el){ startListen(el.dataset.v || null); };
@@ -4460,13 +4486,13 @@ ACT.startQuiz = function(){ startQuiz(); };
 ACT.startTest = function(){ startTest(); };
 ACT.outSeg = function(el){ outSeg = el.dataset.v; draw(); };
 ACT.openFolder = function(el){ view.sub = {t:'folder', fid:el.dataset.v}; draw(); top0(); };
-ACT.openCard = function(el){ view.sub = {t:'card', key:el.dataset.v, from:view.sub}; draw(); top0(); };
+ACT.openCard = function(el){ if(view.tab === 'write'){ startWrite(el.dataset.v); return; } view.sub = {t:'card', key:el.dataset.v, from:view.sub}; draw(); top0(); };
 ACT.back = function(){ view.sub = view.sub && view.sub.from ? view.sub.from : null; draw(); };
 function exitSession(){
   stopListen();
   if('speechSynthesis' in window) speechSynthesis.cancel();
   clearInterval(quizTimer);
-  mode = null; ses = null; mis = null; lis = null; qz = null; lt = null;
+  mode = null; ses = null; mis = null; lis = null; qz = null; lt = null; wr = null;
 }
 ACT.exit = function(){ exitSession(); draw(); top0(); };
 ACT.exitTo = function(el){ exitSession(); goTab(el.dataset.v); draw(); top0(); };
@@ -4481,7 +4507,7 @@ function onKey(e){
   if(e.key !== 'Enter' || e.isComposing) return;
   const t = e.target;
   if(t.id === 'vkMisIn'){ e.preventDefault(); ACT.misSend(); return; }
-  if(t.id === 'vkWbIn'){ e.preventDefault(); ACT.wbCheck(); return; }
+  if(t.id === 'vkWrIn'){ e.preventDefault(); ACT.wrCheck(); return; }
   if(t.classList && t.classList.contains('vk-in')){
     e.preventDefault();
     const ins = Array.prototype.slice.call(root().querySelectorAll('.vk-in'));
@@ -4495,6 +4521,7 @@ function onKey(e){
   if(!scr || !scr.classList.contains('active')) return;
   if(mode === 'fill' && ses && ses.phase === 'fb'){ e.preventDefault(); ACT.fillNext(); }
   else if(mode === 'test' && lt && lt.phase === 'fb'){ e.preventDefault(); ACT.testNext(); }
+  else if(mode === 'write' && wr && !wr.done && (wr.res || wr.reveal)){ e.preventDefault(); ACT.wrNext(); }
 }
 function onInput(e){
   if(e.target.id !== 'vkSearch') return;
