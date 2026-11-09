@@ -268,3 +268,21 @@ test('vkShadow: 말한 단어만 맞음 표시', () => {
   assert.equal(r.score, 4 / 5);
 });
 
+
+// ── 영작 학습 체크 (wd) 병합 ──
+test('vkMergeState: 영작 체크는 나중에 바꾼 쪽을 따르고 완료 횟수는 큰 값', () => {
+  const pc = {wd: {'a|0': {on: true, at: 100, n: 2}, 'b|1': {on: true, at: 300, n: 1}}};
+  const phone = {wd: {'a|0': {on: false, at: 200, n: 1}, 'b|1': {on: false, at: 50, n: 0}, 'c|2': {on: true, at: 10, n: 1}}};
+  const m = V.vkMergeState(pc, phone);
+  assert.deepEqual(m.wd['a|0'], {on: false, at: 200, n: 2});   // 폰에서 나중에 해제 → 해제, 횟수는 PC 쪽 2
+  assert.deepEqual(m.wd['b|1'], {on: true, at: 300, n: 1});    // PC 에서 나중에 체크
+  assert.deepEqual(m.wd['c|2'], {on: true, at: 10, n: 1});     // 한쪽에만 있던 기록도 유지
+  assert.deepEqual(V.vkMergeState(phone, pc).wd, m.wd);         // 순서와 무관
+});
+
+test('vkMergeState: 영작 체크 기록이 없는 예전 상태도 합친다', () => {
+  const m = V.vkMergeState({srs: {}}, {wd: {'a|0': {on: true, at: 5, n: 1}}});
+  assert.deepEqual(m.wd, {'a|0': {on: true, at: 5, n: 1}});
+  assert.deepEqual(V.vkMergeState({}, {}).wd, {});
+  assert.deepEqual(V.vkMergeState(m, m), m);
+});
