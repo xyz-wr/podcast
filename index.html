@@ -2208,6 +2208,7 @@ return {render:function(){draw();}};
 #screen-voca .vk-bm{float:right;width:36px;height:36px;margin:-8px -8px 0 8px;padding:0;border:none;border-radius:99px;background:none;color:var(--vk-mute);font-size:23px;line-height:1;}
 #screen-voca .vk-bm.on{color:#F5B400;}
 #screen-voca .vk-wr-res .vk-bm{width:32px;height:32px;margin:-6px -6px 0 6px;font-size:19px;}
+#screen-voca .vk-actions .vk-rand{background:#FFF6D6;color:#8A6300;border:1px solid #F3DDB0;}
 #screen-voca .vk-bmcard-h{display:flex;align-items:center;gap:12px;}
 #screen-voca .vk-bmcard-h b{display:block;font-size:15px;}
 #screen-voca .vk-bmcard-h small{font-size:12.5px;color:var(--vk-sf);word-break:keep-all;}
@@ -3539,7 +3540,7 @@ function writeTabHTML(){
   '</div>' +
   '<div class="vk-card vk-bmcard"><div class="vk-bmcard-h"><span class="vk-bmcard-ico">★</span><div class="grow"><b>북마크 문장</b>' +
     '<small>' + (nb ? nb + '문장 · 모아서 다시 영작해요' : '영작 중 ☆ 를 눌러 다시 볼 문장을 모아 두세요') + '</small></div></div>' +
-    (nb ? '<div class="vk-actions" style="margin-bottom:0"><button class="ghost" data-act="bmOpen">목록</button><button class="grow" data-act="bmStart">북마크 모아 학습</button></div>' : '') +
+    (nb ? '<div class="vk-actions" style="margin-bottom:0"><button class="ghost" data-act="bmOpen">목록</button><button class="grow" data-act="bmStart">순서대로</button><button class="grow vk-rand" data-act="bmStart" data-v="rand">🔀 랜덤</button></div>' : '') +
   '</div>' +
   '<div class="vk-sec-h">표현 고르기 <small>학습 체크 ' + wdCount() + ' / ' + CARDS.length + ' · ' + FOLDERS.length + '개 주제</small></div>' +
   '<div class="vk-search"><input id="vkSearch" type="search" placeholder="표현·뜻 검색 (예: hit the road, 출발)" value="' + esc(view.q) + '"></div>' +
@@ -3574,7 +3575,7 @@ function bmBtnHTML(card, s, cls){
 function bmListHTML(){
   const items = bmItems();
   return '<div class="vk-subhead"><button class="vk-back" data-act="back">‹</button><div><b>★ 북마크 문장</b><small>' + items.length + '문장</small></div></div>' +
-    (items.length ? '<div class="vk-actions" style="margin-top:0"><button class="grow" data-act="bmStart">북마크 모아 학습</button></div>' +
+    (items.length ? '<div class="vk-actions" style="margin-top:0"><button class="grow" data-act="bmStart">순서대로</button><button class="grow vk-rand" data-act="bmStart" data-v="rand">🔀 랜덤</button></div>' +
       '<div class="vk-list">' + items.map(function(x){
         return '<div class="vk-bm-i">' + bmBtnHTML(x.card, x.s) + '<div class="grow"><div class="vk-bm-ko">' + esc(x.s.ko) + '</div>' +
           '<div class="vk-bm-meta"><span class="vk-tag">' + esc(exprShort(x.card.c.expression)) + '</span>' +
@@ -3585,7 +3586,7 @@ function bmListHTML(){
 
 /* ── 영작 세션: items = [{card, s}] — 한 표현의 예문이거나, 여러 표현에서 모은 북마크 ── */
 function openWrite(items, o){
-  wr = {card:o.card || null, bm:!!o.bm, items:items, i:0, text:'', res:null, busy:false, reveal:false, tries:0, results:[], xp:0, done:false};
+  wr = {card:o.card || null, bm:!!o.bm, rand:!!o.rand, items:items, i:0, text:'', res:null, busy:false, reveal:false, tries:0, results:[], xp:0, done:false};
   mode = 'write';
   draw(); top0();
 }
@@ -3597,15 +3598,20 @@ function startWrite(key){
   gaPush({event:'write_start', vk_lvl:wrLvlAll() ? 'all' : wrLvlList().join('+')});
   openWrite(items, {card:card});
 }
-function startWriteBm(){
-  const items = bmItems().map(function(x){ return {card:x.card, s:x.s}; });
+function startWriteBm(rand){
+  let items = bmItems().map(function(x){ return {card:x.card, s:x.s}; });
   if(!items.length){ toast('북마크한 문장이 없어요'); return; }
-  gaPush({event:'write_start', vk_lvl:'bookmark', vk_n:items.length});
-  openWrite(items, {bm:true});
+  if(rand){
+    const base = items;
+    items = vkShuffle(base);
+    if(items.length > 1 && items.every(function(x, i){ return x === base[i]; })) items.push(items.shift());
+  }
+  gaPush({event:'write_start', vk_lvl: rand ? 'bookmark_rand' : 'bookmark', vk_n:items.length});
+  openWrite(items, {bm:true, rand:!!rand});
 }
 function wrItem(){ return wr.items[wr.i]; }
 function wrTitle(){
-  return wr.bm ? '③ 영작 · ★ 북마크' :
+  return wr.bm ? '③ 영작 · ★ 북마크' + (wr.rand ? ' <small class="vk-wr-lv">🔀 랜덤</small>' : '') :
     '③ 영작 · ' + esc(exprShort(wr.card.c.expression)) + ' <small class="vk-wr-lv">' + (wrLvlAll() ? '전체' : wrLvlList().join('·')) + '</small>';
 }
 function writeSessionHTML(){
@@ -3672,7 +3678,7 @@ function writeDoneHTML(){
         '<div class="vk-wr-res-en">' + esc(r.s.en) + ' <button class="vk-say" data-act="say" data-t="' + esc(r.s.en) + '" aria-label="듣기">🔊</button></div>' +
         (r.text && vkNorm(r.text) !== vkNorm(r.s.en) ? '<div class="vk-wr-res-my">내 답: ' + esc(r.text) + '</div>' : '') + '</div>';
     }).join('') + '</div>' +
-    (wr.bm ? '<div class="vk-actions"><button class="ghost grow" data-act="exit">나가기</button><button class="grow" data-act="bmStart">북마크 다시 학습</button></div>' :
+    (wr.bm ? '<div class="vk-actions"><button class="ghost" data-act="exit">나가기</button><button class="grow" data-act="bmStart">순서대로</button><button class="grow vk-rand" data-act="bmStart" data-v="rand">🔀 랜덤</button></div>' :
     '<div class="vk-actions"><button class="ghost grow" data-act="exit">다른 표현 고르기</button><button class="grow" data-act="wrStart" data-v="' + card.key + '">다시 쓰기</button></div>');
 }
 async function wrGrade(it, text){
@@ -4598,7 +4604,7 @@ ACT.wrLvl = function(el){
   wrLvlSave(); draw();
 };
 ACT.wrStart = function(el){ startWrite(el.dataset.v); };
-ACT.bmStart = function(){ startWriteBm(); };
+ACT.bmStart = function(el){ startWriteBm(el.dataset.v === 'rand'); };
 ACT.bmOpen = function(){ view.sub = {t:'bm'}; draw(); top0(); };
 ACT.bmToggle = function(el){
   const id = el.dataset.v, on = !bmOn(id);
