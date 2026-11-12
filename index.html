@@ -2208,6 +2208,8 @@ return {render:function(){draw();}};
 #screen-voca .vk-bm{float:right;width:36px;height:36px;margin:-8px -8px 0 8px;padding:0;border:none;border-radius:99px;background:none;color:var(--vk-mute);font-size:23px;line-height:1;}
 #screen-voca .vk-bm.on{color:#F5B400;}
 #screen-voca .vk-wr-res .vk-bm{width:32px;height:32px;margin:-6px -6px 0 6px;font-size:19px;}
+#screen-voca .vk-wr-prev{display:inline-flex;align-items:center;gap:2px;margin:0 0 10px;padding:6px 12px 6px 8px;background:#fff;color:var(--vk-sf);border:1px solid var(--vk-ln2);border-radius:99px;font-size:13px;font-weight:700;}
+#screen-voca .vk-wr-prev:disabled{opacity:.45;}
 #screen-voca .vk-actions .vk-rand{background:#FFF6D6;color:#8A6300;border:1px solid #F3DDB0;}
 #screen-voca .vk-bmcard-h{display:flex;align-items:center;gap:12px;}
 #screen-voca .vk-bmcard-h b{display:block;font-size:15px;}
@@ -3586,9 +3588,33 @@ function bmListHTML(){
 
 /* ── 영작 세션: items = [{card, s}] — 한 표현의 예문이거나, 여러 표현에서 모은 북마크 ── */
 function openWrite(items, o){
-  wr = {card:o.card || null, bm:!!o.bm, rand:!!o.rand, items:items, i:0, text:'', res:null, busy:false, reveal:false, tries:0, results:[], xp:0, done:false};
+  wr = {card:o.card || null, bm:!!o.bm, rand:!!o.rand, items:items, i:0, text:'', res:null, busy:false, reveal:false, tries:0,
+        results:[], xp:0, done:false, counted:false, saved:{}};
   mode = 'write';
+  // 휴대폰·브라우저 뒤로가기가 사이트를 떠나지 않고 이전 문장으로 가도록 history 항목을 하나 둔다
+  try{ if(!(history.state && history.state.vkWr)) history.pushState({vkWr:1}, ''); }catch(e){}
   draw(); top0();
+}
+// 문장 이동: 지금 문장의 답·채점 결과를 보관하고, 갈 문장의 상태를 되살린다
+function wrSnap(){
+  if(!wr.res && !wr.reveal){ const inp = document.getElementById('vkWrIn'); if(inp) wr.text = inp.value; }
+  wr.saved[wr.i] = {text:wr.text, res:wr.res, reveal:wr.reveal, tries:wr.tries};
+}
+function wrLoad(i){
+  const v = wr.saved[i] || {text:'', res:null, reveal:false, tries:0};
+  wr.i = i; wr.text = v.text; wr.res = v.res; wr.reveal = v.reveal; wr.tries = v.tries;
+}
+// 한 단계 뒤로: 완료 화면 → 마지막 문장, 문장 → 이전 문장. 더 갈 곳이 없으면 false
+function wrBack(){
+  if(!wr || wr.busy) return false;
+  if(wr.done){ wr.done = false; return true; }
+  if(wr.i === 0) return false;
+  stopListen();
+  wrSnap(); wrLoad(wr.i - 1);
+  return true;
+}
+function wrPrevHTML(){
+  return (wr.i > 0 || wr.done) ? '<button class="vk-wr-prev" data-act="wrPrev"' + (wr.busy ? ' disabled' : '') + '>‹ 이전 문장</button>' : '';
 }
 function startWrite(key){
   const card = CARD[key]; if(!card) return;
@@ -3617,7 +3643,7 @@ function wrTitle(){
 function writeSessionHTML(){
   if(wr.done) return writeDoneHTML();
   const it = wrItem(), s = it.s, card = it.card, last = wr.i === wr.items.length - 1;
-  let h = sessHead(wrTitle(), wr.i + 1, wr.items.length);
+  let h = sessHead(wrTitle(), wr.i + 1, wr.items.length) + wrPrevHTML();
   h += '<div class="vk-card vk-qcard">' + bmBtnHTML(card, s) +
     '<span class="vk-tag">' + esc(exprShort(card.c.expression)) + '</span><span class="vk-topic">' + ficon(card.f) + ' ' + esc(card.f.titleKo) + '</span>' +
     '<div class="vk-mean">' + esc(s.ko) + '</div>' +
@@ -3663,7 +3689,7 @@ function wrFeedbackHTML(it, text, r){
 function writeDoneHTML(){
   const card = wr.card, n = wr.results.length, okN = wr.results.filter(function(r){ return r.ok; }).length;
   const name = wr.bm ? '★ 북마크' : esc(exprShort(card.c.expression));
-  return sessHead(wrTitle(), n + 1, n, '완료') +
+  return sessHead(wrTitle(), n + 1, n, '완료') + wrPrevHTML() +
     '<div class="vk-card vk-done"><div class="vk-done-ico">' + (wr.bm ? '⭐' : '✍️') + '</div><h2>' + name + ' 영작 완료!</h2>' +
     '<div class="vk-done-n"><div><b>' + okN + ' / ' + n + '</b><small>통과한 예문</small></div>' +
     '<div><b>' + (n ? Math.round(okN / n * 100) : 0) + '%</b><small>첫 시도 통과율</small></div>' +
@@ -4654,11 +4680,14 @@ ACT.wrReveal = function(){
 };
 ACT.wrRetry = function(){ if(!wr) return; wr.res = null; wr.reveal = false; draw(); };
 ACT.wrNext = function(){
-  if(!wr || (!wr.res && !wr.reveal)) return;
-  if(wr.i >= wr.items.length - 1){ wr.done = true; if(!wr.bm) wdSet(wr.card.key, true, true); gaPush({event:'write_complete', vk_n:wr.results.length}); }
-  else { wr.i++; wr.text = ''; wr.res = null; wr.reveal = false; wr.tries = 0; }
+  if(!wr || wr.busy || (!wr.res && !wr.reveal)) return;
+  if(wr.i >= wr.items.length - 1){
+    wr.done = true;
+    if(!wr.counted){ wr.counted = true; if(!wr.bm) wdSet(wr.card.key, true, true); gaPush({event:'write_complete', vk_n:wr.results.length}); }
+  } else { wrSnap(); wrLoad(wr.i + 1); }
   draw(); top0();
 };
+ACT.wrPrev = function(){ if(wrBack()){ draw(); top0(); } };
 ACT.startFill = function(el){ startFill(el.dataset.v || null); };
 ACT.startMission = function(el){ startMission(el.dataset.v); };
 ACT.startListen = function(el){ startListen(el.dataset.v || null); };
@@ -4669,6 +4698,7 @@ ACT.openFolder = function(el){ view.sub = {t:'folder', fid:el.dataset.v}; draw()
 ACT.openCard = function(el){ if(view.tab === 'write'){ startWrite(el.dataset.v); return; } view.sub = {t:'card', key:el.dataset.v, from:view.sub}; draw(); top0(); };
 ACT.back = function(){ view.sub = view.sub && view.sub.from ? view.sub.from : null; draw(); };
 function exitSession(){
+  try{ if(mode === 'write' && history.state && history.state.vkWr) history.back(); }catch(e){}
   stopListen();
   if('speechSynthesis' in window) speechSynthesis.cancel();
   clearInterval(quizTimer);
@@ -4703,6 +4733,18 @@ function onKey(e){
   else if(mode === 'test' && lt && lt.phase === 'fb'){ e.preventDefault(); ACT.testNext(); }
   else if(mode === 'write' && wr && !wr.done && (wr.res || wr.reveal)){ e.preventDefault(); ACT.wrNext(); }
 }
+// 영작 세션 중 뒤로가기: 이전 문장(또는 완료 화면 → 마지막 문장), 첫 문장이면 세션을 닫는다
+function onPop(){
+  if(mode !== 'write' || !wr) return;
+  const scr = document.getElementById('screen-voca');
+  if(!scr || !scr.classList.contains('active')) return;
+  if(wr.busy || wrBack()){
+    try{ history.pushState({vkWr:1}, ''); }catch(e){}
+    if(!wr.busy){ draw(); top0(); }
+    return;
+  }
+  exitSession(); draw(); top0();
+}
 function onInput(e){
   if(e.target.id !== 'vkSearch') return;
   view.q = e.target.value;
@@ -4735,6 +4777,7 @@ function onMove(e){
   document.addEventListener('keydown', onAct, true);
   document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'hidden'){ lastAct = 0; save(); } });
   window.addEventListener('pagehide', save);
+  window.addEventListener('popstate', onPop);
 })();
 
 return {render: function(){ lastAct = Date.now(); draw(); }, sync: syncVoca};
