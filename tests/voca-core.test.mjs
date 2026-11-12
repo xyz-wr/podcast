@@ -286,3 +286,16 @@ test('vkMergeState: 영작 체크 기록이 없는 예전 상태도 합친다', 
   assert.deepEqual(V.vkMergeState({}, {}).wd, {});
   assert.deepEqual(V.vkMergeState(m, m), m);
 });
+
+// ── 영작 문장 북마크 (bm) 병합 ──
+test('vkMergeState: 문장 북마크는 나중에 바꾼 쪽을 따른다', () => {
+  const pc = {bm: {'a|0#EX': {on: true, at: 100}, 'a|0#B1/past': {on: true, at: 300}}};
+  const phone = {bm: {'a|0#EX': {on: false, at: 200}, 'a|0#B1/past': {on: false, at: 50}, 'b|1#A2/future': {on: true, at: 10}}};
+  const m = V.vkMergeState(pc, phone);
+  assert.deepEqual(m.bm['a|0#EX'], {on: false, at: 200});        // 폰에서 나중에 해제
+  assert.deepEqual(m.bm['a|0#B1/past'], {on: true, at: 300});    // PC 에서 나중에 북마크
+  assert.deepEqual(m.bm['b|1#A2/future'], {on: true, at: 10});   // 한쪽에만 있던 북마크도 유지
+  assert.deepEqual(V.vkMergeState(phone, pc).bm, m.bm);           // 순서와 무관
+  assert.deepEqual(V.vkMergeState(m, m), m);                      // 반복 동기화에 안전
+  assert.deepEqual(V.vkMergeState({}, {}).bm, {});
+});

@@ -2205,6 +2205,20 @@ return {render:function(){draw();}};
 #screen-voca .vk-chk{flex:none;width:30px;height:30px;padding:0;border-radius:99px;border:2px solid var(--vk-ln2);background:#fff;color:#fff;font-size:15px;font-weight:800;line-height:1;}
 #screen-voca .vk-chk.on{background:var(--vk-g);border-color:var(--vk-g);}
 #screen-voca .vk-chev{flex:none;color:var(--vk-mute);font-size:18px;margin-left:2px;}
+#screen-voca .vk-bm{float:right;width:36px;height:36px;margin:-8px -8px 0 8px;padding:0;border:none;border-radius:99px;background:none;color:var(--vk-mute);font-size:23px;line-height:1;}
+#screen-voca .vk-bm.on{color:#F5B400;}
+#screen-voca .vk-wr-res .vk-bm{width:32px;height:32px;margin:-6px -6px 0 6px;font-size:19px;}
+#screen-voca .vk-bmcard-h{display:flex;align-items:center;gap:12px;}
+#screen-voca .vk-bmcard-h b{display:block;font-size:15px;}
+#screen-voca .vk-bmcard-h small{font-size:12.5px;color:var(--vk-sf);word-break:keep-all;}
+#screen-voca .vk-bmcard-ico{flex:none;width:40px;height:40px;border-radius:12px;background:#FFF6D6;color:#F5B400;font-size:22px;display:flex;align-items:center;justify-content:center;}
+#screen-voca .vk-bm-i{display:flex;align-items:flex-start;gap:6px;background:#fff;border:1px solid var(--vk-ln);border-radius:14px;padding:12px 12px 12px 6px;margin-bottom:6px;}
+#screen-voca .vk-bm-i .vk-bm{float:none;flex:none;margin:-4px 0 0;}
+#screen-voca .vk-bm-ko{font-size:14.5px;font-weight:700;line-height:1.5;word-break:keep-all;}
+#screen-voca .vk-bm-meta{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:11px;color:var(--vk-ft);font-weight:600;}
+#screen-voca .vk-bm-meta .vk-tchip{margin-right:0;}
+#screen-voca .vk-badge.vk-bmb{background:#FFF6D6;color:#B07F00;}
+#screen-voca .vk-empty small{font-size:12px;color:var(--vk-ft);}
 #screen-voca .vk-wd-done{display:block;width:100%;margin-top:4px;background:#fff;color:var(--vk-sf);border:1px dashed var(--vk-ln2);border-radius:12px;padding:11px;font-size:13.5px;font-weight:700;}
 #screen-voca .vk-wd-done.on{background:var(--vk-gs);color:var(--vk-gd);border:1px solid var(--vk-gs2);}
 #screen-voca .vk-wr-lvls .vk-chip{padding:8px 13px;font-size:13px;}
@@ -2911,6 +2925,12 @@ function vkMergeState(a, b){
     if(!y || (x.at || 0) > (y.at || 0)) out.wd[k] = {on: !!x.on, at: x.at || 0, n: Math.max(x.n || 0, y ? y.n : 0)};
     else y.n = Math.max(y.n, x.n || 0);
   });
+  // 영작 문장 북마크: 나중에 바꾼 쪽(at)을 따른다
+  out.bm = {};
+  both('bm', function(k, x){
+    const y = out.bm[k];
+    if(!y || (x.at || 0) > (y.at || 0)) out.bm[k] = {on: !!x.on, at: x.at || 0};
+  });
   const seenT = {};
   out.tests = (A.tests || []).concat(B.tests || []).filter(function(t){
     const id = t.day + '|' + t.est + '|' + t.lvl + '|' + JSON.stringify(t.acc || []);
@@ -2990,7 +3010,7 @@ function markedEn(card, s){
 /* ── 저장 ── */
 function blankState(){
   return {srs:{}, log:{}, ten:{}, wrongs:[], set:{lvl:'B1', daily:10, goal:20, rate:1},
-          quiz:{best:0, plays:0}, conv:{}, tests:[], wd:{}, setAt:0};
+          quiz:{best:0, plays:0}, conv:{}, tests:[], wd:{}, bm:{}, setAt:0};
 }
 function normState(s){
   const b = blankState();
@@ -3437,7 +3457,8 @@ function wrRowHTML(x){
   return '<div class="vk-wrow' + (on ? ' on' : '') + '">' +
     '<button class="vk-chk' + (on ? ' on' : '') + '" data-act="wdToggle" data-v="' + x.key + '" aria-pressed="' + on + '" aria-label="' + (on ? '학습 체크 해제' : '학습한 표현으로 체크') + '">' + (on ? '✓' : '') + '</button>' +
     '<button class="vk-row" data-act="openCard" data-v="' + x.key + '"><span class="vk-row-t"><b>' + esc(x.c.expression) + '</b>' +
-    '<small>' + esc(x.c.meaningKo) + '</small></span>' + (n ? '<span class="vk-badge known">영작 ' + n + '회</span>' : '') + '<span class="vk-chev">›</span></button></div>';
+    '<small>' + esc(x.c.meaningKo) + '</small></span>' + (bmCountCard(x.key) ? '<span class="vk-badge vk-bmb">★ ' + bmCountCard(x.key) + '</span>' : '') +
+    (n ? '<span class="vk-badge known">영작 ' + n + '회</span>' : '') + '<span class="vk-chev">›</span></button></div>';
 }
 function cardRowHTML(x){
   if(view.tab === 'write') return wrRowHTML(x);
@@ -3509,30 +3530,90 @@ function wrLvlHTML(){
 let wrAiNote = false;
 function writeTabHTML(){
   if(view.sub && view.sub.t === 'folder') return folderHTML(view.sub.fid);
+  if(view.sub && view.sub.t === 'bm') return bmListHTML();
+  const nb = bmItems().length;
   return '' +
   '<div class="vk-card"><div class="vk-lab">③ 예문 영작</div>' +
     '<p class="vk-note" style="margin-top:0">표현을 하나 고르면 그 표현의 예문을 <b>한국어로만</b> 보여 줘요. 영어로 직접 써 보고 모범 답안과 비교하세요.</p>' +
     wrLvlHTML() +
   '</div>' +
+  '<div class="vk-card vk-bmcard"><div class="vk-bmcard-h"><span class="vk-bmcard-ico">★</span><div class="grow"><b>북마크 문장</b>' +
+    '<small>' + (nb ? nb + '문장 · 모아서 다시 영작해요' : '영작 중 ☆ 를 눌러 다시 볼 문장을 모아 두세요') + '</small></div></div>' +
+    (nb ? '<div class="vk-actions" style="margin-bottom:0"><button class="ghost" data-act="bmOpen">목록</button><button class="grow" data-act="bmStart">북마크 모아 학습</button></div>' : '') +
+  '</div>' +
   '<div class="vk-sec-h">표현 고르기 <small>학습 체크 ' + wdCount() + ' / ' + CARDS.length + ' · ' + FOLDERS.length + '개 주제</small></div>' +
   '<div class="vk-search"><input id="vkSearch" type="search" placeholder="표현·뜻 검색 (예: hit the road, 출발)" value="' + esc(view.q) + '"></div>' +
   '<div id="vkFolderList">' + folderListHTML() + '</div>';
 }
-function startWrite(key){
-  const card = CARD[key]; if(!card) return;
-  const items = sentencesOf(card).filter(function(x){ return x.lvl === 'EX' || wrLvls[x.lvl]; });
-  if(!items.length) return;
-  wr = {card:card, items:items, i:0, text:'', res:null, busy:false, reveal:false, tries:0, results:[], xp:0, done:false};
+
+/* ── 문장 북마크 ── */
+function bmId(card, s){ return card.key + '#' + s.sk; }
+function bmOn(id){ return !!(st.bm[id] && st.bm[id].on); }
+// 북마크한 문장 [{card, s, at}] — 최근에 북마크한 순
+function bmItems(){
+  const out = [];
+  Object.keys(st.bm).forEach(function(id){
+    const b = st.bm[id];
+    if(!b.on) return;
+    const cut = id.lastIndexOf('#'), card = CARD[id.slice(0, cut)];
+    if(!card) return;
+    const s = sentencesOf(card).filter(function(x){ return x.sk === id.slice(cut + 1); })[0];
+    if(s) out.push({card:card, s:s, at:b.at || 0});
+  });
+  return out.sort(function(a, b){ return b.at - a.at; });
+}
+function bmCountCard(key){
+  let n = 0;
+  for(const id in st.bm){ if(st.bm[id].on && id.slice(0, id.lastIndexOf('#')) === key) n++; }
+  return n;
+}
+function bmBtnHTML(card, s, cls){
+  const id = bmId(card, s), on = bmOn(id);
+  return '<button class="vk-bm' + (on ? ' on' : '') + (cls ? ' ' + cls : '') + '" data-act="bmToggle" data-v="' + esc(id) + '" aria-pressed="' + on + '" aria-label="' + (on ? '북마크 해제' : '북마크') + '">' + (on ? '★' : '☆') + '</button>';
+}
+function bmListHTML(){
+  const items = bmItems();
+  return '<div class="vk-subhead"><button class="vk-back" data-act="back">‹</button><div><b>★ 북마크 문장</b><small>' + items.length + '문장</small></div></div>' +
+    (items.length ? '<div class="vk-actions" style="margin-top:0"><button class="grow" data-act="bmStart">북마크 모아 학습</button></div>' +
+      '<div class="vk-list">' + items.map(function(x){
+        return '<div class="vk-bm-i">' + bmBtnHTML(x.card, x.s) + '<div class="grow"><div class="vk-bm-ko">' + esc(x.s.ko) + '</div>' +
+          '<div class="vk-bm-meta"><span class="vk-tag">' + esc(exprShort(x.card.c.expression)) + '</span>' +
+          (x.s.tense !== 'example' ? '<span class="vk-tchip">' + TKO[x.s.tense] + '</span>' + x.s.lvl : '대표 예문') + '</div></div></div>';
+      }).join('') + '</div>'
+    : '<div class="vk-empty">북마크한 문장이 없어요<br><small>영작 중 ☆ 를 누르면 여기 모여요</small></div>');
+}
+
+/* ── 영작 세션: items = [{card, s}] — 한 표현의 예문이거나, 여러 표현에서 모은 북마크 ── */
+function openWrite(items, o){
+  wr = {card:o.card || null, bm:!!o.bm, items:items, i:0, text:'', res:null, busy:false, reveal:false, tries:0, results:[], xp:0, done:false};
   mode = 'write';
-  gaPush({event:'write_start', vk_lvl:wrLvlAll() ? 'all' : wrLvlList().join('+')});
   draw(); top0();
 }
-function wrItem(){ return {card:wr.card, s:wr.items[wr.i]}; }
+function startWrite(key){
+  const card = CARD[key]; if(!card) return;
+  const items = sentencesOf(card).filter(function(x){ return x.lvl === 'EX' || wrLvls[x.lvl]; })
+    .map(function(x){ return {card:card, s:x}; });
+  if(!items.length) return;
+  gaPush({event:'write_start', vk_lvl:wrLvlAll() ? 'all' : wrLvlList().join('+')});
+  openWrite(items, {card:card});
+}
+function startWriteBm(){
+  const items = bmItems().map(function(x){ return {card:x.card, s:x.s}; });
+  if(!items.length){ toast('북마크한 문장이 없어요'); return; }
+  gaPush({event:'write_start', vk_lvl:'bookmark', vk_n:items.length});
+  openWrite(items, {bm:true});
+}
+function wrItem(){ return wr.items[wr.i]; }
+function wrTitle(){
+  return wr.bm ? '③ 영작 · ★ 북마크' :
+    '③ 영작 · ' + esc(exprShort(wr.card.c.expression)) + ' <small class="vk-wr-lv">' + (wrLvlAll() ? '전체' : wrLvlList().join('·')) + '</small>';
+}
 function writeSessionHTML(){
   if(wr.done) return writeDoneHTML();
   const it = wrItem(), s = it.s, card = it.card, last = wr.i === wr.items.length - 1;
-  let h = sessHead('③ 영작 · ' + esc(exprShort(card.c.expression)) + ' <small class="vk-wr-lv">' + (wrLvlAll() ? '전체' : wrLvlList().join('·')) + '</small>', wr.i + 1, wr.items.length);
-  h += '<div class="vk-card vk-qcard"><span class="vk-tag">' + esc(exprShort(card.c.expression)) + '</span><span class="vk-topic">' + ficon(card.f) + ' ' + esc(card.f.titleKo) + '</span>' +
+  let h = sessHead(wrTitle(), wr.i + 1, wr.items.length);
+  h += '<div class="vk-card vk-qcard">' + bmBtnHTML(card, s) +
+    '<span class="vk-tag">' + esc(exprShort(card.c.expression)) + '</span><span class="vk-topic">' + ficon(card.f) + ' ' + esc(card.f.titleKo) + '</span>' +
     '<div class="vk-mean">' + esc(s.ko) + '</div>' +
     '<div class="vk-qko">' + esc(card.c.meaningKo) + '</div>' +
     '<div class="vk-qmeta">' + (s.tense !== 'example' ? '<span class="vk-tchip">' + TKO[s.tense] + '</span>' + s.lvl : '대표 예문') + '</div></div>';
@@ -3541,7 +3622,7 @@ function writeSessionHTML(){
     h += '<div class="vk-actions">' + (SR ? '<button class="vk-mic" data-act="wrMic" aria-label="말하기">🎤</button>' : '') +
       '<button class="ghost" data-act="wrReveal">답 보기</button>' +
       '<button class="grow" data-act="wrCheck"' + (wr.busy ? ' disabled' : '') + '>' + (wr.busy ? 'AI가 확인 중…' : '확인') + '</button></div>' +
-      '<p class="vk-tip">Enter로 확인 · 표현을 꼭 넣어서 써 보세요</p>';
+      '<p class="vk-tip">Enter로 확인 · ☆ 로 다시 볼 문장 북마크</p>';
     return h;
   }
   if(wr.res) h += wrFeedbackHTML(it, wr.text, wr.res);
@@ -3575,19 +3656,24 @@ function wrFeedbackHTML(it, text, r){
 }
 function writeDoneHTML(){
   const card = wr.card, n = wr.results.length, okN = wr.results.filter(function(r){ return r.ok; }).length;
-  return sessHead('③ 영작 · ' + esc(exprShort(card.c.expression)), n + 1, n, '완료') +
-    '<div class="vk-card vk-done"><div class="vk-done-ico">✍️</div><h2>' + esc(exprShort(card.c.expression)) + ' 영작 완료!</h2>' +
+  const name = wr.bm ? '★ 북마크' : esc(exprShort(card.c.expression));
+  return sessHead(wrTitle(), n + 1, n, '완료') +
+    '<div class="vk-card vk-done"><div class="vk-done-ico">' + (wr.bm ? '⭐' : '✍️') + '</div><h2>' + name + ' 영작 완료!</h2>' +
     '<div class="vk-done-n"><div><b>' + okN + ' / ' + n + '</b><small>통과한 예문</small></div>' +
     '<div><b>' + (n ? Math.round(okN / n * 100) : 0) + '%</b><small>첫 시도 통과율</small></div>' +
     '<div><b>+' + wr.xp + '</b><small>XP</small></div></div>' +
+    (wr.bm ? '<p class="vk-note">다 익힌 문장은 ★ 를 눌러 북마크에서 빼세요</p>' :
     '<button class="vk-wd-done' + (wdOn(card.key) ? ' on' : '') + '" data-act="wdToggle" data-v="' + card.key + '">' +
-      (wdOn(card.key) ? '✓ 학습한 표현으로 체크했어요 · 눌러서 해제' : '○ 학습한 표현으로 체크하기') + '</button></div>' +
+      (wdOn(card.key) ? '✓ 학습한 표현으로 체크했어요 · 눌러서 해제' : '○ 학습한 표현으로 체크하기') + '</button>') + '</div>' +
     '<div class="vk-list">' + wr.results.map(function(r){
-      return '<div class="vk-wr-res ' + (r.ok ? 'ok' : 'no') + '"><div class="vk-wr-res-ko">' + (r.ok ? '✅' : r.skipped ? '👀' : '🔧') + ' ' + esc(r.s.ko) + '</div>' +
+      return '<div class="vk-wr-res ' + (r.ok ? 'ok' : 'no') + '">' + bmBtnHTML(r.card, r.s) +
+        '<div class="vk-wr-res-ko">' + (r.ok ? '✅' : r.skipped ? '👀' : '🔧') + ' ' + esc(r.s.ko) + '</div>' +
+        (wr.bm ? '<div class="vk-wr-res-my">' + esc(exprShort(r.card.c.expression)) + '</div>' : '') +
         '<div class="vk-wr-res-en">' + esc(r.s.en) + ' <button class="vk-say" data-act="say" data-t="' + esc(r.s.en) + '" aria-label="듣기">🔊</button></div>' +
         (r.text && vkNorm(r.text) !== vkNorm(r.s.en) ? '<div class="vk-wr-res-my">내 답: ' + esc(r.text) + '</div>' : '') + '</div>';
     }).join('') + '</div>' +
-    '<div class="vk-actions"><button class="ghost grow" data-act="exit">다른 표현 고르기</button><button class="grow" data-act="wrStart" data-v="' + card.key + '">다시 쓰기</button></div>';
+    (wr.bm ? '<div class="vk-actions"><button class="ghost grow" data-act="exit">나가기</button><button class="grow" data-act="bmStart">북마크 다시 학습</button></div>' :
+    '<div class="vk-actions"><button class="ghost grow" data-act="exit">다른 표현 고르기</button><button class="grow" data-act="wrStart" data-v="' + card.key + '">다시 쓰기</button></div>');
 }
 async function wrGrade(it, text){
   const g = vkGrade(text, it.card.c.expression, it.s.en);
@@ -4512,6 +4598,17 @@ ACT.wrLvl = function(el){
   wrLvlSave(); draw();
 };
 ACT.wrStart = function(el){ startWrite(el.dataset.v); };
+ACT.bmStart = function(){ startWriteBm(); };
+ACT.bmOpen = function(){ view.sub = {t:'bm'}; draw(); top0(); };
+ACT.bmToggle = function(el){
+  const id = el.dataset.v, on = !bmOn(id);
+  if(mode === 'write' && wr && !wr.res && !wr.reveal){ const inp = document.getElementById('vkWrIn'); if(inp) wr.text = inp.value; }   // 쓰던 답 유지
+  st.bm[id] = {on:on, at:Date.now()};
+  save();
+  gaPush({event:'write_bookmark', vk_on: on ? 1 : 0});
+  if(on) toast('북마크했어요 · 영작 탭에서 모아 학습할 수 있어요');
+  const y = window.scrollY; draw(); window.scrollTo(0, y);
+};
 ACT.wdToggle = function(el){
   const k = el.dataset.v; if(!CARD[k]) return;
   const on = !wdOn(k);
@@ -4534,7 +4631,7 @@ ACT.wrCheck = async function(){
   w.tries++;
   if(first){
     if(res.ok){ addXp(5); w.xp += 5; }
-    w.results.push({s:it.s, text:text, ok:res.ok});
+    w.results.push({card:it.card, s:it.s, text:text, ok:res.ok});
     save();
   }
   gaPush({event:'write_check', vk_ok: res.ok ? 1 : 0});
@@ -4546,13 +4643,13 @@ ACT.wrMic = function(){
 };
 ACT.wrReveal = function(){
   if(!wr || wr.busy) return;
-  if(wr.tries === 0){ wr.results.push({s:wrItem().s, text:'', ok:false, skipped:true}); wr.tries++; }
+  if(wr.tries === 0){ const it = wrItem(); wr.results.push({card:it.card, s:it.s, text:'', ok:false, skipped:true}); wr.tries++; }
   wr.reveal = true; draw();
 };
 ACT.wrRetry = function(){ if(!wr) return; wr.res = null; wr.reveal = false; draw(); };
 ACT.wrNext = function(){
   if(!wr || (!wr.res && !wr.reveal)) return;
-  if(wr.i >= wr.items.length - 1){ wr.done = true; wdSet(wr.card.key, true, true); gaPush({event:'write_complete', vk_n:wr.results.length}); }
+  if(wr.i >= wr.items.length - 1){ wr.done = true; if(!wr.bm) wdSet(wr.card.key, true, true); gaPush({event:'write_complete', vk_n:wr.results.length}); }
   else { wr.i++; wr.text = ''; wr.res = null; wr.reveal = false; wr.tries = 0; }
   draw(); top0();
 };
