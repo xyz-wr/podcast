@@ -1896,6 +1896,8 @@ return {render:function(){draw();}};
 #screen-voca .vk-wd-done{display:block;width:100%;margin-top:4px;background:#fff;color:var(--vk-sf);border:1px dashed var(--vk-ln2);border-radius:12px;padding:11px;font-size:13.5px;font-weight:700;}
 #screen-voca .vk-wd-done.on{background:var(--vk-gs);color:var(--vk-gd);border:1px solid var(--vk-gs2);}
 #screen-voca .vk-wr-lvls .vk-chip{padding:8px 13px;font-size:13px;}
+#screen-voca .vk-chip.vk-bmchip{color:#8A6300;border-color:#F3DDB0;}
+#screen-voca .vk-chip.vk-bmchip.on{background:#FFF6D6;border-color:#F5B400;color:#8A6300;}
 #screen-voca .vk-wr-lv{font-size:11px;font-weight:700;color:var(--vk-gd);background:var(--vk-gs);border-radius:6px;padding:1px 6px;margin-left:4px;vertical-align:1px;}
 
 /* 세션 머리 */
@@ -3128,10 +3130,11 @@ function wdSet(key, on, finished){
 // 영작 탭 행: 왼쪽 체크(학습한 표현 표시) + 오른쪽 누르면 영작 시작
 function wrRowHTML(x){
   const on = wdOn(x.key), n = st.wd[x.key] ? st.wd[x.key].n : 0;
+  const nb = wrBmOnly() ? bmSentsOf(x).length : bmCountCard(x.key);
   return '<div class="vk-wrow' + (on ? ' on' : '') + '">' +
     '<button class="vk-chk' + (on ? ' on' : '') + '" data-act="wdToggle" data-v="' + x.key + '" aria-pressed="' + on + '" aria-label="' + (on ? '학습 체크 해제' : '학습한 표현으로 체크') + '">' + (on ? '✓' : '') + '</button>' +
     '<button class="vk-row" data-act="openCard" data-v="' + x.key + '"><span class="vk-row-t"><b>' + esc(x.c.expression) + '</b>' +
-    '<small>' + esc(x.c.meaningKo) + '</small></span>' + (bmCountCard(x.key) ? '<span class="vk-badge vk-bmb">★ ' + bmCountCard(x.key) + '</span>' : '') +
+    '<small>' + esc(x.c.meaningKo) + '</small></span>' + (nb ? '<span class="vk-badge vk-bmb">★ ' + nb + '</span>' : '') +
     (n ? '<span class="vk-badge known">영작 ' + n + '회</span>' : '') + '<span class="vk-chev">›</span></button></div>';
 }
 function cardRowHTML(x){
@@ -3142,13 +3145,30 @@ function cardRowHTML(x){
 function folderHTML(fid){
   const f = folderById(fid);
   if(!f) return '';
-  const cards = f.cards.map(function(c, i){ return CARD[f.id + '|' + i]; });
+  let cards = folderCards(f);
+  const bm = wrBmOnly();
+  let wrCard = '', empty = '';
+  if(view.tab === 'write'){
+    const nb = bmScopeItems({fid:f.id}).length;        // 선택한 레벨 안에서 북마크한 문장
+    if(bm){
+      cards = cards.filter(function(x){ return bmSentsOf(x).length; });
+      const nAll = cards.length ? nb : folderCards(f).reduce(function(a, x){ return a + bmCountCard(x.key); }, 0);
+      if(!cards.length) empty = '<div class="vk-empty">' + (nAll ? '선택한 레벨에는 북마크한 문장이 없어요<br><small>다른 레벨에 ' + nAll + '문장 있어요 · 위에서 레벨을 더 켜 보세요</small>'
+        : '이 주제에 북마크한 문장이 없어요<br><small>영작 중 ☆ 를 누르면 여기 모여요</small>') + '</div>';
+    }
+    wrCard = '<div class="vk-card">' + wrLvlHTML().replace('margin-top:12px', 'margin-top:0') +
+      '<div class="vk-chips vk-wr-lvls"><button class="vk-chip vk-bmchip' + (bm ? ' on' : '') + '" data-act="wrBmOnly" aria-pressed="' + bm + '">' +
+        (bm ? '★' : '☆') + ' 북마크한 문장만' + (nb ? ' · ' + nb : '') + '</button></div>' +
+      (bm && nb ? '<div class="vk-actions" style="margin:8px 0 10px"><button class="grow" data-act="bmStart" data-f="' + f.id + '">★ ' + nb + '문장 순서대로</button>' +
+        '<button class="grow vk-rand" data-act="bmStart" data-v="rand" data-f="' + f.id + '">🔀 랜덤</button></div>' : '') +
+      '<p class="vk-tip" style="margin:6px 0 0;text-align:left">' + (bm ? '표현을 누르면 북마크한 문장만 영작' : '표현을 누르면 영작 시작') + ' · 왼쪽 ○ 로 학습 체크</p></div>';
+  }
   return '<div class="vk-subhead"><button class="vk-back" data-act="back">‹</button><div><b>' + ficon(f) + ' ' + esc(f.titleKo) + '</b>' +
     '<small>' + (view.tab === 'write' ? wdCount(f.id) + ' / ' + f.cards.length + ' 학습 체크' : knownCount(f.id) + ' / ' + f.cards.length + ' 아는 표현') + '</small></div></div>' +
-    (view.tab === 'write' ? '<div class="vk-card">' + wrLvlHTML().replace('margin-top:12px', 'margin-top:0') + '<p class="vk-tip" style="margin:6px 0 0;text-align:left">표현을 누르면 영작 시작 · 왼쪽 ○ 로 학습 체크</p></div>' :
+    (view.tab === 'write' ? wrCard :
     '<div class="vk-row2"><button class="grow" data-act="startFill" data-v="' + f.id + '">이 주제 채우기</button>' +
     '<button class="secondary grow" data-act="startMission" data-v="' + f.id + '">이 상황 회화</button></div>') +
-    '<div class="vk-list">' + cards.map(cardRowHTML).join('') + '</div>';
+    (empty || '<div class="vk-list">' + cards.map(cardRowHTML).join('') + '</div>');
 }
 function cardDetailHTML(key){
   const x = CARD[key];
@@ -3241,6 +3261,23 @@ function bmCountCard(key){
   for(const id in st.bm){ if(st.bm[id].on && id.slice(0, id.lastIndexOf('#')) === key) n++; }
   return n;
 }
+// 주제 화면의 "북마크한 문장만" 토글: 켜면 그 주제에서 북마크한 문장(선택한 레벨 안)만 영작한다
+function wrBmOnly(){ return view.tab === 'write' && !!(view.sub && view.sub.t === 'folder' && view.sub.bm); }
+function folderCards(f){ return f.cards.map(function(c, i){ return CARD[f.id + '|' + i]; }); }
+function bmSentsOf(card){
+  return sentencesOf(card).filter(function(s){ return (s.lvl === 'EX' || wrLvls[s.lvl]) && bmOn(bmId(card, s)); });
+}
+// scope = {key} 한 표현 | {fid} 한 주제 — 화면에 보이는 순서(표현 → 예문)대로
+function bmScopeItems(scope){
+  const f = scope.key ? null : folderById(scope.fid);
+  const cards = scope.key ? [CARD[scope.key]] : f ? folderCards(f) : [];
+  const out = [];
+  cards.forEach(function(card){
+    if(card) bmSentsOf(card).forEach(function(s){ out.push({card:card, s:s}); });
+  });
+  return out;
+}
+function bmScopeAttr(sc){ return !sc ? '' : sc.key ? ' data-k="' + esc(sc.key) + '"' : ' data-f="' + esc(sc.fid) + '"'; }
 function bmBtnHTML(card, s, cls){
   const id = bmId(card, s), on = bmOn(id);
   return '<button class="vk-bm' + (on ? ' on' : '') + (cls ? ' ' + cls : '') + '" data-act="bmToggle" data-v="' + esc(id) + '" aria-pressed="' + on + '" aria-label="' + (on ? '북마크 해제' : '북마크') + '">' + (on ? '★' : '☆') + '</button>';
@@ -3259,7 +3296,7 @@ function bmListHTML(){
 
 /* ── 영작 세션: items = [{card, s}] — 한 표현의 예문이거나, 여러 표현에서 모은 북마크 ── */
 function openWrite(items, o){
-  wr = {card:o.card || null, bm:!!o.bm, rand:!!o.rand, items:items, i:0, text:'', res:null, busy:false, reveal:false, tries:0,
+  wr = {card:o.card || null, bm:!!o.bm, scope:o.scope || null, rand:!!o.rand, items:items, i:0, text:'', res:null, busy:false, reveal:false, tries:0,
         results:[], xp:0, done:false, counted:false, saved:{}};
   mode = 'write';
   // 휴대폰·브라우저 뒤로가기가 사이트를 떠나지 않고 이전 문장으로 가도록 history 항목을 하나 둔다
@@ -3295,20 +3332,26 @@ function startWrite(key){
   gaPush({event:'write_start', vk_lvl:wrLvlAll() ? 'all' : wrLvlList().join('+')});
   openWrite(items, {card:card});
 }
-function startWriteBm(rand){
-  let items = bmItems().map(function(x){ return {card:x.card, s:x.s}; });
+// scope 가 없으면 북마크 전체, 있으면 그 표현·주제의 북마크만 (선택한 레벨 안)
+function startWriteBm(rand, scope){
+  let items = scope ? bmScopeItems(scope) : bmItems().map(function(x){ return {card:x.card, s:x.s}; });
   if(!items.length){ toast('북마크한 문장이 없어요'); return; }
   if(rand){
     const base = items;
     items = vkShuffle(base);
     if(items.length > 1 && items.every(function(x, i){ return x === base[i]; })) items.push(items.shift());
   }
-  gaPush({event:'write_start', vk_lvl: rand ? 'bookmark_rand' : 'bookmark', vk_n:items.length});
-  openWrite(items, {bm:true, rand:!!rand});
+  gaPush({event:'write_start', vk_lvl:'bookmark' + (scope ? scope.key ? '_card' : '_folder' : '') + (rand ? '_rand' : ''), vk_n:items.length});
+  openWrite(items, {bm:true, rand:!!rand, scope:scope || null});
 }
 function wrItem(){ return wr.items[wr.i]; }
+// 북마크 세션 이름: 전체 "★ 북마크" · 한 표현 "★ hit the road" · 한 주제 "★ 🚗 주제명" (세션 머리줄은 좁아서 "★ 🚗 북마크")
+function wrBmName(short){
+  const sc = wr.scope, card = sc && sc.key && CARD[sc.key], f = sc && sc.fid && folderById(sc.fid);
+  return card ? '★ ' + esc(exprShort(card.c.expression)) : f ? '★ ' + ficon(f) + ' ' + (short ? '북마크' : esc(f.titleKo)) : '★ 북마크';
+}
 function wrTitle(){
-  return wr.bm ? '③ 영작 · ★ 북마크' + (wr.rand ? ' <small class="vk-wr-lv">🔀 랜덤</small>' : '') :
+  return wr.bm ? '③ 영작 · ' + wrBmName(true) + (wr.rand ? ' <small class="vk-wr-lv">🔀 랜덤</small>' : '') :
     '③ 영작 · ' + esc(exprShort(wr.card.c.expression)) + ' <small class="vk-wr-lv">' + (wrLvlAll() ? '전체' : wrLvlList().join('·')) + '</small>';
 }
 function writeSessionHTML(){
@@ -3359,7 +3402,7 @@ function wrFeedbackHTML(it, text, r){
 }
 function writeDoneHTML(){
   const card = wr.card, n = wr.results.length, okN = wr.results.filter(function(r){ return r.ok; }).length;
-  const name = wr.bm ? '★ 북마크' : esc(exprShort(card.c.expression));
+  const name = wr.bm ? wrBmName() : esc(exprShort(card.c.expression)), sa = bmScopeAttr(wr.scope);
   return sessHead(wrTitle(), n + 1, n, '완료') + wrPrevHTML() +
     '<div class="vk-card vk-done"><div class="vk-done-ico">' + (wr.bm ? '⭐' : '✍️') + '</div><h2>' + name + ' 영작 완료!</h2>' +
     '<div class="vk-done-n"><div><b>' + okN + ' / ' + n + '</b><small>통과한 예문</small></div>' +
@@ -3375,7 +3418,8 @@ function writeDoneHTML(){
         '<div class="vk-wr-res-en">' + esc(r.s.en) + ' <button class="vk-say" data-act="say" data-t="' + esc(r.s.en) + '" aria-label="듣기">🔊</button></div>' +
         (r.text && vkNorm(r.text) !== vkNorm(r.s.en) ? '<div class="vk-wr-res-my">내 답: ' + esc(r.text) + '</div>' : '') + '</div>';
     }).join('') + '</div>' +
-    (wr.bm ? '<div class="vk-actions"><button class="ghost" data-act="exit">나가기</button><button class="grow" data-act="bmStart">순서대로</button><button class="grow vk-rand" data-act="bmStart" data-v="rand">🔀 랜덤</button></div>' :
+    (wr.bm && wr.scope && wr.scope.key ? '<div class="vk-actions"><button class="ghost grow" data-act="exit">다른 표현 고르기</button><button class="grow" data-act="bmStart"' + sa + '>다시 쓰기</button></div>' :
+    wr.bm ? '<div class="vk-actions"><button class="ghost" data-act="exit">나가기</button><button class="grow" data-act="bmStart"' + sa + '>순서대로</button><button class="grow vk-rand" data-act="bmStart" data-v="rand"' + sa + '>🔀 랜덤</button></div>' :
     '<div class="vk-actions"><button class="ghost grow" data-act="exit">다른 표현 고르기</button><button class="grow" data-act="wrStart" data-v="' + card.key + '">다시 쓰기</button></div>');
 }
 async function wrGrade(it, text){
@@ -4301,7 +4345,16 @@ ACT.wrLvl = function(el){
   wrLvlSave(); draw();
 };
 ACT.wrStart = function(el){ startWrite(el.dataset.v); };
-ACT.bmStart = function(el){ startWriteBm(el.dataset.v === 'rand'); };
+ACT.bmStart = function(el){
+  const d = el.dataset;
+  startWriteBm(d.v === 'rand', d.k ? {key:d.k} : d.f ? {fid:d.f} : null);
+};
+ACT.wrBmOnly = function(){
+  if(!(view.sub && view.sub.t === 'folder')) return;
+  view.sub.bm = !view.sub.bm;
+  gaPush({event:'write_bm_only', vk_on: view.sub.bm ? 1 : 0});
+  draw();
+};
 ACT.bmOpen = function(){ view.sub = {t:'bm'}; draw(); top0(); };
 ACT.bmToggle = function(el){
   const id = el.dataset.v, on = !bmOn(id);
@@ -4366,7 +4419,7 @@ ACT.startQuiz = function(){ startQuiz(); };
 ACT.startTest = function(){ startTest(); };
 ACT.outSeg = function(el){ outSeg = el.dataset.v; draw(); };
 ACT.openFolder = function(el){ view.sub = {t:'folder', fid:el.dataset.v}; draw(); top0(); };
-ACT.openCard = function(el){ if(view.tab === 'write'){ startWrite(el.dataset.v); return; } view.sub = {t:'card', key:el.dataset.v, from:view.sub}; draw(); top0(); };
+ACT.openCard = function(el){ if(view.tab === 'write'){ if(wrBmOnly()) startWriteBm(false, {key:el.dataset.v}); else startWrite(el.dataset.v); return; } view.sub = {t:'card', key:el.dataset.v, from:view.sub}; draw(); top0(); };
 ACT.back = function(){ view.sub = view.sub && view.sub.from ? view.sub.from : null; draw(); };
 function exitSession(){
   try{ if(mode === 'write' && history.state && history.state.vkWr) history.back(); }catch(e){}
